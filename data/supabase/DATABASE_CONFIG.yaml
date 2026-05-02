@@ -1,0 +1,46 @@
+database:
+  engine: supabase
+  type: postgresql_managed
+
+account:
+  provider: "supabase.com"
+  owner_email: "<tu-email>"
+  project_name: "omega-gym"
+  project_ref: "<tu-project-ref>"
+  region: "us-east-1"
+  environment: "development"
+
+mcp:
+  enabled: true
+  mcp_server: "@supabase/mcp-server-supabase"
+
+model_status:
+  overall: draft
+  last_reviewed: null
+  approved_by: null
+  notes: "Modelo inicial pendiente de revisión"
+
+tables:
+  - name: profiles
+    status: draft
+    rls_enabled: false
+  - name: membership_types
+    status: draft
+    rls_enabled: false
+  - name: memberships
+    status: draft
+    rls_enabled: false
+  - name: payments
+    status: draft
+    rls_enabled: false
+  - name: training_plans
+    status: draft
+    rls_enabled: false
+  - name: plan_exercises
+    status: draft
+    rls_enabled: false
+
+env_variables:
+  - NEXT_PUBLIC_SUPABASE_URL
+  - NEXT_PUBLIC_SUPABASE_ANON_KEY
+  - SUPABASE_SERVICE_ROLE_KEY
