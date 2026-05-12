@@ -1,6 +1,34 @@
 'use client';
 
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useAuthStore } from '@/store/auth.store';
+
 export default function MemberLayout({ children }: { children: React.ReactNode }) {
+  const router = useRouter();
+  const { user, loading, initialized } = useAuthStore();
+  const [checked, setChecked] = useState(false);
+
+  useEffect(() => {
+    if (initialized && !loading) {
+      if (!user || (user.role !== 'member' && user.role !== 'admin')) {
+        router.push('/login');
+      } else {
+        setChecked(true);
+      }
+    }
+  }, [initialized, loading, user, router]);
+
+  if (!checked || loading || !initialized || !user) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: 'var(--bg)', color: 'var(--text-3)', fontSize: 14 }}>
+        Cargando...
+      </div>
+    );
+  }
+
+  const initials = user.full_name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)', color: 'var(--text)', fontFamily: "'DM Sans', sans-serif" }}>
       <header style={{
@@ -33,14 +61,22 @@ export default function MemberLayout({ children }: { children: React.ReactNode }
               background: 'rgba(59,130,246,0.2)', color: '#60a5fa',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               fontSize: 10, fontWeight: 600,
-            }}>CR</div>
-            <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-2)' }}>Carlos Ramírez</span>
+            }}>{initials}</div>
+            <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-2)' }}>{user.full_name}</span>
           </div>
-          <button style={{
-            background: 'transparent', border: '1px solid var(--border)',
-            color: 'var(--text-3)', fontSize: 12, padding: '6px 12px',
-            borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontFamily: 'inherit',
-          }}>Salir</button>
+          <button
+            onClick={() => {
+              useAuthStore.getState().logout();
+              window.location.href = '/login';
+            }}
+            style={{
+              background: 'transparent', border: '1px solid var(--border)',
+              color: 'var(--text-3)', fontSize: 12, padding: '6px 12px',
+              borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontFamily: 'inherit',
+            }}
+          >
+            Salir
+          </button>
         </div>
       </header>
       {children}

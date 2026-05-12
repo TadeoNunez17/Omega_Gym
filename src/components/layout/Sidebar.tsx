@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useAuthStore } from '@/store/auth.store';
 
 const navItems = [
   { section: 'Principal', items: [
@@ -31,6 +32,8 @@ const icons: Record<string, string> = {
 
 export function Sidebar() {
   const pathname = usePathname();
+  const user = useAuthStore((s) => s.user);
+  const initials = user ? user.full_name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() : 'AD';
 
   return (
     <aside style={{
@@ -149,16 +152,19 @@ export function Sidebar() {
             fontSize: 11, fontWeight: 600, color: '#000',
             flexShrink: 0,
           }}>
-            AD
+            {initials}
           </div>
           <div>
-            <div style={{ fontSize: 12, fontWeight: 500 }}>Administrador</div>
-            <div style={{ fontSize: 10, color: 'var(--text-3)' }}>admin@omegagym.com</div>
+            <div style={{ fontSize: 12, fontWeight: 500 }}>{user?.full_name || 'Administrador'}</div>
+            <div style={{ fontSize: 10, color: 'var(--text-3)' }}>{user?.role === 'admin' ? 'Administrador' : 'Usuario'}</div>
           </div>
         </div>
 
         <button
-          onClick={() => { window.location.href = '/login'; }}
+          onClick={() => {
+            useAuthStore.getState().logout();
+            window.location.href = '/login';
+          }}
           style={{
             display: 'flex', alignItems: 'center', gap: 8,
             width: '100%', padding: '9px 10px', marginTop: 4,

@@ -1,16 +1,37 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useAuthStore } from '@/store/auth.store';
+import { Toaster, toast } from 'sonner';
 
 export default function RegisterPage() {
+  const router = useRouter();
+  const register = useAuthStore((s) => s.register);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    // placeholder — conectar con Supabase Auth
+    if (password !== confirm) {
+      toast.error('Las contraseñas no coinciden');
+      return;
+    }
+    setSubmitting(true);
+    try {
+      await register(email, password, name);
+      const user = useAuthStore.getState().user;
+      if (user?.role === 'member') router.push('/member/my-plan');
+      else router.push('/login');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Error al registrarse';
+      toast.error(msg);
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -84,15 +105,20 @@ export default function RegisterPage() {
 
         <button
           type="submit"
+          disabled={submitting}
           style={{
             width: '100%', padding: '11px 0', borderRadius: 'var(--radius-sm)',
-            background: 'var(--accent)', color: '#000', border: 'none',
-            fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
-            marginTop: 4,
+            background: submitting ? 'var(--accent-dim)' : 'var(--accent)',
+            color: '#000', border: 'none',
+            fontSize: 14, fontWeight: 600,
+            cursor: submitting ? 'not-allowed' : 'pointer',
+            fontFamily: 'inherit', marginTop: 4,
+            opacity: submitting ? 0.6 : 1,
           }}
         >
-          Crear cuenta
+          {submitting ? 'Creando cuenta...' : 'Crear cuenta'}
         </button>
+        <Toaster position="top-center" />
       </form>
 
       <div style={{ textAlign: 'center', marginTop: 20, fontSize: 12, color: 'var(--text-3)' }}>

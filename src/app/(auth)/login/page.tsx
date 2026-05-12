@@ -1,15 +1,34 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useAuthStore } from '@/store/auth.store';
+import { Toaster, toast } from 'sonner';
 
 export default function LoginPage() {
+  const router = useRouter();
+  const login = useAuthStore((s) => s.login);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPw, setShowPw] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    // placeholder — conectar con Supabase Auth
+    setSubmitting(true);
+    try {
+      await login(email, password);
+      const user = useAuthStore.getState().user;
+      if (user?.role === 'admin') router.push('/dashboard');
+      else if (user?.role === 'trainer') router.push('/trainer/panel');
+      else if (user?.role === 'member') router.push('/member/my-plan');
+      else router.push('/');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Error al iniciar sesión';
+      toast.error(msg);
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -77,14 +96,17 @@ export default function LoginPage() {
 
         <button
           type="submit"
+          disabled={submitting}
           style={{
             width: '100%', padding: '11px 0', borderRadius: 'var(--radius-sm)',
-            background: 'var(--accent)', color: '#000', border: 'none',
-            fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
-            marginTop: 4,
+            background: submitting ? 'var(--accent-dim)' : 'var(--accent)',
+            color: '#000', border: 'none',
+            fontSize: 14, fontWeight: 600, cursor: submitting ? 'not-allowed' : 'pointer',
+            fontFamily: 'inherit', marginTop: 4,
+            opacity: submitting ? 0.6 : 1,
           }}
         >
-          Entrar
+          {submitting ? 'Entrando...' : 'Entrar'}
         </button>
       </form>
 
@@ -95,10 +117,12 @@ export default function LoginPage() {
         </a>
       </div>
 
-      {/* Demo credentials hint */}
-      <div style={{ marginTop: 20, padding: '12px 14px', background: 'var(--amber-bg)', borderRadius: 'var(--radius-sm)', fontSize: 11, color: 'var(--amber-text)', lineHeight: 1.5 }}>
-        <strong>Demo:</strong> admin@omega.com / admin123 &nbsp;·&nbsp; trainer@omega.com / trainer123
-      </div>
+      {process.env.NODE_ENV === 'development' && (
+        <div style={{ marginTop: 20, padding: '12px 14px', background: 'var(--amber-bg)', borderRadius: 'var(--radius-sm)', fontSize: 11, color: 'var(--amber-text)', lineHeight: 1.5 }}>
+          <strong>Demo:</strong> admin@omega.com / Admin123! &nbsp;·&nbsp; trainer@omega.com / Trainer123!
+        </div>
+      )}
+      <Toaster position="top-center" />
     </div>
   );
 }
