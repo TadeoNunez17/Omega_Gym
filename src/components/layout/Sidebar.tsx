@@ -2,16 +2,18 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useAuthStore } from '@/store/auth.store';
 
 const navItems = [
   { section: 'Principal', items: [
     { label: 'Dashboard', href: '/dashboard', icon: 'dashboard' },
-    { label: 'Miembros', href: '/members', icon: 'members' },
   ]},
   { section: 'Gestion', items: [
+    { label: 'Miembros', href: '/members', icon: 'members' },
     { label: 'Membresias', href: '/memberships', icon: 'memberships', badge: null },
     { label: 'Pagos', href: '/payments', icon: 'payments', badge: 3 },
     { label: 'Planes de Entrenamiento', href: '/training-plans', icon: 'plans' },
+    { label: 'Registro de Huella', href: '/fingerprint', icon: 'fingerprint' },
   ]},
   { section: 'Analisis', items: [
     { label: 'Reportes', href: '/reports', icon: 'reports' },
@@ -25,10 +27,13 @@ const icons: Record<string, string> = {
   payments: '<path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>',
   plans: '<path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>',
   reports: '<polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>',
+  fingerprint: '<path d="M12 11c0-1.1.9-2 2-2s2 .9 2 2-.9 2-2 2-2-.9-2-2z"/><path d="M17.657 16.657L13.414 20.9a1.998 1.998 0 0 1-2.827 0l-4.244-4.243a8 8 0 1 1 11.314 0z"/>',
 };
 
 export function Sidebar() {
   const pathname = usePathname();
+  const user = useAuthStore((s) => s.user);
+  const initials = user ? user.full_name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() : 'AD';
 
   return (
     <aside style={{
@@ -147,13 +152,44 @@ export function Sidebar() {
             fontSize: 11, fontWeight: 600, color: '#000',
             flexShrink: 0,
           }}>
-            AD
+            {initials}
           </div>
           <div>
-            <div style={{ fontSize: 12, fontWeight: 500 }}>Administrador</div>
-            <div style={{ fontSize: 10, color: 'var(--text-3)' }}>admin@omegagym.com</div>
+            <div style={{ fontSize: 12, fontWeight: 500 }}>{user?.full_name || 'Administrador'}</div>
+            <div style={{ fontSize: 10, color: 'var(--text-3)' }}>{user?.role === 'admin' ? 'Administrador' : 'Usuario'}</div>
           </div>
         </div>
+
+        <button
+          onClick={() => {
+            useAuthStore.getState().logout();
+            window.location.href = '/login';
+          }}
+          style={{
+            display: 'flex', alignItems: 'center', gap: 8,
+            width: '100%', padding: '9px 10px', marginTop: 4,
+            borderRadius: 'var(--radius-sm)',
+            background: 'transparent', border: 'none',
+            color: 'var(--text-3)', fontSize: 12, fontWeight: 400,
+            cursor: 'pointer', fontFamily: 'inherit',
+            transition: 'background 0.15s, color 0.15s',
+          }}
+          onMouseEnter={(e) => {
+            (e.currentTarget as HTMLElement).style.background = 'var(--red-bg)';
+            (e.currentTarget as HTMLElement).style.color = 'var(--red-text)';
+          }}
+          onMouseLeave={(e) => {
+            (e.currentTarget as HTMLElement).style.background = 'transparent';
+            (e.currentTarget as HTMLElement).style.color = 'var(--text-3)';
+          }}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+            <polyline points="16 17 21 12 16 7" />
+            <line x1="21" y1="12" x2="9" y2="12" />
+          </svg>
+          Cerrar sesión
+        </button>
       </div>
     </aside>
   );

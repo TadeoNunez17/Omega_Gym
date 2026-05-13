@@ -1,9 +1,8 @@
 -- Omega Gym — Schema Inicial
 -- Estado: draft
 -- Fecha: 2026-05-01
-
 -- ============================================
--- Perfiles (extiende auth.users)
+-- Perfiles
 -- ============================================
 CREATE TABLE profiles (
   id UUID REFERENCES auth.users(id) PRIMARY KEY,
@@ -30,7 +29,7 @@ CREATE TABLE membership_types (
 );
 
 -- ============================================
--- Membresías asignadas a miembros
+-- Membresías
 -- ============================================
 CREATE TABLE memberships (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -85,46 +84,33 @@ CREATE TABLE check_ins (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
- -- ============================================
- -- Función: validar membresía activa al registrar entrada
- -- ============================================
- CREATE OR REPLACE FUNCTION validate_active_membership()
- RETURNS TRIGGER AS $$
- BEGIN
-   IF NEW.membership_id IS NOT NULL THEN
-     IF NOT EXISTS (
-       SELECT 1 FROM memberships
-       WHERE id = NEW.membership_id
-         AND status = 'active'
-         AND start_date <= CURRENT_DATE
-         AND end_date >= CURRENT_DATE
-     ) THEN
-       RAISE EXCEPTION 'La membresía no está activa o ha expirado';
-     END IF;
-   END IF;
-   RETURN NEW;
- END;
- $$ LANGUAGE plpgsql;
+-- ============================================
+-- Función: validar membresía activa al registrar entrada
+-- ============================================
+CREATE OR REPLACE FUNCTION validate_active_membership()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF NEW.membership_id IS NOT NULL THEN
+    IF NOT EXISTS (
+      SELECT 1 FROM memberships
+      WHERE id = NEW.membership_id
+        AND status = 'active'
+        AND start_date <= CURRENT_DATE
+        AND end_date >= CURRENT_DATE
+    ) THEN
+      RAISE EXCEPTION 'La membresía no está activa o ha expirado';
+    END IF;
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
 
- CREATE TRIGGER check_membership_active
-   BEFORE INSERT ON check_ins
-   FOR EACH ROW EXECUTE FUNCTION validate_active_membership();
-
- -- ============================================
- -- Row Level Security (RLS)
- -- ============================================
- ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
- ALTER TABLE check_ins ENABLE ROW LEVEL SECURITY;
- ALTER TABLE memberships ENABLE ROW LEVEL SECURITY;
-
- CREATE POLICY "Usuarios ven su propio perfil" ON profiles
-   FOR SELECT USING (auth.uid() = id);
-
- CREATE POLICY "Usuarios ven sus propias entradas" ON check_ins
-   FOR SELECT USING (auth.uid() = member_id);
+CREATE TRIGGER check_membership_active
+  BEFORE INSERT ON check_ins
+  FOR EACH ROW EXECUTE FUNCTION validate_active_membership();
 
 -- ============================================
--- Ejercicios dentro de un plan
+-- Ejercicios del plan
 -- ============================================
 CREATE TABLE plan_exercises (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -139,7 +125,44 @@ CREATE TABLE plan_exercises (
 );
 
 -- ============================================
--- Trigger para updated_at automático
+-- RLS habilitado en todas las tablas (Fix #2 y #3)
+-- ============================================
+ALTER TABLE profiles          ENABLE ROW LEVEL SECURITY;
+ALTER TABLE membership_types  ENABLE ROW LEVEL SECURITY;
+ALTER TABLE memberships       ENABLE ROW LEVEL SECURITY;
+ALTER TABLE payments          ENABLE ROW LEVEL SECURITY;
+ALTER TABLE training_plans    ENABLE ROW LEVEL SECURITY;
+ALTER TABLE plan_exercises    ENABLE ROW LEVEL SECURITY;
+ALTER TABLE check_ins         ENABLE ROW LEVEL SECURITY;
+
+-- ============================================
+-- Políticas RLS básicas
+-- ============================================
+
+-- profiles: cada quien ve/edita lo suyo; admin ve todo
+CREATE POLICY "Own profile select"   ON profiles FOR SELECT USING (auth.uid() = id);
+CREATE POLICY "Own profile update"   ON profiles FOR UPDATE USING (auth.uid() = id);
+CREATE POLICY "Admin select all"     ON profiles FOR SELECT
+  USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin'));
+
+-- memberships: el miembro ve las suyas; admin ve todas
+CREATE POLICY "Member sees own memberships" ON memberships FOR SELECT
+  USING (member_id = auth.uid());
+CREATE POLICY "Admin manages memberships"   ON memberships FOR ALL
+  USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin'));
+
+-- training_plans: trainer/admin gestionan; miembro ve los suyos
+CREATE POLICY "See own or assigned plans" ON training_plans FOR SELECT
+  USING (assigned_to = auth.uid() OR created_by = auth.uid());
+CREATE POLICY "Trainer creates plans" ON training_plans FOR INSERT
+  WITH CHECK (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('admin','trainer')));
+
+-- check_ins: cada miembro ve sus propias entradas
+CREATE POLICY "Member sees own check_ins" ON check_ins FOR SELECT
+  USING (member_id = auth.uid());
+
+-- ============================================
+-- Trigger updated_at (Fix #1: search_path fijo)
 -- ============================================
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
@@ -147,10 +170,14 @@ BEGIN
   NEW.updated_at = NOW();
   RETURN NEW;
 END;
-$$ language 'plpgsql';
+$$ LANGUAGE plpgsql
+   SECURITY INVOKER
+   SET search_path = '';      -- ← Fix vulnerabilidad search path
 
-CREATE TRIGGER update_profiles_updated_at BEFORE UPDATE ON profiles
+CREATE TRIGGER update_profiles_updated_at
+  BEFORE UPDATE ON profiles
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
-CREATE TRIGGER update_training_plans_updated_at BEFORE UPDATE ON training_plans
+CREATE TRIGGER update_training_plans_updated_at
+  BEFORE UPDATE ON training_plans
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
