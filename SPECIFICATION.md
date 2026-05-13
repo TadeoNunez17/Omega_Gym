@@ -132,7 +132,7 @@ omega-gym/
 
 ---
 
-## 4. Roles del Proyecto
+## 4. Roles* del Proyecto
 
 El proyecto es gestionado por una persona o equipo pequeño. Los roles no son agentes IA, son responsabilidades humanas o asistidas por IA según el contexto:
 

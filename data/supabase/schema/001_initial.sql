@@ -11,6 +11,7 @@ CREATE TABLE profiles (
   phone TEXT,
   avatar_url TEXT,
   role TEXT NOT NULL DEFAULT 'member' CHECK (role IN ('admin', 'trainer', 'member')),
+  huella_template TEXT, -- Template de huella (base64 o formato del lector)
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -68,6 +69,59 @@ CREATE TABLE training_plans (
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- ============================================
+-- Registros de entrada (huella)
+-- ============================================
+CREATE TABLE check_ins (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  member_id UUID REFERENCES profiles(id) NOT NULL,
+  membership_id UUID REFERENCES memberships(id),
+  check_in_time TIMESTAMPTZ DEFAULT NOW(),
+  check_out_time TIMESTAMPTZ,
+  method TEXT NOT NULL DEFAULT 'fingerprint' CHECK (method IN ('fingerprint', 'manual', 'card')),
+  device_id TEXT,
+  notes TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ -- ============================================
+ -- Función: validar membresía activa al registrar entrada
+ -- ============================================
+ CREATE OR REPLACE FUNCTION validate_active_membership()
+ RETURNS TRIGGER AS $$
+ BEGIN
+   IF NEW.membership_id IS NOT NULL THEN
+     IF NOT EXISTS (
+       SELECT 1 FROM memberships
+       WHERE id = NEW.membership_id
+         AND status = 'active'
+         AND start_date <= CURRENT_DATE
+         AND end_date >= CURRENT_DATE
+     ) THEN
+       RAISE EXCEPTION 'La membresía no está activa o ha expirado';
+     END IF;
+   END IF;
+   RETURN NEW;
+ END;
+ $$ LANGUAGE plpgsql;
+
+ CREATE TRIGGER check_membership_active
+   BEFORE INSERT ON check_ins
+   FOR EACH ROW EXECUTE FUNCTION validate_active_membership();
+
+ -- ============================================
+ -- Row Level Security (RLS)
+ -- ============================================
+ ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
+ ALTER TABLE check_ins ENABLE ROW LEVEL SECURITY;
+ ALTER TABLE memberships ENABLE ROW LEVEL SECURITY;
+
+ CREATE POLICY "Usuarios ven su propio perfil" ON profiles
+   FOR SELECT USING (auth.uid() = id);
+
+ CREATE POLICY "Usuarios ven sus propias entradas" ON check_ins
+   FOR SELECT USING (auth.uid() = member_id);
 
 -- ============================================
 -- Ejercicios dentro de un plan
