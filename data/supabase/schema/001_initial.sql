@@ -162,6 +162,29 @@ CREATE POLICY "Member sees own check_ins" ON check_ins FOR SELECT
   USING (member_id = auth.uid());
 
 -- ============================================
+-- Trigger: crear perfil automático al registrarse
+-- ============================================
+CREATE OR REPLACE FUNCTION handle_new_user()
+RETURNS TRIGGER
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+BEGIN
+  INSERT INTO public.profiles (id, full_name, role)
+  VALUES (
+    NEW.id,
+    COALESCE(NEW.raw_user_meta_data ->> 'full_name', 'Usuario'),
+    'member'
+  );
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE FUNCTION handle_new_user();
+
+-- ============================================
 -- Trigger updated_at (Fix #1: search_path fijo)
 -- ============================================
 CREATE OR REPLACE FUNCTION update_updated_at_column()

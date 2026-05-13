@@ -119,7 +119,7 @@ export default function LoginPage() {
 
       {process.env.NODE_ENV === 'development' && (
         <div style={{ marginTop: 20, padding: '12px 14px', background: 'var(--amber-bg)', borderRadius: 'var(--radius-sm)', fontSize: 11, color: 'var(--amber-text)', lineHeight: 1.5 }}>
-          <strong>Demo:</strong> admin@omega.com / Admin123! &nbsp;·&nbsp; trainer@omega.com / Trainer123!
+          <strong>Demo:</strong> admin@omega.com / Admin123! &nbsp;·&nbsp; trainer@omega.com / Trainer123! &nbsp;·&nbsp; member@omega.com / Member123!
         </div>
       )}
       <Toaster position="top-center" />
