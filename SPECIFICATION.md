@@ -4,7 +4,7 @@
 **Versión**: 2.0  
 **Fecha**: 01 de Mayo 2026  
 **Proyecto**: Omega Gym  
-**Nota**: v2.0 — Metodología mejorada con testing, manejo de errores, performance, arquitectura Next.js y optimización de BD
+**Nota**: v3.0 — Metodología adaptada de Next.js App Router a Vite + React + React Router v7
 
 ---
 
@@ -25,7 +25,8 @@ La metodología **SPEC DRIVEN DEVELOPMENT** permite gestionar el proyecto **Omeg
 
 | Capa              | Tecnología                              |
 |-------------------|-----------------------------------------|
-| Frontend / Full-Stack | Next.js 14+ (App Router)            |
+| Frontend | Vite + React 19                      |
+| Enrutamiento | React Router v7                      |
 | Base de Datos     | Supabase (PostgreSQL + Auth + Storage)  |
 | Despliegue        | Vercel                                  |
 | Lenguaje          | TypeScript                              |
@@ -43,20 +44,50 @@ La metodología **SPEC DRIVEN DEVELOPMENT** permite gestionar el proyecto **Omeg
 
 ```
 omega-gym/
-├── public/                            # Recursos estáticos
+├── omega-gym-vite/                    # Aplicación Vite + React (nuevo)
+│   ├── public/                        # Recursos estáticos
+│   │   ├── icons/                     # Íconos PWA
+│   │   ├── favicon.svg
+│   │   ├── icons.svg
+│   │   └── manifest.json
+│   ├── src/
+│   │   ├── components/
+│   │   │   ├── auth/                  # ProtectedRoute, AuthProvider
+│   │   │   ├── layout/                # AdminLayout, TrainerLayout, MemberLayout, AuthLayout, Sidebar
+│   │   │   └── ui/
+│   │   │       ├── atoms/             # Button, Input, Badge, Avatar, Chip, EmptyState, etc.
+│   │   │       ├── molecules/         # Modal, PageHeader, TabBar, Pagination, SearchInput
+│   │   │       └── layout/            # BottomNav
+│   │   ├── lib/                       # Configuración de Supabase, utilidades
+│   │   ├── pages/                     # Páginas por rol (React Router)
+│   │   │   ├── auth/                  # Login, Register
+│   │   │   ├── dashboard/             # Admin: Dashboard, Members, Payments, Memberships, TrainingPlans, Reports, Fingerprint
+│   │   │   ├── trainer/               # Trainer: Panel, Members, Plans, Templates
+│   │   │   ├── member/                # Member: MyPlan
+│   │   │   └── kiosk/                 # CheckIn
+│   │   ├── services/                  # Servicios de negocio
+│   │   ├── store/                     # Estado global (Zustand)
+│   │   ├── App.tsx                    # Router principal
+│   │   ├── main.tsx                   # Entry point
+│   │   └── index.css                  # Tailwind v4 + tema personalizado
+│   ├── index.html
+│   ├── vite.config.ts
+│   ├── postcss.config.mjs
+│   ├── tsconfig.json
+│   └── package.json
+│
 ├── data/                              # Contratos y modelos de referencia
 │   └── supabase/
 │       ├── models/                    # Definición de entidades
-│       ├── schema/                    # SQL de tablas y relaciones
-│       └── seed/                      # Datos de prueba/ejemplo
+│       ├── schema/                    # SQL de migraciones
+│       └── seed/                      # Datos de prueba
 │
-├── ai_work_flow/                      # ✅ Estructura metodológica (fuera de src)
+├── ai_work_flow/                      # Documentación metodológica
 │   ├── docs/
 │   │   └── specs/
-│   │       ├── SPECIFICATION.md       # Especificación principal del proyecto
-│   │       └── incremental/           # Cambios grandes posteriores
-│   ├── knowledge/
-│   │   ├── README.md
+│   │       ├── incremental/           # Especificaciones incrementales
+│   │       └── templates/             # Templates de documentación
+│   ├── knowledge/                     # Base de conocimiento
 │   │   ├── local/                     # Investigación interna y decisiones
 │   │   │   └── archived/              # Knowledge obsoleto archivado
 │   │   └── remote/                    # Referencias externas y documentación oficial
@@ -65,52 +96,6 @@ omega-gym/
 │       ├── TKT-OMEGYM-001.md
 │       └── ...
 │
-├── src/                               # Código ejecutable Next.js
-│   ├── app/                           # App Router de Next.js
-│   │   ├── (auth)/                    # Rutas de autenticación
-│   │   │   ├── login/
-│   │   │   └── register/
-│   │   ├── (dashboard)/               # Rutas protegidas del admin
-│   │   │   ├── dashboard/
-│   │   │   ├── members/
-│   │   │   ├── memberships/
-│   │   │   ├── payments/
-│   │   │   ├── training-plans/
-│   │   │   └── reports/
-│   │   ├── (member)/                  # Rutas del miembro (vista pública)
-│   │   │   └── my-plan/
-│   │   ├── layout.tsx
-│   │   ├── page.tsx
-│   │   ├── error.tsx                  # Error boundary global
-│   │   ├── loading.tsx                # Loading global
-│   │   └── not-found.tsx              # Página 404
-│   │
-│   ├── components/                    # Componentes reutilizables
-│   │   ├── ui/                        # Atomic design
-│   │   │   ├── atoms/                 # Button, Input, Badge, Avatar, LoadingSpinner
-│   │   │   ├── molecules/             # MemberCard, PaymentRow, PlanBadge, ErrorMessage, EmptyState
-│   │   │   └── organisms/             # MembersTable, PlanDetail, PaymentHistory
-│   │   └── layout/                    # Sidebar, Navbar, Footer
-│   │
-│   ├── features/                      # Módulos funcionales
-│   │   ├── auth/                      # Login, registro, roles
-│   │   ├── members/                   # CRUD de miembros
-│   │   ├── memberships/               # Tipos de membresía y asignación
-│   │   ├── payments/                  # Registro y control de pagos
-│   │   ├── training-plans/            # Planes, rutinas y ejercicios
-│   │   └── reports/                   # Dashboard con métricas
-│   │
-│   ├── hooks/                         # Custom hooks globales
-│   ├── lib/                           # Configuración de Supabase, utilidades
-│   ├── services/                      # Servicios de negocio
-│   │   ├── members.service.ts
-│   │   ├── memberships.service.ts
-│   │   ├── payments.service.ts
-│   │   └── training-plans.service.ts
-│   ├── store/                         # Estado global (Zustand)
-│   ├── types/                         # Tipos globales TypeScript
-│   └── utils/                         # Funciones utilitarias
-│
 ├── tests/                             # Pruebas
 │   ├── unit/                          # Tests unitarios (Vitest)
 │   ├── integration/                   # Tests de integración
@@ -118,14 +103,13 @@ omega-gym/
 │
 ├── .env.example                       # Variables de entorno (sin valores reales)
 ├── .env.local                         # Variables reales (gitignored)
-├── next.config.ts
 ├── package.json
 └── tsconfig.json
 ```
 
 ### Convención de Código Fuente (SRC-First)
 
-- Todo código Next.js y TypeScript nuevo se crea dentro de `src/`.
+- Todo el código fuente de la aplicación se encuentra dentro de `omega-gym-vite/src/`.
 - La carpeta `ai_work_flow/` vive fuera de `src/` — es documentación metodológica, no código ejecutable.
 - La carpeta `data/supabase/` vive fuera de `src/` — es contrato documental de la base de datos.
 - Los archivos `.env.example` son commiteables. Los `.env.local` nunca se suben al repositorio.
@@ -448,7 +432,7 @@ Un archivo de knowledge se archiva cuando:
 knowledge/remote/
 ├── supabase_auth_reference.md       # Docs oficiales Supabase Auth
 ├── supabase_rls_reference.md        # Row Level Security en Supabase
-├── nextjs_app_router_reference.md   # App Router Next.js 14
+├── react_router_reference.md        # React Router v7
 ├── vercel_deployment_reference.md   # Deployment en Vercel
 └── supabase_js_client_reference.md  # Cliente JS de Supabase v2
 ```
@@ -623,13 +607,11 @@ IA propone → Revisión humana → Aprobación → Migración en DEV
 **Variables requeridas (`.env.example`)**:
 ```bash
 # Supabase
-NEXT_PUBLIC_SUPABASE_URL=
-NEXT_PUBLIC_SUPABASE_ANON_KEY=
-SUPABASE_SERVICE_ROLE_KEY=
+VITE_SUPABASE_URL=
+VITE_SUPABASE_ANON_KEY=
 
-# Next.js
-NEXTAUTH_SECRET=
-NEXTAUTH_URL=
+# React
+VITE_APP_NAME=Omega Gym
 ```
 
 #### 5.4.6 DATABASE_CONFIG.yaml
@@ -678,9 +660,8 @@ tables:
     rls_enabled: false
 
 env_variables:
-  - NEXT_PUBLIC_SUPABASE_URL
-  - NEXT_PUBLIC_SUPABASE_ANON_KEY
-  - SUPABASE_SERVICE_ROLE_KEY
+  - VITE_SUPABASE_URL
+  - VITE_SUPABASE_ANON_KEY
 ```
 
 #### 5.4.7 Cuándo se Trabaja en la Base de Datos
@@ -803,18 +784,20 @@ psql -h db.<ref>.supabase.co -U postgres -d postgres < backup_YYYYMMDD.sql
 ### 7.2 Inicialización del Proyecto
 
 ```bash
-# Crear proyecto Next.js
-npx create-next-app@latest omega-gym --typescript --tailwind --app
+# Crear proyecto Vite + React
+npm create vite@latest omega-gym-vite -- --template react-ts
 
 # Ingresar al proyecto
-cd omega-gym
+cd omega-gym-vite
 
 # Instalar dependencias principales
-npm install @supabase/supabase-js @supabase/auth-helpers-nextjs
-npm install zustand zod sonner
+npm install react-router-dom @supabase/supabase-js zustand zod sonner
+npm install -D tailwindcss @tailwindcss/vite
 npm install -D vitest @testing-library/react @testing-library/jest-dom
 npm install -D @playwright/test
-npm install -D @types/node
+
+# Volver a la raíz del repo
+cd ..
 
 # Crear estructura metodológica
 mkdir -p ai_work_flow/docs/specs/incremental
@@ -847,21 +830,19 @@ supabase start
 
 Crear `.env.local` con los valores reales del proyecto Supabase:
 ```bash
-NEXT_PUBLIC_SUPABASE_URL=https://<ref>.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=<anon-key>
-SUPABASE_SERVICE_ROLE_KEY=<service-role-key>
+VITE_SUPABASE_URL=https://<ref>.supabase.co
+VITE_SUPABASE_ANON_KEY=<anon-key>
 ```
 
 Crear `.env.example` (sin valores, se sube al repo):
 ```bash
-NEXT_PUBLIC_SUPABASE_URL=
-NEXT_PUBLIC_SUPABASE_ANON_KEY=
-SUPABASE_SERVICE_ROLE_KEY=
+VITE_SUPABASE_URL=
+VITE_SUPABASE_ANON_KEY=
 ```
 
 ### 7.5 Validación Final FASE 0
 
-- [ ] Proyecto Next.js corriendo en `localhost:3000`
+- [ ] Proyecto Vite corriendo en `localhost:5173`
 - [ ] Supabase conectado (local o remoto)
 - [ ] Variables de entorno cargadas
 - [ ] Estructura de carpetas creada
@@ -1328,7 +1309,7 @@ Cerrar ticket externo REQ-OMEGYM-030
 - Miembros con pago pendiente
 - Últimas altas de miembros
 
-**Performance**: Queries optimizadas con índices, datos cacheados con revalidate de Next.js
+**Performance**: Queries optimizadas con índices, datos cacheados con React Query o Zustand
 
 **Tickets relacionados**: TKT-OMEGYM-012
 
@@ -1340,10 +1321,10 @@ Cerrar ticket externo REQ-OMEGYM-030
 
 1. Conectar repositorio GitHub a Vercel
 2. Configurar variables de entorno en el dashboard de Vercel:
-   - `NEXT_PUBLIC_SUPABASE_URL`
-   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-   - `SUPABASE_SERVICE_ROLE_KEY`
-3. Configurar dominio personalizado (opcional)
+   - `VITE_SUPABASE_URL`
+   - `VITE_SUPABASE_ANON_KEY`
+3. Configurar Vercel para SPA: `vercel.json` con `{ "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }] }`
+4. Configurar dominio personalizado (opcional)
 
 ### 12.2 Flujo de Despliegue
 
@@ -1447,119 +1428,130 @@ test('admin can login and see dashboard', async ({ page }) => {
 
 ---
 
-## 14. Estrategia de Componentes Next.js
+## 14. Estrategia de Componentes
 
 ### 14.1 Regla General
 
-- **Server Components (default)**: Fetch de datos, layout, páginas sin interactividad
-- **Client Components ('use client')**: Formularios, tablas interactivas, hooks, estados
+- **Todos los componentes son Client Components**: No hay server components en Vite + React
+- **Fetch de datos**: Se hace en hooks (`useEffect`) o en librerías de caché (React Query, SWR)
+- **Separación de responsabilidades**: Presentación (componentes puros) vs Lógica (hooks/servicios)
 
 ### 14.2 Arquitectura por Capa
 
 ```
-src/app/
-├── layout.tsx                    # Server Component
-├── page.tsx                      # Server Component
-├── (dashboard)/
-│   ├── layout.tsx                # Server (Sidebar + Navbar)
-│   ├── members/
-│   │   ├── page.tsx              # Server (fetch inicial)
-│   │   ├── loading.tsx           # Server (suspense loading)
-│   │   └── MembersTable.tsx      # Client ('use client')
-│   └── dashboard/
-│       ├── page.tsx              # Server
-│       └── MetricsCards.tsx      # Client
+src/
+├── pages/
+│   ├── dashboard/
+│   │   ├── Dashboard.tsx          # useEffect → servicio → estado
+│   │   ├── Members.tsx
+│   │   └── Payments.tsx
+│   ├── trainer/
+│   │   ├── Panel.tsx
+│   │   ├── Members.tsx
+│   │   └── Plans.tsx
+│   └── member/
+│       └── MyPlan.tsx
+├── components/
+│   ├── ui/atoms/                  # Button, Input, Badge, Avatar (sin lógica)
+│   ├── ui/molecules/              # Modal, TabBar, SearchInput
+│   └── layout/                    # AdminLayout, Sidebar, BottomNav (contexto de layout)
+├── services/                      # Llamadas a Supabase
+└── store/                         # Estado global (Zustand)
 ```
 
 ### 14.3 Patrones Obligatorios
 
-1. **Server Component → Client Component**: Pasar datos ya fetcheados como props
-2. **Client Component → Server Action**: Para mutaciones (crear, editar, eliminar)
-3. **Nunca**: Server Component con 'use client' innecesario
+1. **Servicios puros**: Los servicios (`services/*.ts`) reciben/retornan datos, sin hooks
+2. **Páginas ligeras**: Las páginas montan el layout, llaman servicios, delegan UI a componentes
+3. **Componentes de UI sin efectos**: Los átomos/moléculas no llaman servicios directamente
+4. **Zustand para estado global**: Auth, sesión, configuraciones
 
 ### 14.4 Ejemplo Correcto
 
 ```typescript
-// src/app/members/page.tsx (Server)
-import { MembersTable } from '@/components/members/MembersTable'
+// src/pages/dashboard/Members.tsx
+import { useEffect, useState } from 'react'
+import { MembersTable } from '@/components/ MembersTable'
 import { membersService } from '@/services/members.service'
-
-export default async function MembersPage() {
-  const members = await membersService.getAll()
-  return <MembersTable initialMembers={members} />
-}
-
-// src/components/members/MembersTable.tsx (Client)
-'use client'
-
-import { useState } from 'react'
 import type { Member } from '@/types'
 
-export function MembersTable({ initialMembers }: { initialMembers: Member[] }) {
-  const [members, setMembers] = useState(initialMembers)
-  const [search, setSearch] = useState('')
-  // ... lógica de filtrado, paginación, etc.
+export default function MembersPage() {
+  const [members, setMembers] = useState<Member[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    membersService.getAll()
+      .then(setMembers)
+      .finally(() => setLoading(false))
+  }, [])
+
+  if (loading) return <LoadingSpinner />
+  return <MembersTable members={members} />
+}
+
+// src/components/MembersTable.tsx
+import type { Member } from '@/types'
+
+export function MembersTable({ members }: { members: Member[] }) {
+  // UI pura: recibe datos por props, renderiza tabla
 }
 ```
 
 ---
 
-## 15. Middleware y Protección de Rutas
+## 15. Protección de Rutas
 
-### 15.1 Middleware de Autenticación
+### 15.1 Componente ProtectedRoute
 
-**Ubicación**: `src/middleware.ts`
+**Ubicación**: `src/components/auth/ProtectedRoute.tsx`
 
 ```typescript
-import { createMiddlewareClient } from '@supabase/auth-helpers-nextjs'
-import { NextResponse } from 'next/server'
-import type { NextRequest } from 'next/server'
+import { Navigate, useLocation } from 'react-router-dom'
+import { useAuthStore } from '@/store/auth.store'
 
-const PROTECTED_ROUTES = ['/dashboard', '/members', '/memberships', '/payments', '/training-plans', '/reports']
-const MEMBER_ROUTES = ['/my-plan']
-
-export async function middleware(req: NextRequest) {
-  const res = NextResponse.next()
-  const supabase = createMiddlewareClient({ req, res })
-  
-  const { data: { session } } = await supabase.auth.getSession()
-
-  // Rutas protegidas: requieren sesión
-  if (PROTECTED_ROUTES.some(route => req.nextUrl.pathname.startsWith(route))) {
-    if (!session) {
-      return NextResponse.redirect(new URL('/login', req.url))
-    }
-
-    // Verificar rol para rutas de admin/trainer
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', session.user.id)
-      .single()
-
-    if (profile?.role === 'member') {
-      return NextResponse.redirect(new URL('/my-plan', req.url))
-    }
-  }
-
-  // Ruta de miembro: solo members
-  if (MEMBER_ROUTES.some(route => req.nextUrl.pathname.startsWith(route))) {
-    if (!session) {
-      return NextResponse.redirect(new URL('/login', req.url))
-    }
-  }
-
-  // Si ya tiene sesión, redirigir del login al dashboard
-  if (req.nextUrl.pathname === '/login' && session) {
-    return NextResponse.redirect(new URL('/dashboard', req.url))
-  }
-
-  return res
+interface Props {
+  children: React.ReactNode
+  allowedRoles?: ('admin' | 'trainer' | 'member')[]
 }
 
-export const config = {
-  matcher: ['/dashboard/:path*', '/members/:path*', '/memberships/:path*', '/payments/:path*', '/training-plans/:path*', '/reports/:path*', '/my-plan/:path*', '/login']
+export function ProtectedRoute({ children, allowedRoles }: Props) {
+  const { user, loading, initialized } = useAuthStore()
+  const location = useLocation()
+
+  if (!initialized || loading) {
+    return <LoadingScreen />
+  }
+
+  if (!user) {
+    return <Navigate to="/login" state={{ from: location }} replace />
+  }
+
+  if (allowedRoles && user.role && !allowedRoles.includes(user.role)) {
+    return <Navigate to="/unauthorized" replace />
+  }
+
+  return <>{children}</>
 }
+```
+
+### 15.2 Uso en el Router
+
+```typescript
+// src/App.tsx
+<Routes>
+  <Route path="/login" element={<LoginPage />} />
+  <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
+    <Route element={<AdminLayout />}>
+      <Route path="/dashboard" element={<DashboardPage />} />
+      <Route path="/members" element={<MembersPage />} />
+    </Route>
+  </Route>
+  <Route element={<ProtectedRoute allowedRoles={['member']} />}>
+    <Route element={<MemberLayout />}>
+      <Route path="/my-plan" element={<MyPlanPage />} />
+    </Route>
+  </Route>
+</Routes>
 ```
 
 ---
@@ -1632,19 +1624,31 @@ export const membersService = {
 }
 ```
 
-### 16.3 Error Boundary Global (App Router)
+### 16.3 Error Boundary Global
 
 ```typescript
-// src/app/error.tsx
-'use client'
+// src/components/ErrorBoundary.tsx
+import { Component, type ReactNode } from 'react'
 
-import { useEffect } from 'react'
+interface Props { children: ReactNode }
+interface State { error: Error | null }
 
-export default function Error({
-  error,
-  reset,
-}: {
-  error: Error & { digest?: string }
+export class ErrorBoundary extends Component<Props, State> {
+  state = { error: null }
+
+  static getDerivedStateFromError(error: Error) {
+    return { error }
+  }
+
+  render() {
+    if (this.state.error) {
+      return <ErrorFallback error={this.state.error} />
+    }
+    return this.props.children
+  }
+}
+
+function ErrorFallback({ error }: { error: Error & { digest?: string } }) {
   reset: () => void
 }) {
   useEffect(() => {
@@ -1785,7 +1789,7 @@ export const membersService = {
 
 ### 18.2 Performance en Dashboard
 
-- Usar `revalidate` en Server Components para caché de métricas
+- Usar React Query o Zustand para cachear métricas en cliente
 - Índices en columnas de filtrado frecuente (ver sección 5.4.8)
 - Evitar N+1 queries usando joins de Supabase
 
@@ -1891,8 +1895,8 @@ Ejemplos:
 // src/lib/supabase.ts
 import { createClient } from '@supabase/supabase-js'
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL!
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY!
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 ```
@@ -1904,7 +1908,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 ⚠️ **NOTA**: Si es tu primera vez usando esta metodología, completa primero **FASE 0** y **FASE 1** antes de escribir código.
 
 - [ ] 1. Leer este documento completo
-- [ ] 2. Ejecutar FASE 0: entorno configurado y proyecto Next.js corriendo
+- [ ] 2. Ejecutar FASE 0: entorno configurado y proyecto Vite corriendo
 - [ ] 3. Ejecutar DATABASE SELECTION GATE: Supabase seleccionado y documentado
 - [ ] 4. Crear `SPECIFICATION.md` en la ruta oficial
 - [ ] 5. Ejecutar DATABASE MODEL GATE: origen del schema definido
@@ -1955,7 +1959,7 @@ R: Archívalo en `knowledge/local/archived/` siguiendo el procedimiento de la se
 - **Supabase Docs**: https://supabase.com/docs
 - **Supabase Auth**: https://supabase.com/docs/guides/auth
 - **Supabase RLS**: https://supabase.com/docs/guides/auth/row-level-security
-- **Next.js 14 App Router**: https://nextjs.org/docs/app
+- **React Router v7**: https://reactrouter.com/en/main
 - **Vercel Deployment**: https://vercel.com/docs
 - **Tailwind CSS**: https://tailwindcss.com/docs
 - **Zustand**: https://docs.pmnd.rs/zustand/getting-started/introduction
@@ -1981,23 +1985,16 @@ R: Archívalo en `knowledge/local/archived/` siguiendo el procedimiento de la se
 
 ---
 
-**Última actualización**: 2026-05-01 (v2.0)  
-**Status**: ✅ Metodología mejorada lista  
-**Cambios v2.0**:
-- ✅ Nombre del proyecto actualizado a Omega Gym
-- ✅ Convención de tickets: TKT-OMEGYM-###
-- ✅ Numeración de módulos corregida (3.1-3.5)
-- ✅ Plan de testing completo (Vitest + Playwright)
-- ✅ Manejo de errores estandarizado (AppError + Error Boundary)
-- ✅ Estrategia de Server vs Client Components definida
-- ✅ Middleware de protección de rutas implementado
-- ✅ Patrones de UI states (Loading, Error, Empty)
-- ✅ Estrategia de paginación y performance
-- ✅ Índices y optimización de BD documentados
-- ✅ Triggers y soft delete en schema
-- ✅ Backup y recovery de BD
-- ✅ Templates estándar para knowledge
-- ✅ Criterios de archivo de knowledge obsoleto
-- ✅ Campo de dependencias entre tickets
-- ✅ SLA por prioridad de tickets
-- ✅ Sonner agregado para notificaciones UI
+**Última actualización**: 2026-05-13 (v3.0)  
+**Status**: ✅ Especificación actualizada (Vite + React)  
+**Cambios v3.0**:
+- ✅ Migración de Next.js 14 App Router → Vite + React 19 + React Router v7
+- ✅ Stack actualizado: Vite como bundler, React Router v7 para enrutamiento
+- ✅ Estructura de proyecto actualizada: `omega-gym-vite/` con páginas planas
+- ✅ Env vars cambiadas: `NEXT_PUBLIC_SUPABASE_*` → `VITE_SUPABASE_*`
+- ✅ Estrategia de componentes: solo Client Components (sin server components)
+- ✅ Protección de rutas: `ProtectedRoute` en React Router en vez de middleware de Edge
+- ✅ Sección 14: Server/Client Components → hooks + servicios + UI pura
+- ✅ Sección 15: middleware.ts → ProtectedRoute component
+- ✅ Setup de proyecto: `npm create vite` en vez de `create-next-app`
+- ✅ Dependencias: `react-router-dom` agregado, `auth-helpers-nextjs` eliminado

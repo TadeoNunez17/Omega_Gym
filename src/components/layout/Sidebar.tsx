@@ -1,7 +1,4 @@
-'use client';
-
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { Link, useLocation } from 'react-router-dom';
 import { useAuthStore } from '@/store/auth.store';
 
 const navItems = [
@@ -31,7 +28,7 @@ const icons: Record<string, string> = {
 };
 
 export function Sidebar() {
-  const pathname = usePathname();
+  const pathname = useLocation().pathname;
   const user = useAuthStore((s) => s.user);
   const initials = user ? user.full_name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() : 'AD';
 
@@ -65,7 +62,7 @@ export function Sidebar() {
               return (
                 <Link
                   key={item.label}
-                  href={item.href}
+                  to={item.href}
                   className={`flex items-center gap-2.5 px-2.5 py-[9px] rounded-sm text-[13px] no-underline mb-0.5 transition-all duration-150
                     ${isActive ? 'text-accent bg-accent-dim font-medium' : 'text-text-2 bg-transparent hover:bg-surface2'}`}
                 >

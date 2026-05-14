@@ -27,6 +27,16 @@ export const authService = {
     if (error) throw error
     return session
   },
+
+  getProfile: async (userId: string) => {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', userId)
+      .single()
+    if (error) return null
+    return data as Profile | null
+  },
 }
 
 export interface Profile {

@@ -18,11 +18,12 @@ Metodología simplificada para **un solo desarrollador + IA asistiendo**. Elimin
 
 | Capa | Tecnología |
 |------|------------|
-| Framework | Next.js 14+ (App Router) |
+| Framework | Vite + React 19 |
+| Enrutamiento | React Router v7 |
 | Base de datos | Supabase (PostgreSQL + Auth + Storage) |
-| Deploy | Vercel |
+| Deploy | Vercel (SPA) |
 | Lenguaje | TypeScript |
-| Estilos | Tailwind CSS |
+| Estilos | Tailwind CSS v4 |
 | Estado | Zustand |
 | Validación | Zod |
 | Notificaciones | Sonner |
@@ -42,8 +43,8 @@ omega-gym/
 │   ├── knowledge/           # Decisiones y referencias
 │   └── tickets/             # Tickets de desarrollo
 │
-├── src/                     # Código Next.js
-│   ├── app/                 # Rutas (App Router)
+├── omega-gym-vite/src/      # Código fuente
+│   ├── pages/               # Páginas por rol (React Router)
 │   ├── components/          # UI reutilizable
 │   ├── features/            # Módulos por funcionalidad
 │   ├── lib/                 # Configuración (Supabase, etc)
@@ -128,17 +129,18 @@ Solo generas knowledge cuando:
 ### FASE 0: Setup (una sola vez)
 
 ```bash
-# Crear proyecto
-npx create-next-app@latest omega-gym --typescript --tailwind --app
-cd omega-gym
+# Crear proyecto Vite + React
+npm create vite@latest omega-gym-vite -- --template react-ts
+cd omega-gym-vite
 
 # Instalar dependencias
-npm install @supabase/supabase-js zustand zod sonner
+npm install react-router-dom @supabase/supabase-js zustand zod sonner
+npm install -D tailwindcss @tailwindcss/vite
 
 # Crear carpetas
+cd ..
 mkdir -p ai_work_flow/{docs/specs,knowledge,tickets}
 mkdir -p data/supabase/{schema,seed}
-mkdir -p src/{app,components,features,lib,services,types,utils}
 ```
 
 ### FASE 1: Configurar (una sola vez)
@@ -146,7 +148,7 @@ mkdir -p src/{app,components,features,lib,services,types,utils}
 - [ ] Crear SPECIFICATION.md con lo básico
 - [ ] Definir tablas de la BD (schema)
 - [ ] Conectar Supabase con `.env.local`
-- [ ] Proyecto corriendo en `localhost:3000`
+- [ ] Proyecto corriendo en `localhost:5173` (Vite)
 
 ### FASE 2: Implementar (por módulo)
 
@@ -298,10 +300,11 @@ feat(members): add creation form (#TKT-OMEGYM-004)
 fix(payments): fix date format (#TKT-OMEGYM-007)
 ```
 
-### 8.3 Server vs Client Components
+### 8.3 Patrón de Componentes
 
-- **Server** (default): Traer datos, páginas estáticas
-- **Client** (`'use client'`): Formularios, tablas interactivas, estados
+- **Todos los componentes son Client Components**: Vite + React no tiene server components
+- **Páginas**: useEffect para fetch inicial, delegan UI a componentes hijos
+- **Componentes de UI**: Sin efectos, reciben datos por props
 
 ### 8.4 Patrón de Servicios
 

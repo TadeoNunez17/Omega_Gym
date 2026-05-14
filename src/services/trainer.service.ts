@@ -1,63 +1,104 @@
-export interface TrainerMember {
+import { supabase } from '@/lib/supabase'
+
+export type TrainerMember = {
   id: string
   full_name: string
   email: string
   phone: string | null
-  avatar_url: string | null
   created_at: string
   membership: {
-    id: string
     type: string
-    price: number
-    start_date: string
-    end_date: string
     days_remaining: number
   } | null
-  plan: { id: string; name: string; description: string | null } | null
+  plan: {
+    name: string
+    description: string | null
+  } | null
 }
 
-export interface TrainerPlan {
+export type TrainerPlan = {
   id: string
   name: string
   description: string | null
-  is_template: boolean
-  assigned_to: string | null
   assigned_to_name: string | null
-  created_by: string
-  created_at: string
-  updated_at: string
   exercise_count: number
+  created_at: string
 }
 
-export interface TrainerTemplate {
+export type TrainerTemplate = {
   id: string
   name: string
   description: string | null
-  created_at: string
-  updated_at: string
   exercise_count: number
-}
-
-async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(url, options)
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}))
-    throw new Error(body.error || `Request failed: ${res.status}`)
-  }
-  return res.json()
+  created_at: string
 }
 
 export const trainerService = {
-  getMembers: () => fetchJson<TrainerMember[]>('/api/trainer/members'),
+  getMembers: async (): Promise<TrainerMember[]> => {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('id, full_name, email, phone, created_at')
+      .eq('role', 'member')
+    if (error) throw error
+    return (data || []).map(m => ({
+      ...m,
+      membership: null,
+      plan: null,
+    }))
+  },
 
-  getPlans: () => fetchJson<TrainerPlan[]>('/api/trainer/plans'),
+  getPlans: async (): Promise<TrainerPlan[]> => {
+    const { data, error } = await supabase
+      .from('training_plans')
+      .select('*')
+    if (error) throw error
+    return (data || []).map((p: any) => ({
+      id: p.id,
+      name: p.name,
+      description: p.description || null,
+      assigned_to_name: p.assigned_to_name || null,
+      exercise_count: p.exercise_count || 0,
+      created_at: p.created_at,
+    }))
+  },
 
-  createPlan: (data: { name: string; description?: string; assigned_to?: string }) =>
-    fetchJson<TrainerPlan>('/api/trainer/plans', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
-    }),
+  getTemplates: async (): Promise<TrainerTemplate[]> => {
+    const { data, error } = await supabase
+      .from('training_plans')
+      .select('*')
+      .eq('is_template', true)
+    if (error) throw error
+    return (data || []).map((p: any) => ({
+      id: p.id,
+      name: p.name,
+      description: p.description || null,
+      exercise_count: p.exercise_count || 0,
+      created_at: p.created_at,
+    }))
+  },
 
-  getTemplates: () => fetchJson<TrainerTemplate[]>('/api/trainer/templates'),
+  createPlan: async (input: {
+    name: string
+    description?: string
+    assigned_to?: string
+  }): Promise<TrainerPlan> => {
+    const { data, error } = await supabase
+      .from('training_plans')
+      .insert({
+        name: input.name,
+        description: input.description || null,
+        assigned_to: input.assigned_to || null,
+      })
+      .select()
+      .single()
+    if (error) throw error
+    return {
+      id: data.id,
+      name: data.name,
+      description: data.description || null,
+      assigned_to_name: null,
+      exercise_count: 0,
+      created_at: data.created_at,
+    }
+  },
 }

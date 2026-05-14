@@ -12,17 +12,7 @@ interface AuthState {
   initialize: () => Promise<void>
 }
 
-async function fetchProfile(): Promise<Profile | null> {
-  try {
-    const res = await fetch('/api/auth/profile')
-    if (!res.ok) return null
-    return await res.json()
-  } catch {
-    return null
-  }
-}
-
-export const useAuthStore = create<AuthState>((set, get) => ({
+export const useAuthStore = create<AuthState>((set) => ({
   user: null,
   loading: true,
   initialized: false,
@@ -32,7 +22,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     try {
       const session = await authService.getSession()
       if (session?.user) {
-        const profile = await fetchProfile()
+        const profile = await authService.getProfile(session.user.id)
         set({ user: profile, initialized: true, loading: false })
       } else {
         set({ initialized: true, loading: false })
@@ -44,15 +34,18 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   login: async (email: string, password: string) => {
     await authService.login(email, password)
-    const profile = await fetchProfile()
-    set({ user: profile })
+    const session = await authService.getSession()
+    if (session?.user) {
+      const profile = await authService.getProfile(session.user.id)
+      set({ user: profile })
+    }
   },
 
   register: async (email: string, password: string, fullName: string) => {
     await authService.register(email, password, fullName)
     const session = await authService.getSession()
     if (session?.user) {
-      const profile = await fetchProfile()
+      const profile = await authService.getProfile(session.user.id)
       set({ user: profile })
     }
   },
