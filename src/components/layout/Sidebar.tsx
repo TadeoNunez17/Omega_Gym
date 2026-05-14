@@ -36,49 +36,28 @@ export function Sidebar() {
   const initials = user ? user.full_name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() : 'AD';
 
   return (
-    <aside style={{
-      width: 'var(--sidebar-w)',
-      background: 'var(--surface)',
-      borderRight: '1px solid var(--border)',
-      display: 'flex',
-      flexDirection: 'column',
-      position: 'fixed',
-      top: 0, left: 0, bottom: 0,
-      zIndex: 10,
-    }}>
-      <div style={{
-        padding: '22px 20px 18px',
-        borderBottom: '1px solid var(--border)',
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{
-            width: 32, height: 32,
-            background: 'var(--accent)',
-            borderRadius: 8,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}>
+    <aside
+      className="fixed top-0 left-0 bottom-0 z-10 flex flex-col border-r border-border"
+      style={{ width: 'var(--sidebar-w)', background: 'var(--surface)' }}
+    >
+      <div className="px-5 py-[18px] border-b border-border">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 bg-accent rounded-lg flex items-center justify-center flex-shrink-0">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#000" strokeWidth="2.5" strokeLinecap="round">
               <path d="M6 6h1v12H6M17 6h1v12h-1M3 9h3M18 9h3M3 15h3M18 15h3M9 12h6"/>
             </svg>
           </div>
           <div>
-            <div style={{ fontSize: 15, fontWeight: 600, letterSpacing: '-0.01em' }}>Omega Gym</div>
-            <div style={{ fontSize: 10, color: 'var(--text-3)', marginTop: 1, letterSpacing: '0.08em', textTransform: 'uppercase' }}>Admin Panel</div>
+            <div className="text-[15px] font-semibold -tracking-[0.01em]">Omega Gym</div>
+            <div className="text-[10px] text-text-3 mt-0.5 tracking-[0.08em] uppercase">Admin Panel</div>
           </div>
         </div>
       </div>
 
-      <nav style={{ padding: '16px 10px', flex: 1, overflowY: 'auto' }}>
+      <nav className="flex-1 overflow-y-auto p-2.5">
         {navItems.map((section) => (
-          <div key={section.section} style={{ marginBottom: 20 }}>
-            <div style={{
-              fontSize: 10,
-              color: 'var(--text-3)',
-              letterSpacing: '0.1em',
-              textTransform: 'uppercase',
-              padding: '0 10px',
-              marginBottom: 6,
-            }}>
+          <div key={section.section} className="mb-5">
+            <div className="text-[10px] text-text-3 tracking-[0.1em] uppercase px-2.5 mb-1.5">
               {section.section}
             </div>
             {section.items.map((item) => {
@@ -87,20 +66,8 @@ export function Sidebar() {
                 <Link
                   key={item.label}
                   href={item.href}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 10,
-                    padding: '9px 10px',
-                    borderRadius: 'var(--radius-sm)',
-                    fontSize: 13,
-                    color: isActive ? 'var(--accent)' : 'var(--text-2)',
-                    background: isActive ? 'var(--accent-dim)' : 'transparent',
-                    fontWeight: isActive ? 500 : 400,
-                    textDecoration: 'none',
-                    transition: 'background 0.15s, color 0.15s',
-                    marginBottom: 2,
-                  }}
+                  className={`flex items-center gap-2.5 px-2.5 py-[9px] rounded-sm text-[13px] no-underline mb-0.5 transition-all duration-150
+                    ${isActive ? 'text-accent bg-accent-dim font-medium' : 'text-text-2 bg-transparent hover:bg-surface2'}`}
                 >
                   <svg
                     width="16"
@@ -110,19 +77,11 @@ export function Sidebar() {
                     stroke="currentColor"
                     strokeWidth="1.8"
                     dangerouslySetInnerHTML={{ __html: icons[item.icon] || '' }}
-                    style={{ opacity: isActive ? 1 : 0.7, flexShrink: 0 }}
+                    className={`flex-shrink-0 ${isActive ? 'opacity-100' : 'opacity-70'}`}
                   />
                   {item.label}
                   {item.badge && (
-                    <span style={{
-                      marginLeft: 'auto',
-                      background: 'var(--red-bg)',
-                      color: 'var(--red-text)',
-                      fontSize: 10,
-                      fontWeight: 500,
-                      padding: '2px 7px',
-                      borderRadius: 100,
-                    }}>
+                    <span className="ml-auto bg-red-bg text-red-text text-[10px] font-medium px-[7px] py-[2px] rounded-full">
                       {item.badge}
                     </span>
                   )}
@@ -133,30 +92,14 @@ export function Sidebar() {
         ))}
       </nav>
 
-      <div style={{
-        padding: '14px 10px',
-        borderTop: '1px solid var(--border)',
-      }}>
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 10,
-          padding: '8px 10px',
-          borderRadius: 'var(--radius-sm)',
-        }}>
-          <div style={{
-            width: 30, height: 30,
-            borderRadius: '50%',
-            background: 'var(--accent)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 11, fontWeight: 600, color: '#000',
-            flexShrink: 0,
-          }}>
+      <div className="px-2.5 py-[14px] border-t border-border">
+        <div className="flex items-center gap-2.5 px-2.5 py-2 rounded-sm">
+          <div className="w-[30px] h-[30px] rounded-full bg-accent flex items-center justify-center text-[11px] font-semibold text-black flex-shrink-0">
             {initials}
           </div>
           <div>
-            <div style={{ fontSize: 12, fontWeight: 500 }}>{user?.full_name || 'Administrador'}</div>
-            <div style={{ fontSize: 10, color: 'var(--text-3)' }}>{user?.role === 'admin' ? 'Administrador' : 'Usuario'}</div>
+            <div className="text-[12px] font-medium">{user?.full_name || 'Administrador'}</div>
+            <div className="text-[10px] text-text-3">{user?.role === 'admin' ? 'Administrador' : 'Usuario'}</div>
           </div>
         </div>
 
@@ -165,23 +108,7 @@ export function Sidebar() {
             useAuthStore.getState().logout();
             window.location.href = '/login';
           }}
-          style={{
-            display: 'flex', alignItems: 'center', gap: 8,
-            width: '100%', padding: '9px 10px', marginTop: 4,
-            borderRadius: 'var(--radius-sm)',
-            background: 'transparent', border: 'none',
-            color: 'var(--text-3)', fontSize: 12, fontWeight: 400,
-            cursor: 'pointer', fontFamily: 'inherit',
-            transition: 'background 0.15s, color 0.15s',
-          }}
-          onMouseEnter={(e) => {
-            (e.currentTarget as HTMLElement).style.background = 'var(--red-bg)';
-            (e.currentTarget as HTMLElement).style.color = 'var(--red-text)';
-          }}
-          onMouseLeave={(e) => {
-            (e.currentTarget as HTMLElement).style.background = 'transparent';
-            (e.currentTarget as HTMLElement).style.color = 'var(--text-3)';
-          }}
+          className="flex items-center gap-2 w-full px-2.5 py-[9px] mt-1 rounded-sm bg-transparent border-none text-text-3 text-[12px] cursor-pointer font-sans transition-all duration-150 hover:bg-red-bg hover:text-red-text"
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
             <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />

@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Sidebar } from '@/components/layout/Sidebar';
 import { useAuthStore } from '@/store/auth.store';
+import { DashboardShell } from '@/components/ui/layout/DashboardShell';
 
 export default function DashboardLayout({
   children,
@@ -26,18 +26,11 @@ export default function DashboardLayout({
 
   if (!checked || loading || !initialized) {
     return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: 'var(--bg)', color: 'var(--text-3)', fontSize: 14 }}>
+      <div className="flex items-center justify-center min-h-screen bg-bg text-text-3 text-sm">
         Cargando...
       </div>
     );
   }
 
-  return (
-    <div style={{ display: 'flex', minHeight: '100vh' }}>
-      <Sidebar />
-      <main style={{ marginLeft: 'var(--sidebar-w)', flex: 1 }}>
-        {children}
-      </main>
-    </div>
-  );
+  return <DashboardShell>{children}</DashboardShell>;
 }

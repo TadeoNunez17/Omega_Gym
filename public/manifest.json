@@ -1,0 +1,22 @@
+{
+  "name": "Omega Gym",
+  "short_name": "Omega Gym",
+  "description": "Sistema de Gestión de Gimnasio — control de membresías, entrenamientos, check-ins y más.",
+  "start_url": "/login",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0f0f0f",
+  "theme_color": "#0f0f0f",
+  "scope": "/",
+  "lang": "es-MX",
+  "categories": ["fitness", "health", "business"],
+  "icons": [
+    { "src": "/icons/icon-48.svg", "sizes": "48x48", "type": "image/svg+xml" },
+    { "src": "/icons/icon-72.svg", "sizes": "72x72", "type": "image/svg+xml" },
+    { "src": "/icons/icon-96.svg", "sizes": "96x96", "type": "image/svg+xml" },
+    { "src": "/icons/icon-128.svg", "sizes": "128x128", "type": "image/svg+xml" },
+    { "src": "/icons/icon-192.svg", "sizes": "192x192", "type": "image/svg+xml", "purpose": "any maskable" },
+    { "src": "/icons/icon-512.svg", "sizes": "512x512", "type": "image/svg+xml", "purpose": "any maskable" }
+  ],
+  "splash_pages": null
+}

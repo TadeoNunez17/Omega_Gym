@@ -1,6 +1,12 @@
 'use client';
 
 import { useState, useMemo, useCallback } from 'react';
+import { Button } from '@/components/ui/atoms/Button';
+import { Badge } from '@/components/ui/atoms/Badge';
+import { Modal } from '@/components/ui/molecules/Modal';
+import { PageHeader } from '@/components/ui/molecules/PageHeader';
+import { SearchInput } from '@/components/ui/molecules/SearchInput';
+import { Pagination } from '@/components/ui/molecules/Pagination';
 
 const TODAY = new Date('2026-05-01');
 const ROWS_PER_PAGE = 8;
@@ -61,63 +67,15 @@ function fmtDate(s: string | null) {
   return `${parseInt(d)} ${m[parseInt(mo) - 1]} ${y}`;
 }
 
-/* ── Icons ── */
-function IconDownload() {
-  return (
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-      <polyline points="7 10 12 15 17 10" />
-      <line x1="12" y1="15" x2="12" y2="3" />
-    </svg>
-  );
-}
-function IconPlus() {
-  return (
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-      <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
-    </svg>
-  );
-}
-function IconClose() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-    </svg>
-  );
-}
-
-/* ── Reusable styles ── */
-const btnGhost: React.CSSProperties = {
-  display: 'inline-flex', alignItems: 'center', gap: 6,
-  padding: '8px 16px', borderRadius: 'var(--radius-sm)',
-  fontSize: 13, fontWeight: 500, cursor: 'pointer',
-  background: 'transparent', color: 'var(--text-2)',
-  border: '1px solid var(--border2)', fontFamily: 'inherit',
-};
-
-const btnPrimary: React.CSSProperties = {
-  display: 'inline-flex', alignItems: 'center', gap: 6,
-  padding: '8px 16px', borderRadius: 'var(--radius-sm)',
-  fontSize: 13, fontWeight: 500, cursor: 'pointer',
-  background: 'var(--accent)', color: '#000',
-  border: 'none', fontFamily: 'inherit',
-};
-
-const thStyle: React.CSSProperties = {
-  padding: '11px 18px', textAlign: 'left',
-  fontSize: 10, fontWeight: 500, color: 'var(--text-3)',
-  textTransform: 'uppercase', letterSpacing: '0.07em',
-  whiteSpace: 'nowrap', background: 'var(--surface2)',
-};
+type FilterKey = 'all' | Role | 'inactive';
 
 export default function MembersPage() {
   const [members, setMembers] = useState<Member[]>(INITIAL_MEMBERS);
-  const [currentFilter, setCurrentFilter] = useState<'all' | Role | 'inactive'>('all');
+  const [currentFilter, setCurrentFilter] = useState<FilterKey>('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [search, setSearch] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
 
-  // Form state
   const [fName, setFName] = useState('');
   const [fEmail, setFEmail] = useState('');
   const [fPhone, setFPhone] = useState('');
@@ -150,7 +108,7 @@ export default function MembersPage() {
   const trainers = members.filter((m) => m.role === 'trainer').length;
   const newThisMonth = members.filter((m) => m.joinedAt.startsWith('2026-05')).length || 2;
 
-  const setFilter = useCallback((f: 'all' | Role | 'inactive') => {
+  const setFilter = useCallback((f: FilterKey) => {
     setCurrentFilter(f);
     setCurrentPage(1);
   }, []);
@@ -160,16 +118,8 @@ export default function MembersPage() {
     setFRole('member'); setFPlan('');
   }, []);
 
-  const openModal = useCallback(() => { resetForm(); setModalOpen(true); }, [resetForm]);
-
-  const closeModal = useCallback(() => {
-    setModalOpen(false);
-    resetForm();
-  }, [resetForm]);
-
   const guardarMiembro = useCallback(() => {
     if (!fName.trim() || !fEmail.trim()) return;
-
     setMembers((prev) => [
       {
         name: fName.trim(),
@@ -185,8 +135,9 @@ export default function MembersPage() {
       },
       ...prev,
     ]);
-    closeModal();
-  }, [fName, fEmail, fPhone, fRole, fPlan, closeModal]);
+    setModalOpen(false);
+    resetForm();
+  }, [fName, fEmail, fPhone, fRole, fPlan, resetForm]);
 
   const toggleStatus = useCallback((idx: number) => {
     setMembers((prev) =>
@@ -196,108 +147,60 @@ export default function MembersPage() {
     );
   }, []);
 
+  const filters = [
+    { key: 'all' as FilterKey, label: 'Todos' },
+    { key: 'member' as FilterKey, label: 'Miembros' },
+    { key: 'trainer' as FilterKey, label: 'Entrenadores' },
+    { key: 'inactive' as FilterKey, label: 'Inactivos' },
+  ];
+
   return (
     <>
-      {/* TOPBAR */}
-      <header
-        style={{
-          padding: '0 28px', height: 58,
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          borderBottom: '1px solid var(--border)',
-          background: 'var(--bg)', position: 'sticky', top: 0, zIndex: 9,
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--text-3)' }}>
-          Panel
-          <span style={{ fontSize: 10 }}>›</span>
-          <span style={{ color: 'var(--text-2)' }}>Miembros</span>
+      <header className="px-4 sm:px-7 h-14 flex items-center justify-between border-b border-border bg-bg sticky top-0 z-9">
+        <div className="flex items-center gap-2 text-xs sm:text-[13px] text-text-3">
+          Panel <span className="text-[10px]">›</span>
+          <span className="text-text-2">Miembros</span>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <button style={btnGhost}>
-            <IconDownload /> Exportar
-          </button>
-          <button style={btnPrimary} onClick={openModal}>
-            <IconPlus /> Nuevo miembro
-          </button>
+        <div className="flex items-center gap-2 sm:gap-2.5">
+          <Button variant="ghost" size="sm" icon={
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>
+          }>Exportar</Button>
+          <Button variant="primary" size="sm" onClick={() => { resetForm(); setModalOpen(true); }} icon={
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
+          }>Nuevo miembro</Button>
         </div>
       </header>
 
-      {/* CONTENT */}
-      <div style={{ padding: 28, flex: 1 }}>
-        <div style={{ marginBottom: 24 }}>
-          <div style={{ fontSize: 22, fontWeight: 600, letterSpacing: '-0.02em' }}>Miembros</div>
-          <div style={{ fontSize: 13, color: 'var(--text-2)', marginTop: 4 }}>
-            Registro completo de socios, roles y estado de membresía
-          </div>
-        </div>
+      <div className="p-4 sm:p-7 flex-1">
+        <PageHeader title="Miembros" description="Registro completo de socios, roles y estado de membresía" />
 
-        {/* METRICS */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 24 }}>
+        {/* KPI Metrics */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
           {[
             { label: 'Total miembros', value: total, color: 'blue', sub: 'Registrados en el sistema' },
             { label: 'Activos', value: active, color: 'green', sub: 'Con membresía vigente' },
             { label: 'Entrenadores', value: trainers, color: 'amber', sub: 'Staff del gym' },
             { label: 'Nuevos este mes', value: newThisMonth, color: 'accent', sub: 'Mayo 2026' },
           ].map((m) => (
-            <div
-              key={m.label}
-              style={{
-                background: 'var(--surface)', border: '1px solid var(--border)',
-                borderRadius: 'var(--radius)', padding: '18px 20px',
-                position: 'relative', overflow: 'hidden',
-              }}
-            >
-              <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 2, background: `var(--${m.color})` }} />
-              <div style={{ fontSize: 11, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>
-                {m.label}
-              </div>
-              <div style={{ fontSize: 32, fontWeight: 600, lineHeight: 1, letterSpacing: '-0.03em', color: `var(--${m.color}-text)` }}>
-                {m.value}
-              </div>
-              <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 6 }}>{m.sub}</div>
+            <div key={m.label} className="relative bg-surface border border-border rounded overflow-hidden p-[18px]">
+              <div className="absolute top-0 left-0 right-0 h-0.5" style={{ background: `var(--${m.color})` }} />
+              <div className="text-[11px] text-text-3 uppercase tracking-[0.06em] mb-2.5">{m.label}</div>
+              <div className="text-[32px] font-semibold leading-none -tracking-[0.03em]" style={{ color: `var(--${m.color}-text)` }}>{m.value}</div>
+              <div className="text-[11px] text-text-3 mt-1.5">{m.sub}</div>
             </div>
           ))}
         </div>
 
-        {/* CONTROLS */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
-          <div style={{ flex: 1, position: 'relative' }}>
-            <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-3)', pointerEvents: 'none' }}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
-              </svg>
-            </span>
-            <input
-              type="text"
-              placeholder="Buscar por nombre, email o teléfono..."
-              value={search}
-              onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
-              style={{
-                width: '100%', background: 'var(--surface)', border: '1px solid var(--border)',
-                color: 'var(--text)', fontFamily: 'inherit', fontSize: 13,
-                padding: '9px 14px 9px 38px', borderRadius: 'var(--radius-sm)',
-                outline: 'none',
-              }}
-            />
-          </div>
-          <div style={{ display: 'flex', gap: 4 }}>
-            {([
-              { key: 'all', label: 'Todos' },
-              { key: 'member', label: 'Miembros' },
-              { key: 'trainer', label: 'Entrenadores' },
-              { key: 'inactive', label: 'Inactivos' },
-            ] as const).map((tab) => (
+        {/* Controls */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 mb-4">
+          <SearchInput value={search} onChange={(v) => { setSearch(v); setCurrentPage(1); }} placeholder="Buscar por nombre, email o teléfono..." />
+          <div className="flex gap-1 overflow-x-auto">
+            {filters.map((tab) => (
               <button
                 key={tab.key}
                 onClick={() => setFilter(tab.key)}
-                style={{
-                  padding: '8px 14px', borderRadius: 'var(--radius-sm)',
-                  fontSize: 12, fontWeight: 500, cursor: 'pointer',
-                  border: '1px solid var(--border)',
-                  background: currentFilter === tab.key ? 'var(--accent)' : 'transparent',
-                  color: currentFilter === tab.key ? '#000' : 'var(--text-2)',
-                  fontFamily: 'inherit', whiteSpace: 'nowrap',
-                }}
+                className={`px-3.5 py-2 rounded-sm text-[12px] font-medium cursor-pointer whitespace-nowrap font-sans transition-all duration-150
+                  ${currentFilter === tab.key ? 'bg-accent text-black' : 'bg-transparent text-text-2 border border-border'}`}
               >
                 {tab.label}
               </button>
@@ -305,163 +208,89 @@ export default function MembersPage() {
           </div>
         </div>
 
-        {/* TABLE */}
-        <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', overflow: 'hidden' }}>
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, minWidth: 820 }}>
+        {/* Table */}
+        <div className="bg-surface border border-border rounded overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse text-[13px] min-w-[780px]">
               <thead>
-                <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                  <th style={{ ...thStyle, width: '25%' }}>Miembro</th>
-                  <th style={{ ...thStyle, width: '10%' }}>Rol</th>
-                  <th style={{ ...thStyle, width: '14%' }}>Teléfono</th>
-                  <th style={{ ...thStyle, width: '19%' }}>Membresía activa</th>
-                  <th style={{ ...thStyle, width: '14%' }}>Plan asignado</th>
-                  <th style={{ ...thStyle, width: '10%' }}>Estado</th>
-                  <th style={{ ...thStyle, width: '8%', textAlign: 'right' }}>Acciones</th>
+                <tr className="border-b border-border">
+                  {['Miembro', 'Rol', 'Teléfono', 'Membresía activa', 'Plan asignado', 'Estado', ''].map((h) => (
+                    <th key={h} className="px-[18px] py-[11px] text-left text-[10px] font-medium text-text-3 uppercase tracking-[0.07em] whitespace-nowrap bg-surface2">
+                      {h}
+                    </th>
+                  ))}
                 </tr>
               </thead>
               <tbody>
                 {rows.length === 0 ? (
                   <tr>
-                    <td colSpan={7} style={{ textAlign: 'center', padding: 60, color: 'var(--text-3)' }}>
-                      No se encontraron miembros con ese criterio.
-                    </td>
+                    <td colSpan={7} className="text-center py-[60px] text-text-3">No se encontraron miembros con ese criterio.</td>
                   </tr>
                 ) : (
                   rows.map((m) => {
                     const globalIdx = members.indexOf(m);
                     const diff = daysDiff(m.vence);
                     return (
-                      <tr key={`${m.name}-${m.email}`} style={{ transition: 'background 0.12s' }}>
-                        {/* Member cell */}
-                        <td style={{ padding: '14px 18px', borderBottom: '1px solid var(--border)', verticalAlign: 'middle' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                            <div
-                              style={{
-                                width: 36, height: 36, borderRadius: '50%',
-                                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                fontSize: 12, fontWeight: 600, flexShrink: 0,
-                                background: AV_COLORS[m.av].bg, color: AV_COLORS[m.av].fg,
-                              }}
-                            >
+                      <tr key={`${m.name}-${m.email}`} className="transition-colors duration-100 hover:bg-surface2/50">
+                        <td className="px-[18px] py-[14px] border-b border-border align-middle">
+                          <div className="flex items-center gap-3">
+                            <div className="w-9 h-9 rounded-full flex items-center justify-center text-[12px] font-semibold flex-shrink-0"
+                              style={{ background: AV_COLORS[m.av].bg, color: AV_COLORS[m.av].fg }}>
                               {initials(m.name)}
                             </div>
                             <div>
-                              <div style={{ fontWeight: 500, fontSize: 13 }}>{m.name}</div>
-                              <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 2 }}>{m.email}</div>
+                              <div className="font-medium text-[13px]">{m.name}</div>
+                              <div className="text-[11px] text-text-3 mt-0.5">{m.email}</div>
                             </div>
                           </div>
                         </td>
-
-                        {/* Role */}
-                        <td style={{ padding: '14px 18px', borderBottom: '1px solid var(--border)', verticalAlign: 'middle' }}>
-                          {m.role === 'admin' && (
-                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 10px', borderRadius: 100, fontSize: 11, fontWeight: 500, background: 'rgba(232,255,71,0.12)', color: '#c9e020' }}>
-                              <span style={{ width: 5, height: 5, borderRadius: '50%', background: 'var(--accent)' }} />Admin
-                            </span>
-                          )}
-                          {m.role === 'trainer' && (
-                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 10px', borderRadius: 100, fontSize: 11, fontWeight: 500, background: 'var(--blue-bg)', color: 'var(--blue-text)' }}>
-                              <span style={{ width: 5, height: 5, borderRadius: '50%', background: 'var(--blue)' }} />Entrenador
-                            </span>
-                          )}
-                          {m.role === 'member' && (
-                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 10px', borderRadius: 100, fontSize: 11, fontWeight: 500, background: 'var(--gray-bg)', color: '#909090' }}>
-                              <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#555' }} />Miembro
-                            </span>
-                          )}
+                        <td className="px-[18px] py-[14px] border-b border-border align-middle">
+                          {m.role === 'admin' && <Badge variant="accent" dot>Admin</Badge>}
+                          {m.role === 'trainer' && <Badge variant="blue" dot>Entrenador</Badge>}
+                          {m.role === 'member' && <Badge variant="gray" dot>Miembro</Badge>}
                         </td>
-
-                        {/* Phone */}
-                        <td style={{ padding: '14px 18px', borderBottom: '1px solid var(--border)', verticalAlign: 'middle', fontSize: 12, color: 'var(--text-2)' }}>
-                          {m.phone || <span style={{ color: 'var(--text-3)' }}>—</span>}
+                        <td className="px-[18px] py-[14px] border-b border-border align-middle text-[12px] text-text-2">
+                          {m.phone || <span className="text-text-3">—</span>}
                         </td>
-
-                        {/* Membership */}
-                        <td style={{ padding: '14px 18px', borderBottom: '1px solid var(--border)', verticalAlign: 'middle' }}>
+                        <td className="px-[18px] py-[14px] border-b border-border align-middle">
                           {m.membresia ? (
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                              <span style={{ fontSize: 12, color: 'var(--text-2)' }}>{m.membresia}</span>
-                              {diff !== null && diff < 0 && (
-                                <span style={{ fontSize: 11, color: 'var(--red-text)' }}>Venció hace {Math.abs(diff)}d</span>
-                              )}
-                              {diff !== null && diff >= 0 && diff <= 7 && (
-                                <span style={{ fontSize: 11, color: 'var(--amber-text)' }}>Vence en {diff}d</span>
-                              )}
-                              {diff !== null && diff > 7 && (
-                                <span style={{ fontSize: 11, color: 'var(--text-3)' }}>Vence {fmtDate(m.vence)}</span>
-                              )}
+                            <div className="flex flex-col gap-0.5">
+                              <span className="text-[12px] text-text-2">{m.membresia}</span>
+                              {diff !== null && diff < 0 && <span className="text-[11px] text-red-text">Venció hace {Math.abs(diff)}d</span>}
+                              {diff !== null && diff >= 0 && diff <= 7 && <span className="text-[11px] text-amber-text">Vence en {diff}d</span>}
+                              {diff !== null && diff > 7 && <span className="text-[11px] text-text-3">Vence {fmtDate(m.vence)}</span>}
                             </div>
-                          ) : (
-                            <span style={{ fontSize: 12, color: 'var(--text-3)' }}>Sin membresía</span>
-                          )}
+                          ) : <span className="text-[12px] text-text-3">Sin membresía</span>}
                         </td>
-
-                        {/* Plan */}
-                        <td style={{ padding: '14px 18px', borderBottom: '1px solid var(--border)', verticalAlign: 'middle' }}>
+                        <td className="px-[18px] py-[14px] border-b border-border align-middle">
                           {m.plan ? (
-                            <span style={{
-                              display: 'inline-flex', alignItems: 'center', gap: 5,
-                              padding: '3px 9px', borderRadius: 'var(--radius-sm)',
-                              fontSize: 11, background: 'var(--surface2)', color: 'var(--text-2)',
-                              border: '1px solid var(--border)',
-                            }}>
-                              {m.plan}
-                            </span>
+                            <span className="inline-flex items-center gap-1 px-[9px] py-[3px] rounded-sm text-[11px] bg-surface2 text-text-2 border border-border">{m.plan}</span>
                           ) : (
-                            <span style={{
-                              display: 'inline-flex', alignItems: 'center', gap: 5,
-                              padding: '3px 9px', borderRadius: 'var(--radius-sm)',
-                              fontSize: 11, color: 'var(--text-3)',
-                              border: '1px dashed var(--border)',
-                            }}>
-                              Sin plan
-                            </span>
+                            <span className="inline-flex items-center gap-1 px-[9px] py-[3px] rounded-sm text-[11px] text-text-3 border border-dashed border-border">Sin plan</span>
                           )}
                         </td>
-
-                        {/* Status */}
-                        <td style={{ padding: '14px 18px', borderBottom: '1px solid var(--border)', verticalAlign: 'middle' }}>
-                          {m.status === 'active' ? (
-                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 10px', borderRadius: 100, fontSize: 11, fontWeight: 500, background: 'var(--green-bg)', color: 'var(--green-text)' }}>
-                              <span style={{ width: 5, height: 5, borderRadius: '50%', background: 'var(--green)' }} />Activo
-                            </span>
-                          ) : (
-                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 10px', borderRadius: 100, fontSize: 11, fontWeight: 500, background: 'var(--red-bg)', color: 'var(--red-text)' }}>
-                              <span style={{ width: 5, height: 5, borderRadius: '50%', background: 'var(--red)' }} />Inactivo
-                            </span>
-                          )}
+                        <td className="px-[18px] py-[14px] border-b border-border align-middle">
+                          {m.status === 'active'
+                            ? <Badge variant="green" dot>Activo</Badge>
+                            : <Badge variant="red" dot>Inactivo</Badge>}
                         </td>
-
-                        {/* Actions */}
-                        <td style={{ padding: '14px 18px', borderBottom: '1px solid var(--border)', verticalAlign: 'middle' }}>
-                          <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
-                            <button style={iconBtnStyle} title="Ver detalle">
-                              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" />
-                              </svg>
-                            </button>
-                            <button style={iconBtnStyle} title="Editar">
-                              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                              </svg>
-                            </button>
-                            <button
-                              style={{ ...iconBtnStyle, ...dangerIconBtnStyle }}
-                              title={m.status === 'active' ? 'Desactivar' : 'Activar'}
+                        <td className="px-[18px] py-[14px] border-b border-border align-middle">
+                          <div className="flex gap-1.5 justify-end">
+                            <IconBtn title="Ver detalle">
+                              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" /></svg>
+                            </IconBtn>
+                            <IconBtn title="Editar">
+                              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
+                            </IconBtn>
+                            <IconBtn title={m.status === 'active' ? 'Desactivar' : 'Activar'} danger
                               onClick={() => toggleStatus(globalIdx)}
                             >
                               {m.status === 'active' ? (
-                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                  <circle cx="12" cy="12" r="10" /><line x1="15" y1="9" x2="9" y2="15" /><line x1="9" y1="9" x2="15" y2="15" />
-                                </svg>
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10" /><line x1="15" y1="9" x2="9" y2="15" /><line x1="9" y1="9" x2="15" y2="15" /></svg>
                               ) : (
-                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                  <circle cx="12" cy="12" r="10" /><polyline points="9 12 11 14 15 10" />
-                                </svg>
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10" /><polyline points="9 12 11 14 15 10" /></svg>
                               )}
-                            </button>
+                            </IconBtn>
                           </div>
                         </td>
                       </tr>
@@ -472,157 +301,73 @@ export default function MembersPage() {
             </table>
           </div>
 
-          {/* FOOTER */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 18px', borderTop: '1px solid var(--border)', background: 'var(--surface2)' }}>
-            <span style={{ fontSize: 12, color: 'var(--text-3)' }}>
-              Mostrando {Math.min(start + 1, filtered.length)}–{Math.min(start + ROWS_PER_PAGE, filtered.length)} de {filtered.length} miembro{filtered.length !== 1 ? 's' : ''}
-            </span>
-            <div style={{ display: 'flex', gap: 4 }}>
-              {totalPages > 1 &&
-                Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
-                  <button
-                    key={p}
-                    onClick={() => setCurrentPage(p)}
-                    style={{
-                      width: 28, height: 28, borderRadius: 'var(--radius-sm)',
-                      background: p === safePage ? 'var(--accent)' : 'transparent',
-                      border: '1px solid var(--border)',
-                      color: p === safePage ? '#000' : 'var(--text-2)',
-                      fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      cursor: 'pointer', fontWeight: p === safePage ? 600 : 400,
-                    }}
-                  >
-                    {p}
-                  </button>
-                ))}
-            </div>
-          </div>
+          <Pagination
+            current={safePage}
+            total={totalPages}
+            start={start}
+            end={Math.min(start + ROWS_PER_PAGE, filtered.length)}
+            totalItems={filtered.length}
+            label="miembros"
+            onChange={setCurrentPage}
+          />
         </div>
       </div>
 
-      {/* MODAL */}
-      {modalOpen && (
-        <div
-          style={{
-            position: 'fixed', inset: 0,
-            background: 'rgba(0,0,0,0.6)', zIndex: 50,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}
-          onClick={(e) => { if (e.target === e.currentTarget) closeModal(); }}
-        >
-          <div style={{
-            background: 'var(--surface)', border: '1px solid var(--border2)',
-            borderRadius: 'var(--radius)', width: 480, maxWidth: '95vw',
-            maxHeight: '90vh', overflowY: 'auto',
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '20px 24px', borderBottom: '1px solid var(--border)' }}>
-              <div style={{ fontSize: 16, fontWeight: 600 }}>Nuevo miembro</div>
-              <button
-                onClick={closeModal}
-                style={{
-                  width: 28, height: 28, borderRadius: 'var(--radius-sm)',
-                  background: 'transparent', border: '1px solid var(--border)',
-                  color: 'var(--text-3)', cursor: 'pointer',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                }}
-              >
-                <IconClose />
-              </button>
-            </div>
-
-            <div style={{ padding: 24 }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  <label style={{ fontSize: 12, color: 'var(--text-2)', fontWeight: 500 }}>Nombre completo *</label>
-                  <input
-                    type="text"
-                    placeholder="Ej. Maria Gonzalez"
-                    value={fName}
-                    onChange={(e) => setFName(e.target.value)}
-                    style={inputStyle}
-                  />
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  <label style={{ fontSize: 12, color: 'var(--text-2)', fontWeight: 500 }}>Telefono</label>
-                  <input
-                    type="text"
-                    placeholder="311 234 5678"
-                    value={fPhone}
-                    onChange={(e) => setFPhone(e.target.value)}
-                    style={inputStyle}
-                  />
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, gridColumn: '1 / -1' }}>
-                  <label style={{ fontSize: 12, color: 'var(--text-2)', fontWeight: 500 }}>Correo electronico *</label>
-                  <input
-                    type="email"
-                    placeholder="correo@ejemplo.com"
-                    value={fEmail}
-                    onChange={(e) => setFEmail(e.target.value)}
-                    style={inputStyle}
-                  />
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  <label style={{ fontSize: 12, color: 'var(--text-2)', fontWeight: 500 }}>Rol</label>
-                  <select
-                    value={fRole}
-                    onChange={(e) => setFRole(e.target.value as Role)}
-                    style={{ ...inputStyle, appearance: 'auto' }}
-                  >
-                    <option value="member">Miembro</option>
-                    <option value="trainer">Entrenador</option>
-                    <option value="admin">Admin</option>
-                  </select>
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  <label style={{ fontSize: 12, color: 'var(--text-2)', fontWeight: 500 }}>Tipo de membresia</label>
-                  <select
-                    value={fPlan}
-                    onChange={(e) => setFPlan(e.target.value)}
-                    style={{ ...inputStyle, appearance: 'auto' }}
-                  >
-                    <option value="">Sin membresía</option>
-                    <option value="Mensual">Mensual</option>
-                    <option value="Trimestral">Trimestral</option>
-                    <option value="Anual">Anual</option>
-                  </select>
-                </div>
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, padding: '16px 24px', borderTop: '1px solid var(--border)' }}>
-              <button style={btnGhost} onClick={closeModal}>Cancelar</button>
-              <button
-                style={{
-                  ...btnPrimary,
-                  opacity: !fName.trim() || !fEmail.trim() ? 0.5 : 1,
-                  cursor: !fName.trim() || !fEmail.trim() ? 'not-allowed' : 'pointer',
-                }}
-                onClick={guardarMiembro}
-                disabled={!fName.trim() || !fEmail.trim()}
-              >
-                Guardar miembro
-              </button>
-            </div>
+      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="Nuevo miembro">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[12px] text-text-2 font-medium">Nombre completo *</label>
+            <input type="text" placeholder="Ej. Maria Gonzalez" value={fName} onChange={(e) => setFName(e.target.value)}
+              className="bg-surface2 border border-border2 text-text text-[13px] px-3 py-[9px] rounded-sm outline-none w-full font-sans" />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[12px] text-text-2 font-medium">Teléfono</label>
+            <input type="text" placeholder="311 234 5678" value={fPhone} onChange={(e) => setFPhone(e.target.value)}
+              className="bg-surface2 border border-border2 text-text text-[13px] px-3 py-[9px] rounded-sm outline-none w-full font-sans" />
+          </div>
+          <div className="flex flex-col gap-1.5 sm:col-span-2">
+            <label className="text-[12px] text-text-2 font-medium">Correo electrónico *</label>
+            <input type="email" placeholder="correo@ejemplo.com" value={fEmail} onChange={(e) => setFEmail(e.target.value)}
+              className="bg-surface2 border border-border2 text-text text-[13px] px-3 py-[9px] rounded-sm outline-none w-full font-sans" />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[12px] text-text-2 font-medium">Rol</label>
+            <select value={fRole} onChange={(e) => setFRole(e.target.value as Role)}
+              className="bg-surface2 border border-border2 text-text text-[13px] px-3 py-[9px] rounded-sm outline-none w-full font-sans">
+              <option value="member">Miembro</option>
+              <option value="trainer">Entrenador</option>
+              <option value="admin">Admin</option>
+            </select>
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[12px] text-text-2 font-medium">Tipo de membresía</label>
+            <select value={fPlan} onChange={(e) => setFPlan(e.target.value)}
+              className="bg-surface2 border border-border2 text-text text-[13px] px-3 py-[9px] rounded-sm outline-none w-full font-sans">
+              <option value="">Sin membresía</option>
+              <option value="Mensual">Mensual</option>
+              <option value="Trimestral">Trimestral</option>
+              <option value="Anual">Anual</option>
+            </select>
           </div>
         </div>
-      )}
+        <div className="flex justify-end gap-2.5 mt-2">
+          <Button variant="ghost" onClick={() => setModalOpen(false)}>Cancelar</Button>
+          <Button variant="primary" onClick={guardarMiembro}
+            disabled={!fName.trim() || !fEmail.trim()}>
+            Guardar miembro
+          </Button>
+        </div>
+      </Modal>
     </>
   );
 }
 
-const iconBtnStyle: React.CSSProperties = {
-  width: 28, height: 28, borderRadius: 'var(--radius-sm)',
-  background: 'transparent', border: '1px solid var(--border)',
-  color: 'var(--text-3)', display: 'flex', alignItems: 'center', justifyContent: 'center',
-  cursor: 'pointer',
-};
-
-const dangerIconBtnStyle: React.CSSProperties = {};
-
-const inputStyle: React.CSSProperties = {
-  background: 'var(--surface2)', border: '1px solid var(--border2)',
-  color: 'var(--text)', fontFamily: 'inherit', fontSize: 13,
-  padding: '9px 12px', borderRadius: 'var(--radius-sm)',
-  outline: 'none', width: '100%',
-};
+function IconBtn({ children, title, danger, onClick }: { children: React.ReactNode; title: string; danger?: boolean; onClick?: () => void }) {
+  return (
+    <button title={title} onClick={onClick}
+      className={`w-7 h-7 rounded-sm bg-transparent border border-border flex items-center justify-center cursor-pointer transition-colors duration-150
+        ${danger ? 'text-red-text' : 'text-text-3'} hover:bg-surface2`}>
+      {children}
+    </button>
+  );
+}
