@@ -6,7 +6,7 @@ account:
   provider: "supabase.com"
   owner_email: "<tu-email>"
   project_name: "omega-gym"
-  project_ref: "<tu-project-ref>"
+  project_ref: "jaltwjcipyrnmvjkdqdp"
   region: "us-east-1"
   environment: "development"
 
@@ -15,32 +15,34 @@ mcp:
   mcp_server: "@supabase/mcp-server-supabase"
 
 model_status:
-  overall: draft
-  last_reviewed: null
-  approved_by: null
-  notes: "Modelo inicial pendiente de revisión"
+  overall: active
+  last_reviewed: 2026-05-14
+  approved_by: "admin"
+  notes: "Schema aplicado y en producción"
 
 tables:
   - name: profiles
-    status: draft
-    rls_enabled: false
+    status: active
+    rls_enabled: true
   - name: membership_types
-    status: draft
-    rls_enabled: false
+    status: active
+    rls_enabled: true
   - name: memberships
-    status: draft
-    rls_enabled: false
+    status: active
+    rls_enabled: true
   - name: payments
-    status: draft
-    rls_enabled: false
+    status: active
+    rls_enabled: true
   - name: training_plans
-    status: draft
-    rls_enabled: false
+    status: active
+    rls_enabled: true
   - name: plan_exercises
-    status: draft
-    rls_enabled: false
+    status: active
+    rls_enabled: true
+  - name: check_ins
+    status: active
+    rls_enabled: true
 
 env_variables:
-  - NEXT_PUBLIC_SUPABASE_URL
-  - NEXT_PUBLIC_SUPABASE_ANON_KEY
-  - SUPABASE_SERVICE_ROLE_KEY
+  - VITE_SUPABASE_URL
+  - VITE_SUPABASE_ANON_KEY

@@ -41,10 +41,12 @@ export const authService = {
 
 export interface Profile {
   id: string
+  email: string | null
   full_name: string
   phone: string | null
   avatar_url: string | null
   role: 'admin' | 'trainer' | 'member'
+  is_active: boolean | null
   created_at: string
   updated_at: string
 }

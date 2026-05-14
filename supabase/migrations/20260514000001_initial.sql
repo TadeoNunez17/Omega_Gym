@@ -1,10 +1,8 @@
--- Omega Gym — Schema Inicial
--- Estado: draft
--- Fecha: 2026-05-01
+-- Omega Gym — Schema Inicial (idempotent)
 -- ============================================
 -- Perfiles
 -- ============================================
-CREATE TABLE profiles (
+CREATE TABLE IF NOT EXISTS profiles (
   id UUID REFERENCES auth.users(id) PRIMARY KEY,
   email TEXT,
   full_name TEXT NOT NULL,
@@ -20,7 +18,7 @@ CREATE TABLE profiles (
 -- ============================================
 -- Tipos de membresía
 -- ============================================
-CREATE TABLE membership_types (
+CREATE TABLE IF NOT EXISTS membership_types (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
   price NUMERIC(10,2) NOT NULL,
@@ -33,7 +31,7 @@ CREATE TABLE membership_types (
 -- ============================================
 -- Membresías
 -- ============================================
-CREATE TABLE memberships (
+CREATE TABLE IF NOT EXISTS memberships (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   member_id UUID REFERENCES profiles(id) NOT NULL,
   type_id UUID REFERENCES membership_types(id) NOT NULL,
@@ -46,7 +44,7 @@ CREATE TABLE memberships (
 -- ============================================
 -- Pagos
 -- ============================================
-CREATE TABLE payments (
+CREATE TABLE IF NOT EXISTS payments (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   membership_id UUID REFERENCES memberships(id) NOT NULL,
   amount NUMERIC(10,2) NOT NULL,
@@ -60,7 +58,7 @@ CREATE TABLE payments (
 -- ============================================
 -- Planes de entrenamiento
 -- ============================================
-CREATE TABLE training_plans (
+CREATE TABLE IF NOT EXISTS training_plans (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
   description TEXT,
@@ -74,7 +72,7 @@ CREATE TABLE training_plans (
 -- ============================================
 -- Registros de entrada (huella)
 -- ============================================
-CREATE TABLE check_ins (
+CREATE TABLE IF NOT EXISTS check_ins (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   member_id UUID REFERENCES profiles(id) NOT NULL,
   membership_id UUID REFERENCES memberships(id),
@@ -83,6 +81,22 @@ CREATE TABLE check_ins (
   method TEXT NOT NULL DEFAULT 'fingerprint' CHECK (method IN ('fingerprint', 'manual', 'card')),
   device_id TEXT,
   notes TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- ============================================
+-- Ejercicios del plan
+-- ============================================
+CREATE TABLE IF NOT EXISTS plan_exercises (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  plan_id UUID REFERENCES training_plans(id),
+  exercise_name TEXT NOT NULL,
+  sets INTEGER,
+  reps INTEGER,
+  rest_seconds INTEGER,
+  day INTEGER CHECK (day >= 0 AND day <= 6),
+  notes TEXT,
+  order_index INTEGER NOT NULL DEFAULT 0,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -107,28 +121,8 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE TRIGGER check_membership_active
-  BEFORE INSERT ON check_ins
-  FOR EACH ROW EXECUTE FUNCTION validate_active_membership();
-
 -- ============================================
--- Ejercicios del plan
--- ============================================
-CREATE TABLE plan_exercises (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  plan_id UUID REFERENCES training_plans(id),
-  exercise_name TEXT NOT NULL,
-  sets INTEGER,
-  reps INTEGER,
-  rest_seconds INTEGER,
-  day INTEGER CHECK (day >= 0 AND day <= 6),
-  notes TEXT,
-  order_index INTEGER NOT NULL DEFAULT 0,
-  created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- ============================================
--- RLS habilitado en todas las tablas (Fix #2 y #3)
+-- RLS habilitado en todas las tablas
 -- ============================================
 ALTER TABLE profiles          ENABLE ROW LEVEL SECURITY;
 ALTER TABLE membership_types  ENABLE ROW LEVEL SECURITY;
@@ -139,28 +133,32 @@ ALTER TABLE plan_exercises    ENABLE ROW LEVEL SECURITY;
 ALTER TABLE check_ins         ENABLE ROW LEVEL SECURITY;
 
 -- ============================================
--- Políticas RLS básicas
+-- Políticas RLS (drop first for idempotency)
 -- ============================================
+DROP POLICY IF EXISTS "Own profile select"   ON profiles;
+DROP POLICY IF EXISTS "Own profile update"   ON profiles;
+DROP POLICY IF EXISTS "Admin select all"     ON profiles;
+DROP POLICY IF EXISTS "Member sees own memberships" ON memberships;
+DROP POLICY IF EXISTS "Admin manages memberships"   ON memberships;
+DROP POLICY IF EXISTS "See own or assigned plans"   ON training_plans;
+DROP POLICY IF EXISTS "Trainer creates plans"       ON training_plans;
+DROP POLICY IF EXISTS "Member sees own check_ins"   ON check_ins;
 
--- profiles: cada quien ve/edita lo suyo; admin ve todo
 CREATE POLICY "Own profile select"   ON profiles FOR SELECT USING (auth.uid() = id);
 CREATE POLICY "Own profile update"   ON profiles FOR UPDATE USING (auth.uid() = id);
 CREATE POLICY "Admin select all"     ON profiles FOR SELECT
   USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin'));
 
--- memberships: el miembro ve las suyas; admin ve todas
 CREATE POLICY "Member sees own memberships" ON memberships FOR SELECT
   USING (member_id = auth.uid());
 CREATE POLICY "Admin manages memberships"   ON memberships FOR ALL
   USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin'));
 
--- training_plans: trainer/admin gestionan; miembro ve los suyos
 CREATE POLICY "See own or assigned plans" ON training_plans FOR SELECT
   USING (assigned_to = auth.uid() OR created_by = auth.uid());
 CREATE POLICY "Trainer creates plans" ON training_plans FOR INSERT
   WITH CHECK (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('admin','trainer')));
 
--- check_ins: cada miembro ve sus propias entradas
 CREATE POLICY "Member sees own check_ins" ON check_ins FOR SELECT
   USING (member_id = auth.uid());
 
@@ -184,12 +182,13 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION handle_new_user();
 
 -- ============================================
--- Trigger updated_at (Fix #1: search_path fijo)
+-- Trigger updated_at
 -- ============================================
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
@@ -199,12 +198,22 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql
    SECURITY INVOKER
-   SET search_path = '';      -- ← Fix vulnerabilidad search path
+   SET search_path = '';
 
+DROP TRIGGER IF EXISTS update_profiles_updated_at ON profiles;
 CREATE TRIGGER update_profiles_updated_at
   BEFORE UPDATE ON profiles
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_training_plans_updated_at ON training_plans;
 CREATE TRIGGER update_training_plans_updated_at
   BEFORE UPDATE ON training_plans
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- ============================================
+-- Trigger check_membership_active
+-- ============================================
+DROP TRIGGER IF EXISTS check_membership_active ON check_ins;
+CREATE TRIGGER check_membership_active
+  BEFORE INSERT ON check_ins
+  FOR EACH ROW EXECUTE FUNCTION validate_active_membership();

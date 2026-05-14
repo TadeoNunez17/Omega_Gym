@@ -1,5 +1,8 @@
 import { useEffect, useState } from 'react';
 import { trainerService, type TrainerMember, type TrainerPlan } from '@/services/trainer.service';
+import { Button } from '@/components/ui/atoms/Button';
+import { Modal } from '@/components/ui/molecules/Modal';
+import { Input, Select } from '@/components/ui/atoms/Input';
 
 const ICON_COLORS = [
   { bg: 'rgba(168,85,247,0.1)', fg: '#c084fc' },
@@ -57,92 +60,65 @@ export default function TrainerPlansPage() {
   }
 
   if (loading) {
-    return <div style={{ padding: 28, fontSize: 14, color: 'var(--text-3)' }}>Cargando planes…</div>;
+    return <div className="p-7 text-sm text-text-3">Cargando planes…</div>;
   }
 
   if (error) {
-    return <div style={{ padding: 28, fontSize: 14, color: 'var(--red-text)' }}>Error: {error}</div>;
+    return <div className="p-7 text-sm text-red-text">Error: {error}</div>;
   }
 
   return (
-    <div style={{ padding: 28, flex: 1, display: 'flex', flexDirection: 'column', gap: 20 }}>
-      <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+    <div className="p-7 flex-1 flex flex-col gap-5">
+      <header className="flex items-center justify-between">
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--text-3)' }}>
-            Omega Gym <span style={{ color: 'var(--text-2)' }}>›</span> <span style={{ color: 'var(--text-2)' }}>Mis planes</span>
+          <div className="flex items-center gap-2 text-[13px] text-text-3">
+            Omega Gym <span className="text-text-2">›</span> <span className="text-text-2">Mis planes</span>
           </div>
-          <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 4 }}>{plans.length} planes de entrenamiento</div>
+          <div className="text-[11px] text-text-3 mt-1">{plans.length} planes de entrenamiento</div>
         </div>
-        <button onClick={() => setModalOpen(true)}
-          style={{
-            display: 'inline-flex', alignItems: 'center', gap: 6,
-            padding: '8px 16px', borderRadius: 'var(--radius-sm)',
-            fontSize: 13, fontWeight: 500, cursor: 'pointer',
-            background: 'var(--accent)', color: '#000',
-            border: 'none', fontFamily: 'inherit',
-          }}>
+        <Button variant="primary" size="sm" onClick={() => setModalOpen(true)}>
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
             <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
           </svg>
           Nuevo plan
-        </button>
+        </Button>
       </header>
 
       {plans.length === 0 ? (
-        <div style={{
-          background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius)',
-          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-          padding: 48, gap: 12, textAlign: 'center',
-        }}>
-          <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="var(--text-3)" strokeWidth="1.5" style={{ opacity: 0.4 }}>
+        <div className="bg-surface border border-border rounded flex flex-col items-center justify-center p-12 gap-3 text-center">
+          <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="opacity-40 text-text-3">
             <path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
           </svg>
-          <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-2)' }}>No tienes planes aún</div>
-          <div style={{ fontSize: 12, color: 'var(--text-3)', maxWidth: 300 }}>Crea tu primer plan de entrenamiento y asígnaselo a uno de tus miembros.</div>
-          <button onClick={() => setModalOpen(true)}
-            style={{
-              marginTop: 8, padding: '8px 16px', borderRadius: 'var(--radius-sm)', fontSize: 13,
-              fontWeight: 500, cursor: 'pointer', background: 'var(--accent)', color: '#000',
-              border: 'none', fontFamily: 'inherit',
-            }}>
+          <div className="text-sm font-semibold text-text-2">No tienes planes aún</div>
+          <div className="text-xs text-text-3 max-w-[300px]">Crea tu primer plan de entrenamiento y asígnaselo a uno de tus miembros.</div>
+          <Button variant="primary" size="sm" className="mt-2" onClick={() => setModalOpen(true)}>
             + Crear plan
-          </button>
+          </Button>
         </div>
       ) : (
-        <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', overflow: 'hidden' }}>
+        <div className="bg-surface border border-border rounded overflow-hidden">
           {plans.map((p, i) => {
             const ic = ICON_COLORS[i % ICON_COLORS.length];
             return (
-              <div key={p.id} style={{
-                padding: '14px 18px', borderBottom: i < plans.length - 1 ? '1px solid var(--border)' : 'none',
-                display: 'flex', alignItems: 'center', gap: 12,
-              }}>
-                <div style={{
-                  width: 36, height: 36, borderRadius: 'var(--radius-sm)',
-                  background: ic.bg, color: ic.fg,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-                }}>
+              <div key={p.id} className={`flex items-center gap-3 px-[18px] py-3.5 ${i < plans.length - 1 ? 'border-b border-border' : ''}`}>
+                <div className="w-9 h-9 rounded-[var(--radius-sm)] flex items-center justify-center shrink-0"
+                  style={{ background: ic.bg, color: ic.fg }}>
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16"
                     dangerouslySetInnerHTML={{ __html: PLAN_ICONS[i % PLAN_ICONS.length] }} />
                 </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: 500 }}>{p.name}</div>
-                  <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 2, display: 'flex', gap: 12 }}>
+                <div className="flex-1 min-w-0">
+                  <div className="text-[13px] font-medium">{p.name}</div>
+                  <div className="text-[11px] text-text-3 mt-0.5 flex gap-3">
                     {p.assigned_to_name && <span>Asignado a: {p.assigned_to_name}</span>}
                     <span>{p.exercise_count} ejercicio{p.exercise_count !== 1 ? 's' : ''}</span>
-                    {p.description && <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 200 }}>{p.description}</span>}
+                    {p.description && <span className="truncate max-w-[200px]">{p.description}</span>}
                   </div>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ fontSize: 11, color: 'var(--text-3)', fontFamily: "'DM Mono', monospace" }}>
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] text-text-3 font-mono">
                     {new Date(p.created_at).toLocaleDateString('es-MX')}
                   </span>
-                  <button style={{
-                    width: 28, height: 28, borderRadius: 'var(--radius-sm)',
-                    background: 'transparent', border: '1px solid var(--border)',
-                    color: 'var(--text-3)', cursor: 'pointer',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  }}>
+                  <button className="w-7 h-7 rounded-[var(--radius-sm)] bg-transparent border border-border text-text-3 cursor-pointer flex items-center justify-center hover:bg-surface2 transition-colors">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="13" height="13">
                       <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
                       <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
@@ -155,64 +131,18 @@ export default function TrainerPlansPage() {
         </div>
       )}
 
-      {modalOpen && (
-        <div onClick={e => { if (e.target === e.currentTarget) setModalOpen(false); }}
-          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{
-            background: 'var(--surface)', border: '1px solid var(--border2)',
-            borderRadius: 'var(--radius)', width: 480, maxWidth: '95vw',
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '20px 24px', borderBottom: '1px solid var(--border)' }}>
-              <div style={{ fontSize: 16, fontWeight: 600 }}>Nuevo plan de entrenamiento</div>
-              <button onClick={() => setModalOpen(false)}
-                style={{ width: 28, height: 28, borderRadius: 'var(--radius-sm)', background: 'transparent', border: '1px solid var(--border)', color: 'var(--text-3)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, fontFamily: 'inherit' }}>✕</button>
-            </div>
-            <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 14 }}>
-              <FormGroup label="Nombre del plan *">
-                <input value={pName} onChange={e => setPName(e.target.value)} placeholder="Ej. Fuerza C — Avanzado"
-                  style={inputStyle} />
-              </FormGroup>
-              <FormGroup label="Descripción">
-                <textarea value={pDesc} onChange={e => setPDesc(e.target.value)} placeholder="Objetivo, observaciones…"
-                  style={{ ...inputStyle, resize: 'vertical', minHeight: 80 }} />
-              </FormGroup>
-              <FormGroup label="Asignar a miembro">
-                <select value={pMember} onChange={e => setPMember(e.target.value)}
-                  style={{ ...inputStyle, cursor: 'pointer' }}>
-                  <option value="">— Sin asignar —</option>
-                  {members.map(m => <option key={m.id} value={m.id}>{m.full_name}</option>)}
-                </select>
-              </FormGroup>
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 8 }}>
-                <button onClick={() => setModalOpen(false)}
-                  style={{ padding: '8px 16px', borderRadius: 'var(--radius-sm)', fontSize: 13, cursor: 'pointer', background: 'transparent', color: 'var(--text-2)', border: '1px solid var(--border2)', fontFamily: 'inherit' }}>
-                  Cancelar
-                </button>
-                <button onClick={handleCreate}
-                  style={{ padding: '8px 16px', borderRadius: 'var(--radius-sm)', fontSize: 13, cursor: 'pointer', background: 'var(--accent)', color: '#000', border: 'none', fontFamily: 'inherit' }}>
-                  Crear plan
-                </button>
-              </div>
-            </div>
-          </div>
+      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="Nuevo plan de entrenamiento" className="max-w-[400px]">
+        <Input label="Nombre del plan *" value={pName} onChange={e => setPName(e.target.value)} placeholder="Ej. Fuerza C — Avanzado" />
+        <Input label="Descripción" value={pDesc} onChange={e => setPDesc(e.target.value)} placeholder="Objetivo, observaciones…" />
+        <Select label="Asignar a miembro" value={pMember} onChange={e => setPMember(e.target.value)}>
+          <option value="">— Sin asignar —</option>
+          {members.map(m => <option key={m.id} value={m.id}>{m.full_name}</option>)}
+        </Select>
+        <div className="flex justify-end gap-[10px] pt-4 border-t border-border mt-2">
+          <Button variant="ghost" size="sm" onClick={() => setModalOpen(false)}>Cancelar</Button>
+          <Button variant="primary" size="sm" onClick={handleCreate}>Crear plan</Button>
         </div>
-      )}
+      </Modal>
     </div>
   );
 }
-
-function FormGroup({ children, label }: { children: React.ReactNode; label: string }) {
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-      <label style={{ fontSize: 12, color: 'var(--text-2)', fontWeight: 500 }}>{label}</label>
-      {children}
-    </div>
-  );
-}
-
-const inputStyle: React.CSSProperties = {
-  background: 'var(--surface2)', border: '1px solid var(--border2)',
-  color: 'var(--text)', fontFamily: 'inherit', fontSize: 13,
-  padding: '9px 12px', borderRadius: 'var(--radius-sm)',
-  outline: 'none', width: '100%',
-};

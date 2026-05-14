@@ -7,9 +7,10 @@ interface ModalProps {
   onClose: () => void;
   title: string;
   children: ReactNode;
+  className?: string;
 }
 
-export function Modal({ open, onClose, title, children }: ModalProps) {
+export function Modal({ open, onClose, title, children, className }: ModalProps) {
   if (!open) return null;
 
   return (
@@ -18,8 +19,7 @@ export function Modal({ open, onClose, title, children }: ModalProps) {
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div
-        className="bg-surface border border-border2 rounded w-full mx-4 max-w-[480px] max-h-[90vh] overflow-y-auto"
-        style={{ maxWidth: '95vw' }}
+        className={`bg-surface border border-border2 rounded w-full mx-4 max-w-[480px] max-h-[90vh] overflow-y-auto${className ? ` ${className}` : ''}`}
       >
         <div className="flex items-center justify-between px-6 py-5 border-b border-border">
           <div className="text-base font-semibold">{title}</div>
