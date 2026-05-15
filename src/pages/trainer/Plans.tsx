@@ -60,15 +60,15 @@ export default function TrainerPlansPage() {
   }
 
   if (loading) {
-    return <div className="p-7 text-sm text-text-3">Cargando planes…</div>;
+    return <div className="p-4 sm:p-7 text-sm text-text-3">Cargando planes…</div>;
   }
 
   if (error) {
-    return <div className="p-7 text-sm text-red-text">Error: {error}</div>;
+    return <div className="p-4 sm:p-7 text-sm text-red-text">Error: {error}</div>;
   }
 
   return (
-    <div className="p-7 flex-1 flex flex-col gap-5">
+    <div className="p-4 sm:p-7 flex-1 flex flex-col gap-5">
       <header className="flex items-center justify-between">
         <div>
           <div className="flex items-center gap-2 text-[13px] text-text-3">
@@ -100,7 +100,7 @@ export default function TrainerPlansPage() {
           {plans.map((p, i) => {
             const ic = ICON_COLORS[i % ICON_COLORS.length];
             return (
-              <div key={p.id} className={`flex items-center gap-3 px-[18px] py-3.5 ${i < plans.length - 1 ? 'border-b border-border' : ''}`}>
+              <div key={p.id} className={`flex items-start sm:items-center gap-3 px-[18px] py-3.5 ${i < plans.length - 1 ? 'border-b border-border' : ''}`}>
                 <div className="w-9 h-9 rounded-[var(--radius-sm)] flex items-center justify-center shrink-0"
                   style={{ background: ic.bg, color: ic.fg }}>
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16"
@@ -108,7 +108,7 @@ export default function TrainerPlansPage() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="text-[13px] font-medium">{p.name}</div>
-                  <div className="text-[11px] text-text-3 mt-0.5 flex gap-3">
+                  <div className="text-[11px] text-text-3 mt-0.5 flex gap-3 flex-wrap">
                     {p.assigned_to_name && <span>Asignado a: {p.assigned_to_name}</span>}
                     <span>{p.exercise_count} ejercicio{p.exercise_count !== 1 ? 's' : ''}</span>
                     {p.description && <span className="truncate max-w-[200px]">{p.description}</span>}

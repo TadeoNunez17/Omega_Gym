@@ -11,6 +11,7 @@ import { Pagination } from '@/components/ui/molecules/Pagination';
 import { IconDownload, IconPlus, IconEye, IconEdit, IconClose } from '@/lib/icons';
 import { initials, avatarIndex, fmtDate, daysDiff, AVATAR_COLORS } from '@/lib/helpers';
 import { membersService, type MemberListItem } from '@/services/members.service';
+import { ResponsiveTable, type Column } from '@/components/ui/molecules/ResponsiveTable';
 
 const ROWS_PER_PAGE = 8;
 type Role = 'admin' | 'trainer' | 'member';
@@ -142,6 +143,97 @@ export default function MembersPage() {
     { key: 'inactive' as FilterKey, label: 'Inactivos' },
   ];
 
+  function renderMembership(m: Member) {
+    const diff = daysDiff(m.vence);
+    if (!m.membresia) return <span className="text-[12px] text-text-3">Sin membresía</span>;
+    return (
+      <div className="flex flex-col gap-0.5">
+        <span className="text-[12px] text-text-2">{m.membresia}</span>
+        {diff !== null && diff < 0 && <span className="text-[11px] text-red-text">Venció hace {Math.abs(diff)}d</span>}
+        {diff !== null && diff >= 0 && diff <= 7 && <span className="text-[11px] text-amber-text">Vence en {diff}d</span>}
+        {diff !== null && diff > 7 && <span className="text-[11px] text-text-3">Vence {fmtDate(m.vence)}</span>}
+      </div>
+    );
+  }
+
+  const memberColumns: Column<Member>[] = [
+    {
+      key: 'name',
+      label: 'Miembro',
+      render: (m) => (
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-full flex items-center justify-center text-[12px] font-semibold flex-shrink-0"
+            style={{ background: AVATAR_COLORS[m.av].bg, color: AVATAR_COLORS[m.av].fg }}>
+            {initials(m.name)}
+          </div>
+          <div>
+            <div className="font-medium text-[13px]">{m.name}</div>
+            <div className="text-[11px] text-text-3 mt-0.5">{m.email}</div>
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: 'role',
+      label: 'Rol',
+      hide: 'lg',
+      render: (m) => (
+        <>{m.role === 'admin' ? <Badge variant="accent" dot>Admin</Badge> : m.role === 'trainer' ? <Badge variant="blue" dot>Entrenador</Badge> : <Badge variant="gray" dot>Miembro</Badge>}</>
+      ),
+    },
+    {
+      key: 'phone',
+      label: 'Teléfono',
+      hide: 'lg',
+      render: (m) => <span className="text-[12px] text-text-2">{m.phone || <span className="text-text-3">—</span>}</span>,
+    },
+    {
+      key: 'membership',
+      label: 'Membresía activa',
+      render: (m) => renderMembership(m),
+    },
+    {
+      key: 'plan',
+      label: 'Plan asignado',
+      hide: 'lg',
+      render: (m) => (
+        m.plan ? (
+          <span className="inline-flex items-center gap-1 px-[9px] py-[3px] rounded-sm text-[11px] bg-surface2 text-text-2 border border-border">{m.plan}</span>
+        ) : (
+          <span className="inline-flex items-center gap-1 px-[9px] py-[3px] rounded-sm text-[11px] text-text-3 border border-dashed border-border">Sin plan</span>
+        )
+      ),
+    },
+    {
+      key: 'status',
+      label: 'Estado',
+      render: (m) => (
+        m.status === 'active'
+          ? <Badge variant="green" dot>Activo</Badge>
+          : <Badge variant="red" dot>Inactivo</Badge>
+      ),
+    },
+    {
+      key: 'actions',
+      label: '',
+      render: (m) => (
+        <div className="flex gap-1.5 justify-end">
+          <IconButton title="Ver detalle"><IconEye width="13" height="13" /></IconButton>
+          <IconButton title="Editar"><IconEdit width="13" height="13" /></IconButton>
+          <IconButton title={m.status === 'active' ? 'Desactivar' : 'Activar'} danger
+            onClick={() => toggleStatus(m)}
+          >
+            {m.status === 'active' ? (
+              <IconClose width="13" height="13" />
+            ) : (
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10" /><polyline points="9 12 11 14 15 10" /></svg>
+            )}
+          </IconButton>
+        </div>
+      ),
+    },
+  ];
+
   return (
     <>
       <header className="px-4 sm:px-7 h-14 flex items-center justify-between border-b border-border bg-bg sticky top-0 z-9">
@@ -189,94 +281,43 @@ export default function MembersPage() {
           <div className="text-center py-[60px] text-red-text">Error: {error}</div>
         )}
 
-        {/* Table */}
+        {/* Table / Cards */}
         {!loading && !error && (
           <div className="bg-surface border border-border rounded overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full border-collapse text-[13px] min-w-[780px]">
-                <thead>
-                  <tr className="border-b border-border">
-                    {['Miembro', 'Rol', 'Teléfono', 'Membresía activa', 'Plan asignado', 'Estado', ''].map((h) => (
-                      <th key={h} className="px-[18px] py-[11px] text-left text-[10px] font-medium text-text-3 uppercase tracking-[0.07em] whitespace-nowrap bg-surface2">
-                        {h}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {members.length === 0 ? (
-                    <tr>
-                      <td colSpan={7} className="text-center py-[60px] text-text-3">No se encontraron miembros con ese criterio.</td>
-                    </tr>
+            <ResponsiveTable
+              columns={memberColumns}
+              data={members}
+              keyExtractor={(m) => m.id}
+              cardTitle={(m) => m.name}
+              cardSubtitle={(m) => m.email}
+              cardAvatar={(m) => {
+                const c = AVATAR_COLORS[m.av];
+                return (
+                  <div className="w-10 h-10 rounded-full flex items-center justify-center text-[13px] font-semibold shrink-0"
+                    style={{ background: c.bg, color: c.fg }}>
+                    {initials(m.name)}
+                  </div>
+                );
+              }}
+              cardFields={[
+                { label: 'Rol', value: (m: Member) => (
+                  <>{m.role === 'admin' ? <Badge variant="accent" dot>Admin</Badge> : m.role === 'trainer' ? <Badge variant="blue" dot>Entrenador</Badge> : <Badge variant="gray" dot>Miembro</Badge>}</>
+                )},
+                { label: 'Estado', value: (m: Member) => (
+                  m.status === 'active' ? <Badge variant="green" dot>Activo</Badge> : <Badge variant="red" dot>Inactivo</Badge>
+                )},
+                { label: 'Teléfono', value: (m: Member) => m.phone || <span className="text-text-3">—</span> },
+                { label: 'Membresía', value: (m: Member) => renderMembership(m) },
+                { label: 'Plan', value: (m: Member) => (
+                  m.plan ? (
+                    <span className="inline-flex items-center gap-1 px-[9px] py-[3px] rounded-sm text-[11px] bg-surface2 text-text-2 border border-border">{m.plan}</span>
                   ) : (
-                    members.map((m) => {
-                      const diff = daysDiff(m.vence);
-                      return (
-                        <tr key={m.id} className="transition-colors duration-100 hover:bg-surface2/50">
-                          <td className="px-[18px] py-[14px] border-b border-border align-middle">
-                            <div className="flex items-center gap-3">
-                              <div className="w-9 h-9 rounded-full flex items-center justify-center text-[12px] font-semibold flex-shrink-0"
-                                style={{ background: AVATAR_COLORS[m.av].bg, color: AVATAR_COLORS[m.av].fg }}>
-                                {initials(m.name)}
-                              </div>
-                              <div>
-                                <div className="font-medium text-[13px]">{m.name}</div>
-                                <div className="text-[11px] text-text-3 mt-0.5">{m.email}</div>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="px-[18px] py-[14px] border-b border-border align-middle">
-                            {m.role === 'admin' && <Badge variant="accent" dot>Admin</Badge>}
-                            {m.role === 'trainer' && <Badge variant="blue" dot>Entrenador</Badge>}
-                            {m.role === 'member' && <Badge variant="gray" dot>Miembro</Badge>}
-                          </td>
-                          <td className="px-[18px] py-[14px] border-b border-border align-middle text-[12px] text-text-2">
-                            {m.phone || <span className="text-text-3">—</span>}
-                          </td>
-                          <td className="px-[18px] py-[14px] border-b border-border align-middle">
-                            {m.membresia ? (
-                              <div className="flex flex-col gap-0.5">
-                                <span className="text-[12px] text-text-2">{m.membresia}</span>
-                                {diff !== null && diff < 0 && <span className="text-[11px] text-red-text">Venció hace {Math.abs(diff)}d</span>}
-                                {diff !== null && diff >= 0 && diff <= 7 && <span className="text-[11px] text-amber-text">Vence en {diff}d</span>}
-                                {diff !== null && diff > 7 && <span className="text-[11px] text-text-3">Vence {fmtDate(m.vence)}</span>}
-                              </div>
-                            ) : <span className="text-[12px] text-text-3">Sin membresía</span>}
-                          </td>
-                          <td className="px-[18px] py-[14px] border-b border-border align-middle">
-                            {m.plan ? (
-                              <span className="inline-flex items-center gap-1 px-[9px] py-[3px] rounded-sm text-[11px] bg-surface2 text-text-2 border border-border">{m.plan}</span>
-                            ) : (
-                              <span className="inline-flex items-center gap-1 px-[9px] py-[3px] rounded-sm text-[11px] text-text-3 border border-dashed border-border">Sin plan</span>
-                            )}
-                          </td>
-                          <td className="px-[18px] py-[14px] border-b border-border align-middle">
-                            {m.status === 'active'
-                              ? <Badge variant="green" dot>Activo</Badge>
-                              : <Badge variant="red" dot>Inactivo</Badge>}
-                          </td>
-                          <td className="px-[18px] py-[14px] border-b border-border align-middle">
-                            <div className="flex gap-1.5 justify-end">
-                              <IconButton title="Ver detalle"><IconEye width="13" height="13" /></IconButton>
-                              <IconButton title="Editar"><IconEdit width="13" height="13" /></IconButton>
-                              <IconButton title={m.status === 'active' ? 'Desactivar' : 'Activar'} danger
-                                onClick={() => toggleStatus(m)}
-                              >
-                                {m.status === 'active' ? (
-                                  <IconClose width="13" height="13" />
-                                ) : (
-                                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10" /><polyline points="9 12 11 14 15 10" /></svg>
-                                )}
-                              </IconButton>
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
-            </div>
+                    <span className="inline-flex items-center gap-1 px-[9px] py-[3px] rounded-sm text-[11px] text-text-3 border border-dashed border-border">Sin plan</span>
+                  )
+                )},
+              ]}
+              emptyMessage="No se encontraron miembros con ese criterio."
+            />
 
             <Pagination
               current={safePage}

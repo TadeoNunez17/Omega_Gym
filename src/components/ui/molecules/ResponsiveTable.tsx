@@ -1,0 +1,136 @@
+import type { ReactNode } from 'react';
+
+export interface Column<T> {
+  key: string;
+  label: string;
+  render: (item: T) => ReactNode;
+  hide?: 'sm' | 'md' | 'lg';
+  align?: 'left' | 'right' | 'center';
+  className?: string;
+  headerClassName?: string;
+}
+
+interface ResponsiveTableProps<T> {
+  columns: Column<T>[];
+  data: T[];
+  keyExtractor: (item: T) => string;
+  cardTitle: (item: T) => string;
+  cardSubtitle: (item: T) => string;
+  cardAvatar?: (item: T) => ReactNode;
+  cardFields: (keyof T | { label: string; value: (item: T) => ReactNode })[];
+  emptyMessage?: string;
+  onRowClick?: (item: T) => void;
+}
+
+function hideClass(hide?: 'sm' | 'md' | 'lg') {
+  if (hide === 'lg') return 'hidden lg:table-cell';
+  if (hide === 'md') return 'hidden md:table-cell';
+  if (hide === 'sm') return 'hidden sm:table-cell';
+  return '';
+}
+
+function hideClassBlock(hide?: 'sm' | 'md' | 'lg') {
+  return hide ? `lg:hidden` : '';
+}
+
+export function ResponsiveTable<T>({
+  columns,
+  data,
+  keyExtractor,
+  cardTitle,
+  cardSubtitle,
+  cardAvatar,
+  cardFields,
+  emptyMessage = 'Sin datos',
+  onRowClick,
+}: ResponsiveTableProps<T>) {
+  if (data.length === 0) {
+    return (
+      <div className="text-center py-[60px] text-text-3">{emptyMessage}</div>
+    );
+  }
+
+  return (
+    <>
+      {/* Desktop table */}
+      <div className="hidden lg:block overflow-x-auto">
+        <table className="w-full border-collapse text-[13px]">
+          <thead>
+            <tr className="border-b border-border">
+              {columns.map((col) => (
+                <th
+                  key={col.key}
+                  className={`px-[18px] py-[11px] text-left text-[10px] font-medium text-text-3 uppercase tracking-[0.07em] whitespace-nowrap bg-surface2 ${hideClass(col.hide)} ${col.headerClassName || ''}`}
+                  style={{ textAlign: col.align || 'left' }}
+                >
+                  {col.label}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {data.map((item) => (
+              <tr
+                key={keyExtractor(item)}
+                onClick={() => onRowClick?.(item)}
+                className={`transition-colors duration-100 hover:bg-surface2/50 ${onRowClick ? 'cursor-pointer' : ''}`}
+              >
+                {columns.map((col) => (
+                  <td
+                    key={col.key}
+                    className={`px-[18px] py-[14px] border-b border-border align-middle ${hideClass(col.hide)} ${col.className || ''}`}
+                    style={{ textAlign: col.align || 'left' }}
+                  >
+                    {col.render(item)}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Mobile cards */}
+      <div className="block lg:hidden divide-y divide-border">
+        {data.map((item) => (
+          <div
+            key={keyExtractor(item)}
+            onClick={() => onRowClick?.(item)}
+            className={`bg-surface px-4 py-4 ${onRowClick ? 'cursor-pointer' : ''} ${onRowClick ? 'hover:bg-surface2/50' : ''}`}
+          >
+            <div className="flex items-start gap-3 mb-3">
+              {cardAvatar && (
+                <div className="shrink-0">{cardAvatar(item)}</div>
+              )}
+              <div className="flex-1 min-w-0">
+                <div className="text-[14px] font-semibold truncate">{cardTitle(item)}</div>
+                <div className="text-[12px] text-text-3 truncate">{cardSubtitle(item)}</div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-x-4 gap-y-2.5 text-[13px]">
+              {cardFields.map((field, i) => {
+                if (typeof field === 'object' && 'label' in field) {
+                  return (
+                    <div key={i} className={i % 2 === 0 ? '' : 'text-right'}>
+                      <div className="text-[10px] text-text-3 uppercase tracking-[0.06em]">{field.label}</div>
+                      <div className="mt-0.5">{field.value(item)}</div>
+                    </div>
+                  );
+                }
+                const col = columns.find(c => c.key === String(field));
+                if (!col) return null;
+                return (
+                  <div key={col.key} className={i % 2 === 0 ? '' : 'text-right'}>
+                    <div className="text-[10px] text-text-3 uppercase tracking-[0.06em]">{col.label}</div>
+                    <div className="mt-0.5">{col.render(item)}</div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+      </div>
+    </>
+  );
+}
