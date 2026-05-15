@@ -31,7 +31,7 @@ export function TrainerLayout() {
   ]
 
   return (
-    <div className="flex min-h-screen">
+    <div className="flex min-h-screen bg-bg">
       <aside className="fixed top-0 left-0 bottom-0 z-10 flex flex-col border-r border-border hidden lg:flex" style={{ width: 220, background: 'var(--surface)' }}>
         <div className="px-5 py-[18px] border-b border-border">
           <div className="flex items-center gap-2.5">
