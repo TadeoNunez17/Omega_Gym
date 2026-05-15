@@ -131,7 +131,7 @@ export default function FingerprintPage() {
           </div>
         </div>
 
-      <div className="grid grid-cols-[320px_1fr] gap-5 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-5 items-start">
         <div className="bg-surface border border-border rounded-[var(--radius)] overflow-hidden">
           <div className="flex items-center justify-between px-5 py-3.5 border-b border-border">
             <div>

@@ -92,18 +92,19 @@ export default function ReportsPage() {
     <>
       <header
         style={{
-          padding: '0 28px', height: 58,
+          padding: '0 28px', minHeight: 58,
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           borderBottom: '1px solid var(--border)', background: 'var(--bg)',
           position: 'sticky', top: 0, zIndex: 9,
         }}
+        className="flex-wrap gap-2 py-2"
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--text-3)' }}>
           Panel
           <span style={{ fontSize: 10 }}>›</span>
           <span style={{ color: 'var(--text-2)' }}>Reportes</span>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }} className="flex-wrap">
           <div style={{ display: 'flex', gap: 4, background: 'var(--surface)', borderRadius: 'var(--radius-sm)', padding: 2, border: '1px solid var(--border)' }}>
             {(['month', 'quarter', 'year'] as const).map((p) => (
               <button
@@ -120,14 +121,14 @@ export default function ReportsPage() {
               </button>
             ))}
           </div>
-          <button style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 16px', borderRadius: 'var(--radius-sm)', fontSize: 12, fontWeight: 500, cursor: 'pointer', background: 'transparent', color: 'var(--text-2)', border: '1px solid var(--border2)', fontFamily: 'inherit' }}>
+          <button style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 14px', borderRadius: 'var(--radius-sm)', fontSize: 11, fontWeight: 500, cursor: 'pointer', background: 'transparent', color: 'var(--text-2)', border: '1px solid var(--border2)', fontFamily: 'inherit' }}>
             <IconCalendar />
-            {fmtDate}
+            <span className="hidden sm:inline">{fmtDate}</span>
           </button>
         </div>
       </header>
 
-      <div style={{ padding: 28, flex: 1 }}>
+      <div style={{ padding: '20px clamp(16px, 4vw, 28px)', flex: 1 }}>
         <div style={{ marginBottom: 24 }}>
           <div style={{ fontSize: 22, fontWeight: 600, letterSpacing: '-0.02em' }}>Reportes</div>
           <div style={{ fontSize: 13, color: 'var(--text-2)', marginTop: 4 }}>
@@ -136,7 +137,7 @@ export default function ReportsPage() {
         </div>
 
         {/* KPI row */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 20 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 12, marginBottom: 20 }}>
           <MetricCard color="green" label="Ingresos del mes" value={kpis ? fmtMoney(kpis.revenue) : '—'} sub="Mes actual" />
           <MetricCard color="blue" label="Miembros activos" value={kpis ? kpis.members.toString() : '—'} sub="Con membresía activa" />
           <MetricCard color="accent" label="Check-ins hoy" value={kpis ? kpis.todayCheckins.toString() : '—'} sub="Entradas registradas" />
@@ -144,7 +145,7 @@ export default function ReportsPage() {
         </div>
 
         {/* Charts row */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 20 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 12, marginBottom: 20 }} className="lg:grid-cols-2">
           {/* Revenue chart */}
           <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: 20 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
@@ -197,7 +198,7 @@ export default function ReportsPage() {
         {/* Available reports grid */}
         <div style={{ marginBottom: 16 }}>
           <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 12 }}>Reportes disponibles</div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 12 }}>
             {REPORTS.map((r) => (
               <div
                 key={r.name}

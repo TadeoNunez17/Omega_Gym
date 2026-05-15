@@ -34,7 +34,7 @@ export default function TrainerTemplatesPage() {
   }
 
   return (
-    <div style={{ padding: 28, flex: 1, display: 'flex', flexDirection: 'column', gap: 20 }}>
+    <div style={{ padding: '20px clamp(16px, 4vw, 28px)', flex: 1, display: 'flex', flexDirection: 'column', gap: 20 }}>
       <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--text-3)' }}>

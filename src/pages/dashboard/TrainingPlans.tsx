@@ -173,7 +173,7 @@ export default function TrainingPlansPage() {
   }
 
   return (
-    <div className="p-7 flex-1 flex flex-col gap-5">
+    <div className="p-4 sm:p-7 flex-1 flex flex-col gap-5">
       <div className="flex items-end justify-between">
         <div>
           <div className="text-[22px] font-semibold tracking-tight">Planes de Entrenamiento</div>
@@ -195,14 +195,14 @@ export default function TrainingPlansPage() {
       {!loading && error && <div className="text-center py-[60px] text-red-text">Error: {error}</div>}
       {!loading && !error && (
         <>
-          <div className="grid grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <MetricCard color="accent" label="Total de planes" value={metrics.total} sub="Creados en el sistema" />
             <MetricCard color="green" label="Planes asignados" value={metrics.assigned} sub="Con miembro activo" />
             <MetricCard color="blue" label="Plantillas" value={metrics.templates} sub="Reutilizables" />
             <MetricCard color="amber" label="Sin asignar" value={metrics.draft} sub="Disponibles" />
           </div>
 
-          <div className="grid grid-cols-[340px_1fr] gap-4 min-h-[500px]">
+          <div className="grid grid-cols-1 lg:grid-cols-[340px_1fr] gap-4 min-h-[500px]">
             {/* Left panel */}
             <div className="bg-surface border border-border rounded overflow-hidden flex flex-col">
               <div className="p-3 border-b border-border">

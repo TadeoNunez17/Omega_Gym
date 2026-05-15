@@ -172,7 +172,7 @@ export default function TrainerPanelPage() {
   const trainerEmail = user?.email || ''
 
   return (
-    <div style={{ padding: 28, flex: 1, display: 'flex', flexDirection: 'column', gap: 20 }}>
+    <div style={{ padding: '20px clamp(16px, 4vw, 28px)', flex: 1, display: 'flex', flexDirection: 'column', gap: 20 }}>
       {loading ? (
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', color: 'var(--text-3)', fontSize: 14 }}>
           Cargando panel...
@@ -181,17 +181,17 @@ export default function TrainerPanelPage() {
         <>
           {/* Breadcrumb header */}
           <header style={{
-            padding: '0 28px', height: 58,
+            padding: '0 clamp(16px, 4vw, 28px)', minHeight: 58,
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
             borderBottom: '1px solid var(--border)', background: 'var(--bg)',
             position: 'sticky', top: 0, zIndex: 9,
-          }}>
+          }} className="flex-wrap gap-2 py-2">
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--text-3)' }}>
               Omega Gym
               <span style={{ fontSize: 10 }}>›</span>
               <span style={{ color: 'var(--text-2)' }}>Mi panel</span>
             </div>
-            <div style={{ display: 'flex', gap: 10 }}>
+            <div style={{ display: 'flex', gap: 8 }} className="flex-wrap">
               <Button variant="ghost" size="sm" icon={<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>} onClick={() => setNoteModalOpen(true)}>
                 Nueva nota
               </Button>
@@ -204,10 +204,10 @@ export default function TrainerPanelPage() {
           {/* Hero */}
           <div style={{
             background: 'var(--surface)', border: '1px solid var(--border)',
-            borderRadius: 'var(--radius)', padding: '24px 28px',
-            display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 24,
+            borderRadius: 'var(--radius)', padding: '24px clamp(16px, 4vw, 28px)',
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16,
             position: 'relative', overflow: 'hidden',
-          }}>
+          }} className="flex-col sm:flex-row">
             <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 2, background: 'linear-gradient(90deg, #ec4899, #a855f7, transparent)' }} />
             <div style={{ display: 'flex', alignItems: 'center', gap: 18 }}>
               <div style={{
@@ -223,7 +223,7 @@ export default function TrainerPanelPage() {
                 <div style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 3 }}>Entrenador · {trainerEmail}</div>
               </div>
             </div>
-            <div style={{ display: 'flex', gap: 28 }}>
+            <div style={{ display: 'flex', gap: 16 }} className="flex-wrap justify-end">
               <HeroStat value={members.length} label="Mis miembros" color="#f472b6" />
               <HeroStat value={planCount} label="Planes activos" color="#c084fc" />
               <HeroStat value={members.length - withPlanCount} label="Sin plan aún" color="#fbbf24" />
@@ -231,7 +231,7 @@ export default function TrainerPanelPage() {
           </div>
 
           {/* Metrics */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 12 }}>
             <MetricCard color="var(--pink)" label="Miembros registrados" value={members.length} sub="En el sistema" />
             <MetricCard color="var(--green)" label="Con plan asignado" value={withPlanCount} sub="En entrenamiento" />
             <MetricCard color="var(--purple)" label="Planes creados" value={planCount} sub="Rutinas activas" />
@@ -239,7 +239,7 @@ export default function TrainerPanelPage() {
           </div>
 
           {/* Main grid */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 16 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 16 }} className="lg:grid-cols-[1fr_340px]">
             {/* Left: members + plans */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               {/* Members table */}

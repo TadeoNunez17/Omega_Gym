@@ -114,7 +114,7 @@ export default function MyPlanPage() {
       </div>
 
       {/* Grid 2 */}
-      <div className="grid grid-cols-2 gap-4 mb-5">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-5">
         {/* Membresía */}
         <div className="bg-surface border border-border rounded overflow-hidden">
           <div className="flex items-center justify-between px-5 py-4 border-b border-border">
@@ -275,7 +275,7 @@ export default function MyPlanPage() {
       </div>
 
       {/* Grid 2: pagos + renovación */}
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Historial pagos */}
         <div className="bg-surface border border-border rounded overflow-hidden">
           <div className="flex items-center justify-between px-5 py-4 border-b border-border">

@@ -224,16 +224,16 @@ export default function CheckInKioskPage() {
       </div>
 
       {/* Center */}
-      <div className="flex items-center justify-center gap-[60px] p-10">
+      <div className="flex items-center justify-center flex-col lg:flex-row gap-8 lg:gap-[60px] p-4 lg:p-10 overflow-y-auto">
         {/* Sensor */}
         <div className="flex flex-col items-center gap-7">
-          <div className="w-[260px] h-[260px] rounded-full flex items-center justify-center relative transition-colors duration-[400ms]"
+          <div className="w-[200px] h-[200px] sm:w-[260px] sm:h-[260px] rounded-full flex items-center justify-center relative transition-colors duration-[400ms]"
             style={{ border: `2px solid ${sensorBorderColor}` }}>
             {sensorState === 'scanning' && (
               <div className="absolute -inset-2 rounded-full border-2 border-transparent"
                 style={{ borderTopColor: 'var(--accent)' }} />
             )}
-            <div className="w-[200px] h-[200px] rounded-full flex flex-col items-center justify-center gap-4 relative overflow-hidden transition-colors duration-[400ms]"
+            <div className="w-[160px] h-[160px] sm:w-[200px] sm:h-[200px] rounded-full flex flex-col items-center justify-center gap-3 sm:gap-4 relative overflow-hidden transition-colors duration-[400ms]"
               style={{ background: sensorInnerBg }}>
               {sensorState === 'scanning' && (
                 <div className="absolute left-0 right-0 h-[3px]"
@@ -292,7 +292,7 @@ export default function CheckInKioskPage() {
         </div>
 
         {/* Right side */}
-        <div className="w-[340px] flex flex-col gap-5">
+        <div className="w-full sm:w-[340px] flex flex-col gap-5">
           {result ? (
             result.name ? (
               <div className="flex flex-col items-center text-center gap-4 p-7 rounded-[var(--radius)] min-h-[280px] justify-center"

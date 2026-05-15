@@ -178,22 +178,23 @@ export default function MembershipsPage() {
           borderBottom: '1px solid var(--border)', background: 'var(--bg)',
           position: 'sticky', top: 0, zIndex: 9,
         }}
+        className="flex-wrap gap-2"
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--text-3)' }}>
           Panel <span style={{ fontSize: 10 }}>›</span>
           <span style={{ color: 'var(--text-2)' }}>Membresías</span>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <button style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 16px', borderRadius: 'var(--radius-sm)', fontSize: 13, fontWeight: 500, cursor: 'pointer', background: 'transparent', color: 'var(--text-2)', border: '1px solid var(--border2)', fontFamily: 'inherit' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }} className="flex-wrap">
+          <button style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 12px', borderRadius: 'var(--radius-sm)', fontSize: 12, fontWeight: 500, cursor: 'pointer', background: 'transparent', color: 'var(--text-2)', border: '1px solid var(--border2)', fontFamily: 'inherit' }}>
             <IconDownload /> Exportar
           </button>
-          <button style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 16px', borderRadius: 'var(--radius-sm)', fontSize: 13, fontWeight: 500, cursor: 'pointer', border: 'none', background: 'var(--accent)', color: '#000', fontFamily: 'inherit' }}>
+          <button style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 12px', borderRadius: 'var(--radius-sm)', fontSize: 12, fontWeight: 500, cursor: 'pointer', border: 'none', background: 'var(--accent)', color: '#000', fontFamily: 'inherit' }}>
             <IconPlus /> Nueva membresía
           </button>
         </div>
       </header>
 
-      <div style={{ padding: 28, flex: 1 }}>
+      <div style={{ padding: '20px clamp(16px, 4vw, 28px)', flex: 1 }}>
         <div style={{ marginBottom: 24 }}>
           <div style={{ fontSize: 22, fontWeight: 600, letterSpacing: '-0.02em' }}>Membresías</div>
           <div style={{ fontSize: 13, color: 'var(--text-2)', marginTop: 4 }}>
@@ -212,7 +213,7 @@ export default function MembershipsPage() {
         {!loading && !error && (
           <>
             {/* METRICS */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 24 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 12, marginBottom: 24 }}>
               {[
                 { label: 'Activas', value: activeCount, color: 'green', sub: 'Al corriente' },
                 { label: 'Por vencer', value: warnCount, color: 'amber', sub: 'En los próximos 7 días' },
@@ -242,16 +243,18 @@ export default function MembershipsPage() {
             )}
 
             {/* CONTROLS */}
-            <div className="flex items-center gap-2.5 mb-4">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 mb-4">
               <div className="flex-1">
                 <SearchInput value={search} onChange={(v) => { setSearch(v); setCurrentPage(1); }} placeholder="Buscar miembro, plan o email..." />
               </div>
-              <TabBar tabs={[
-                { key: 'all', label: 'Todos' },
-                { key: 'active', label: 'Activos' },
-                { key: 'warning', label: 'Por vencer' },
-                { key: 'expired', label: 'Vencidos' },
-              ]} active={currentFilter} onChange={(k) => { setCurrentFilter(k as MembershipStatus | 'all'); setCurrentPage(1); }} />
+              <div className="overflow-x-auto pb-1">
+                <TabBar tabs={[
+                  { key: 'all', label: 'Todos' },
+                  { key: 'active', label: 'Activos' },
+                  { key: 'warning', label: 'Por vencer' },
+                  { key: 'expired', label: 'Vencidos' },
+                ]} active={currentFilter} onChange={(k) => { setCurrentFilter(k as MembershipStatus | 'all'); setCurrentPage(1); }} />
+              </div>
             </div>
 
             {/* TABLE */}
