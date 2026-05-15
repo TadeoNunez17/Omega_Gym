@@ -90,17 +90,6 @@ export const membersService = {
     }
   },
 
-  getById: async (id: string): Promise<Member | null> => {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', id)
-      .single()
-
-    if (error) return null
-    return data as Member
-  },
-
   create: async (input: {
     full_name: string
     email?: string

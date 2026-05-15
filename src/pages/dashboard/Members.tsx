@@ -1,10 +1,15 @@
-import { useState, useMemo, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { Button } from '@/components/ui/atoms/Button';
 import { Badge } from '@/components/ui/atoms/Badge';
+import { IconButton } from '@/components/ui/atoms/IconButton';
+import { LoadingSpinner } from '@/components/ui/atoms/LoadingSpinner';
 import { Modal } from '@/components/ui/molecules/Modal';
 import { PageHeader } from '@/components/ui/molecules/PageHeader';
 import { SearchInput } from '@/components/ui/molecules/SearchInput';
+import { TabBar } from '@/components/ui/molecules/TabBar';
 import { Pagination } from '@/components/ui/molecules/Pagination';
+import { IconDownload, IconPlus, IconEye, IconEdit, IconClose } from '@/lib/icons';
+import { initials, avatarIndex, fmtDate, daysDiff, AVATAR_COLORS } from '@/lib/helpers';
 import { membersService, type MemberListItem } from '@/services/members.service';
 
 const ROWS_PER_PAGE = 8;
@@ -23,37 +28,6 @@ interface Member {
   plan: string | null;
   av: number;
   joinedAt: string;
-}
-
-const AV_COLORS = [
-  { bg: 'rgba(59,130,246,0.15)', fg: '#60a5fa' },
-  { bg: 'rgba(16,185,129,0.15)', fg: '#34d399' },
-  { bg: 'rgba(244,114,182,0.15)', fg: '#f472b6' },
-  { bg: 'rgba(168,85,247,0.15)', fg: '#c084fc' },
-  { bg: 'rgba(251,146,60,0.15)', fg: '#fb923c' },
-  { bg: 'rgba(20,184,166,0.15)', fg: '#2dd4bf' },
-];
-
-function avatarIndex(id: string): number {
-  let hash = 0;
-  for (let i = 0; i < id.length; i++) hash = (hash * 31 + id.charCodeAt(i)) >>> 0;
-  return hash % AV_COLORS.length;
-}
-
-function initials(n: string) {
-  return n.split(' ').map((w) => w[0]).slice(0, 2).join('').toUpperCase();
-}
-
-function fmtDate(s: string | null) {
-  if (!s) return '—';
-  const [y, mo, d] = s.split('-');
-  const m = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
-  return `${parseInt(d)} ${m[parseInt(mo) - 1]} ${y}`;
-}
-
-function daysDiff(d: string | null): number | null {
-  if (!d) return null;
-  return Math.round((new Date(d).getTime() - Date.now()) / 86400000);
 }
 
 function toMember(item: MemberListItem): Member {
@@ -129,11 +103,6 @@ export default function MembersPage() {
     return joined.getMonth() === now.getMonth() && joined.getFullYear() === now.getFullYear();
   }).length;
 
-  const setFilter = useCallback((f: FilterKey) => {
-    setCurrentFilter(f);
-    setCurrentPage(1);
-  }, []);
-
   const resetForm = useCallback(() => {
     setFName(''); setFEmail(''); setFPhone('');
     setFRole('member'); setFPlan('');
@@ -181,12 +150,8 @@ export default function MembersPage() {
           <span className="text-text-2">Miembros</span>
         </div>
         <div className="flex items-center gap-2 sm:gap-2.5">
-          <Button variant="ghost" size="sm" icon={
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>
-          }>Exportar</Button>
-          <Button variant="primary" size="sm" onClick={() => { resetForm(); setModalOpen(true); }} icon={
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
-          }>Nuevo miembro</Button>
+          <Button variant="ghost" size="sm" icon={<IconDownload />}>Exportar</Button>
+          <Button variant="primary" size="sm" onClick={() => { resetForm(); setModalOpen(true); }} icon={<IconPlus />}>Nuevo miembro</Button>
         </div>
       </header>
 
@@ -213,24 +178,11 @@ export default function MembersPage() {
         {/* Controls */}
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 mb-4">
           <SearchInput value={search} onChange={(v) => { setSearch(v); setCurrentPage(1); }} placeholder="Buscar por nombre, email o teléfono..." />
-          <div className="flex gap-1 overflow-x-auto">
-            {filters.map((tab) => (
-              <button
-                key={tab.key}
-                onClick={() => setFilter(tab.key)}
-                className={`px-3.5 py-2 rounded-sm text-[12px] font-medium cursor-pointer whitespace-nowrap font-sans transition-all duration-150
-                  ${currentFilter === tab.key ? 'bg-accent text-black' : 'bg-transparent text-text-2 border border-border'}`}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
+          <TabBar tabs={filters} active={currentFilter} onChange={(k) => { setCurrentFilter(k as FilterKey); setCurrentPage(1); }} />
         </div>
 
         {/* Loading */}
-        {loading && (
-          <div className="text-center py-[60px] text-text-3">Cargando miembros…</div>
-        )}
+        {loading && <LoadingSpinner text="Cargando miembros…" />}
 
         {/* Error */}
         {!loading && error && (
@@ -264,7 +216,7 @@ export default function MembersPage() {
                           <td className="px-[18px] py-[14px] border-b border-border align-middle">
                             <div className="flex items-center gap-3">
                               <div className="w-9 h-9 rounded-full flex items-center justify-center text-[12px] font-semibold flex-shrink-0"
-                                style={{ background: AV_COLORS[m.av].bg, color: AV_COLORS[m.av].fg }}>
+                                style={{ background: AVATAR_COLORS[m.av].bg, color: AVATAR_COLORS[m.av].fg }}>
                                 {initials(m.name)}
                               </div>
                               <div>
@@ -305,21 +257,17 @@ export default function MembersPage() {
                           </td>
                           <td className="px-[18px] py-[14px] border-b border-border align-middle">
                             <div className="flex gap-1.5 justify-end">
-                              <IconBtn title="Ver detalle">
-                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" /></svg>
-                              </IconBtn>
-                              <IconBtn title="Editar">
-                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
-                              </IconBtn>
-                              <IconBtn title={m.status === 'active' ? 'Desactivar' : 'Activar'} danger
+                              <IconButton title="Ver detalle"><IconEye width="13" height="13" /></IconButton>
+                              <IconButton title="Editar"><IconEdit width="13" height="13" /></IconButton>
+                              <IconButton title={m.status === 'active' ? 'Desactivar' : 'Activar'} danger
                                 onClick={() => toggleStatus(m)}
                               >
                                 {m.status === 'active' ? (
-                                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10" /><line x1="15" y1="9" x2="9" y2="15" /><line x1="9" y1="9" x2="15" y2="15" /></svg>
+                                  <IconClose width="13" height="13" />
                                 ) : (
                                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10" /><polyline points="9 12 11 14 15 10" /></svg>
                                 )}
-                              </IconBtn>
+                              </IconButton>
                             </div>
                           </td>
                         </tr>
@@ -392,12 +340,4 @@ export default function MembersPage() {
   );
 }
 
-function IconBtn({ children, title, danger, onClick }: { children: React.ReactNode; title: string; danger?: boolean; onClick?: () => void }) {
-  return (
-    <button title={title} onClick={onClick}
-      className={`w-7 h-7 rounded-sm bg-transparent border border-border flex items-center justify-center cursor-pointer transition-colors duration-150
-        ${danger ? 'text-red-text' : 'text-text-3'} hover:bg-surface2`}>
-      {children}
-    </button>
-  );
-}
+

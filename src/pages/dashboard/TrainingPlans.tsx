@@ -2,6 +2,7 @@
 import { trainingService, type PlanListItem, type PlanExercise } from '@/services/training.service';
 import { membersService } from '@/services/members.service';
 import { Button } from '@/components/ui/atoms/Button';
+import { Chip } from '@/components/ui/atoms/Chip';
 import { Modal } from '@/components/ui/molecules/Modal';
 import { Input, Select } from '@/components/ui/atoms/Input';
 import { MetricCard } from '@/components/ui/atoms/MetricCard';
@@ -383,9 +384,11 @@ export default function TrainingPlansPage() {
                                 {e.notes && <div className="text-[10px] text-text-3 mt-0.5 italic">{e.notes}</div>}
                               </div>
                               <div className="flex gap-1.5 shrink-0">
-                                <ExChip value={e.sets ?? 0} label="Series" accent />
-                                <ExChip value={e.reps ?? 0} label="Reps" />
-                                <ExChip value={`${e.rest_seconds ?? 0}s`} label="Descanso" />
+                                <Chip value={e.sets ?? 0} label="Series" accent />
+
+                                <Chip value={e.reps ?? 0} label="Reps" />
+
+                                <Chip value={`${e.rest_seconds ?? 0}s`} label="Descanso" />
                               </div>
                               <button className="w-[26px] h-[26px] rounded-[var(--radius-sm)] bg-transparent border border-border text-text-3 flex items-center justify-center cursor-pointer transition-all duration-150 shrink-0 hover:bg-surface3 hover:text-text-2 hover:border-border2">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="11" height="11"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
@@ -458,13 +461,4 @@ function IconBtn({ children, title, danger }: { children: React.ReactNode; title
   );
 }
 
-function ExChip({ value, label, accent }: { value: string | number; label: string; accent?: boolean }) {
-  return (
-    <div className={`flex flex-col items-center px-[10px] py-[5px] rounded-[var(--radius-sm)] min-w-[48px] ${
-      accent ? 'bg-accent-dim border border-[rgba(232,255,71,0.2)]' : 'bg-surface2 border border-border'
-    }`}>
-      <span className={`text-sm font-semibold font-mono leading-none ${accent ? 'text-accent' : ''}`}>{value}</span>
-      <span className="text-[9px] text-text-3 uppercase tracking-[0.05em] mt-0.5">{label}</span>
-    </div>
-  );
-}
+

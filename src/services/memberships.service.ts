@@ -46,68 +46,6 @@ export const membershipsService = {
     return (data || []) as MembershipType[]
   },
 
-  getActiveTypes: async (): Promise<MembershipType[]> => {
-    const { data, error } = await supabase
-      .from('membership_types')
-      .select('*')
-      .eq('is_active', true)
-      .order('price')
-
-    if (error) throw error
-    return (data || []) as MembershipType[]
-  },
-
-  createType: async (input: {
-    name: string
-    price: number
-    duration_days: number
-    description?: string
-  }) => {
-    const { data, error } = await supabase
-      .from('membership_types')
-      .insert(input)
-      .select()
-      .single()
-
-    if (error) throw error
-    return data as MembershipType
-  },
-
-  updateType: async (id: string, input: Partial<{
-    name: string
-    price: number
-    duration_days: number
-    description: string
-  }>) => {
-    const { data, error } = await supabase
-      .from('membership_types')
-      .update(input)
-      .eq('id', id)
-      .select()
-      .single()
-
-    if (error) throw error
-    return data as MembershipType
-  },
-
-  toggleTypeActive: async (id: string) => {
-    const { data: current } = await supabase
-      .from('membership_types')
-      .select('is_active')
-      .eq('id', id)
-      .single()
-
-    const { data, error } = await supabase
-      .from('membership_types')
-      .update({ is_active: !current?.is_active })
-      .eq('id', id)
-      .select()
-      .single()
-
-    if (error) throw error
-    return data as MembershipType
-  },
-
   // ---- Memberships ----
 
   getAll: async (filters?: {
@@ -183,69 +121,6 @@ export const membershipsService = {
     return data as Membership | null
   },
 
-  assign: async (input: {
-    member_id: string
-    type_id: string
-    start_date?: string
-  }) => {
-    const { data: typeData, error: typeError } = await supabase
-      .from('membership_types')
-      .select('duration_days')
-      .eq('id', input.type_id)
-      .single()
-
-    if (typeError) throw typeError
-
-    const start = input.start_date
-      ? new Date(input.start_date)
-      : new Date()
-
-    const end = new Date(start)
-    end.setDate(end.getDate() + typeData.duration_days)
-
-    const { data, error } = await supabase
-      .from('memberships')
-      .insert({
-        member_id: input.member_id,
-        type_id: input.type_id,
-        start_date: start.toISOString().split('T')[0],
-        end_date: end.toISOString().split('T')[0],
-        status: 'active',
-      })
-      .select()
-      .single()
-
-    if (error) throw error
-    return data as Membership
-  },
-
-  renew: async (membershipId: string, typeId: string) => {
-    const { data: typeData } = await supabase
-      .from('membership_types')
-      .select('duration_days')
-      .eq('id', typeId)
-      .single()
-
-    const now = new Date()
-    const end = new Date(now)
-    end.setDate(end.getDate() + (typeData?.duration_days ?? 30))
-
-    const { data, error } = await supabase
-      .from('memberships')
-      .insert({
-        member_id: null,
-        type_id: typeId,
-        start_date: now.toISOString().split('T')[0],
-        end_date: end.toISOString().split('T')[0],
-        status: 'active',
-      })
-      .select()
-      .single()
-
-    if (error) throw error
-    return data as Membership
-  },
-
   getActiveWithType: async (memberId: string) => {
     const { data, error } = await supabase
       .from('memberships')
@@ -260,18 +135,6 @@ export const membershipsService = {
 
     if (error) throw error
     return data as (Membership & { membership_types: MembershipType }) | null
-  },
-
-  cancel: async (membershipId: string) => {
-    const { data, error } = await supabase
-      .from('memberships')
-      .update({ status: 'cancelled' })
-      .eq('id', membershipId)
-      .select()
-      .single()
-
-    if (error) throw error
-    return data as Membership
   },
 
   getExpiring: async (days: number = 7): Promise<MembershipListItem[]> => {
@@ -309,28 +172,6 @@ export const membershipsService = {
         (new Date(m.end_date).getTime() - now.getTime()) / 86400000
       ),
       payment_status: null,
-    }))
-  },
-
-  getDistribution: async (): Promise<{ name: string; count: number; percentage: number }[]> => {
-    const { data, error } = await supabase
-      .from('memberships')
-      .select('membership_types(name)')
-      .eq('status', 'active')
-
-    if (error) throw error
-
-    const counts: Record<string, number> = {}
-    for (const item of data || []) {
-      const name = (item as any).membership_types?.name ?? 'Otro'
-      counts[name] = (counts[name] || 0) + 1
-    }
-
-    const total = Object.values(counts).reduce((a, b) => a + b, 0)
-    return Object.entries(counts).map(([name, count]) => ({
-      name,
-      count,
-      percentage: total > 0 ? Math.round((count / total) * 100) : 0,
     }))
   },
 }

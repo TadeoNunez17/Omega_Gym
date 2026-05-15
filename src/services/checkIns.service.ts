@@ -41,30 +41,6 @@ export const checkInsService = {
     return data as CheckIn
   },
 
-  checkOut: async (id: string) => {
-    const { data, error } = await supabase
-      .from('check_ins')
-      .update({ check_out_time: new Date().toISOString() })
-      .eq('id', id)
-      .select()
-      .single()
-
-    if (error) throw error
-    return data as CheckIn
-  },
-
-  getByMember: async (memberId: string): Promise<CheckIn[]> => {
-    const { data, error } = await supabase
-      .from('check_ins')
-      .select('*')
-      .eq('member_id', memberId)
-      .order('check_in_time', { ascending: false })
-      .limit(50)
-
-    if (error) throw error
-    return (data || []) as CheckIn[]
-  },
-
   getToday: async (): Promise<CheckInWithMember[]> => {
     const today = new Date().toISOString().split('T')[0]
 
@@ -107,24 +83,5 @@ export const checkInsService = {
     }
 
     return months
-  },
-
-  getRecent: async (limit: number = 20): Promise<CheckInWithMember[]> => {
-    const { data, error } = await supabase
-      .from('check_ins')
-      .select(`
-        *,
-        profiles!member_id(full_name, email)
-      `)
-      .order('check_in_time', { ascending: false })
-      .limit(limit)
-
-    if (error) throw error
-
-    return (data || []).map((c: any) => ({
-      ...c,
-      member_name: c.profiles?.full_name ?? '—',
-      member_email: c.profiles?.email ?? null,
-    }))
   },
 }

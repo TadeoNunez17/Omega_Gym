@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuthStore } from '@/store/auth.store'
 import { membershipsService } from '@/services/memberships.service'
+import { Chip } from '@/components/ui/atoms/Chip'
 import { trainingService, type TrainingPlan, type PlanExercise } from '@/services/training.service'
 import { paymentsService, type Payment } from '@/services/payments.service'
 
@@ -375,16 +376,7 @@ export default function MyPlanPage() {
   );
 }
 
-function Chip({ value, label, accent }: { value: string | number; label: string; accent?: boolean }) {
-  return (
-    <div className={`flex flex-col items-center px-[10px] py-[5px] rounded-[var(--radius-sm)] min-w-[48px] ${
-      accent ? 'bg-accent-dim border border-[rgba(232,255,71,0.2)]' : 'bg-surface2 border border-border'
-    }`}>
-      <span className={`text-sm font-semibold font-mono leading-none ${accent ? 'text-accent' : ''}`}>{value}</span>
-      <span className="text-[9px] text-text-3 uppercase tracking-[0.05em] mt-0.5">{label}</span>
-    </div>
-  );
-}
+
 
 function ContactItem({ icon, label, value }: { icon: string; label: string; value: string }) {
   const paths: Record<string, string> = {

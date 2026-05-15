@@ -2,6 +2,8 @@ import { useState, useMemo, useEffect } from 'react';
 import { membershipsService, type MembershipListItem } from '@/services/memberships.service';
 import { dashboardService } from '@/services/dashboard.service';
 import { SearchInput } from '@/components/ui/molecules/SearchInput';
+import { TabBar } from '@/components/ui/molecules/TabBar';
+import { Pagination } from '@/components/ui/molecules/Pagination';
 
 const ROWS_PER_PAGE = 7;
 
@@ -240,23 +242,16 @@ export default function MembershipsPage() {
             )}
 
             {/* CONTROLS */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+            <div className="flex items-center gap-2.5 mb-4">
               <div className="flex-1">
                 <SearchInput value={search} onChange={(v) => { setSearch(v); setCurrentPage(1); }} placeholder="Buscar miembro, plan o email..." />
               </div>
-              <div style={{ display: 'flex', gap: 4 }}>
-                {([
-                  { key: 'all', label: 'Todos' },
-                  { key: 'active', label: 'Activos' },
-                  { key: 'warning', label: 'Por vencer' },
-                  { key: 'expired', label: 'Vencidos' },
-                ] as const).map((tab) => (
-                  <button key={tab.key} onClick={() => { setCurrentFilter(tab.key); setCurrentPage(1); }}
-                    style={{ padding: '8px 14px', borderRadius: 'var(--radius-sm)', fontSize: 12, fontWeight: 500, cursor: 'pointer', border: '1px solid var(--border)', background: currentFilter === tab.key ? 'var(--accent)' : 'transparent', color: currentFilter === tab.key ? '#000' : 'var(--text-2)', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
-                    {tab.label}
-                  </button>
-                ))}
-              </div>
+              <TabBar tabs={[
+                { key: 'all', label: 'Todos' },
+                { key: 'active', label: 'Activos' },
+                { key: 'warning', label: 'Por vencer' },
+                { key: 'expired', label: 'Vencidos' },
+              ]} active={currentFilter} onChange={(k) => { setCurrentFilter(k as MembershipStatus | 'all'); setCurrentPage(1); }} />
             </div>
 
             {/* TABLE */}
@@ -344,19 +339,15 @@ export default function MembershipsPage() {
                 </table>
               </div>
 
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 18px', borderTop: '1px solid var(--border)', background: 'var(--surface2)' }}>
-                <span style={{ fontSize: 12, color: 'var(--text-3)' }}>
-                  Mostrando {start + 1}–{Math.min(start + ROWS_PER_PAGE, filtered.length)} de {filtered.length} membresía{filtered.length !== 1 ? 's' : ''}
-                </span>
-                <div style={{ display: 'flex', gap: 4 }}>
-                  {totalPages > 1 && Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
-                    <button key={p} onClick={() => setCurrentPage(p)}
-                      style={{ width: 28, height: 28, borderRadius: 'var(--radius-sm)', background: p === safePage ? 'var(--accent)' : 'transparent', border: '1px solid var(--border)', color: p === safePage ? '#000' : 'var(--text-2)', fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontWeight: p === safePage ? 600 : 400 }}>
-                      {p}
-                    </button>
-                  ))}
-                </div>
-              </div>
+              <Pagination
+              current={safePage}
+              total={totalPages}
+              start={start}
+              end={Math.min(start + ROWS_PER_PAGE, filtered.length)}
+              totalItems={filtered.length}
+              label="membresías"
+              onChange={setCurrentPage}
+            />
             </div>
           </>
         )}

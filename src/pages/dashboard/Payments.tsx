@@ -1,9 +1,14 @@
 import { useState, useMemo, useEffect } from 'react';
 import { Button } from '@/components/ui/atoms/Button';
 import { Badge } from '@/components/ui/atoms/Badge';
+import { IconButton } from '@/components/ui/atoms/IconButton';
+import { LoadingSpinner } from '@/components/ui/atoms/LoadingSpinner';
 import { PageHeader } from '@/components/ui/molecules/PageHeader';
 import { SearchInput } from '@/components/ui/molecules/SearchInput';
+import { TabBar } from '@/components/ui/molecules/TabBar';
 import { Pagination } from '@/components/ui/molecules/Pagination';
+import { IconDownload, IconPlus, IconEye } from '@/lib/icons';
+import { initials, fmtDate, fmtMoney, avatarIndex, AVATAR_COLORS } from '@/lib/helpers';
 import { paymentsService, type PaymentListItem } from '@/services/payments.service';
 
 const ROWS_PER_PAGE = 8;
@@ -26,32 +31,7 @@ interface Payment {
 const METHOD_LABELS: Record<PaymentMethod, string> = { cash: 'Efectivo', card: 'Tarjeta', transfer: 'Transferencia' };
 const METHOD_COLORS: Record<PaymentMethod, string> = { cash: 'var(--green-text)', card: 'var(--blue-text)', transfer: 'var(--amber-text)' };
 
-function initials(n: string) { return n.split(' ').map((w) => w[0]).slice(0, 2).join('').toUpperCase(); }
-
-function fmtDate(s: string) {
-  const [y, mo, d] = s.split('-');
-  const m = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
-  return `${parseInt(d)} ${m[parseInt(mo) - 1]} ${y}`;
-}
-
-function fmtMoney(n: number) { return '$' + n.toLocaleString('es-MX'); }
-
 type FilterKey = 'all' | PaymentStatus;
-
-const AV_COLORS = [
-  { bg: 'rgba(59,130,246,0.15)', fg: '#60a5fa' },
-  { bg: 'rgba(16,185,129,0.15)', fg: '#34d399' },
-  { bg: 'rgba(244,114,182,0.15)', fg: '#f472b6' },
-  { bg: 'rgba(168,85,247,0.15)', fg: '#c084fc' },
-  { bg: 'rgba(251,146,60,0.15)', fg: '#fb923c' },
-  { bg: 'rgba(20,184,166,0.15)', fg: '#2dd4bf' },
-];
-
-function avatarIndex(id: string): number {
-  let hash = 0;
-  for (let i = 0; i < id.length; i++) hash = (hash * 31 + id.charCodeAt(i)) >>> 0;
-  return hash % AV_COLORS.length;
-}
 
 export default function PaymentsPage() {
   const [payments, setPayments] = useState<Payment[]>([]);
@@ -121,12 +101,8 @@ export default function PaymentsPage() {
           <span className="text-text-2">Pagos</span>
         </div>
         <div className="flex items-center gap-2 sm:gap-2.5">
-          <Button variant="ghost" size="sm" icon={
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>
-          }>Exportar</Button>
-          <Button variant="primary" size="sm" icon={
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
-          }>Registrar pago</Button>
+          <Button variant="ghost" size="sm" icon={<IconDownload />}>Exportar</Button>
+          <Button variant="primary" size="sm" icon={<IconPlus />}>Registrar pago</Button>
         </div>
       </header>
 
@@ -151,20 +127,10 @@ export default function PaymentsPage() {
 
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 mb-4">
           <SearchInput value={search} onChange={(v) => { setSearch(v); setCurrentPage(1); }} placeholder="Buscar miembro, concepto o email..." />
-          <div className="flex gap-1 overflow-x-auto">
-            {filters.map((tab) => (
-              <button key={tab.key} onClick={() => { setCurrentFilter(tab.key); setCurrentPage(1); }}
-                className={`px-3.5 py-2 rounded-sm text-[12px] font-medium cursor-pointer whitespace-nowrap font-sans transition-all duration-150
-                  ${currentFilter === tab.key ? 'bg-accent text-black' : 'bg-transparent text-text-2 border border-border'}`}>
-                {tab.label}
-              </button>
-            ))}
-          </div>
+          <TabBar tabs={filters} active={currentFilter} onChange={(k) => { setCurrentFilter(k as FilterKey); setCurrentPage(1); }} />
         </div>
 
-        {loading && (
-          <div className="text-center py-[60px] text-text-3">Cargando pagos…</div>
-        )}
+        {loading && <LoadingSpinner text="Cargando pagos…" />}
 
         {!loading && error && (
           <div className="text-center py-[60px] text-red-text">Error: {error}</div>
@@ -190,7 +156,7 @@ export default function PaymentsPage() {
                         <td className="px-[18px] py-[14px] border-b border-border align-middle">
                           <div className="flex items-center gap-3">
                             <div className="w-[34px] h-[34px] rounded-full flex items-center justify-center text-[12px] font-semibold flex-shrink-0"
-                              style={{ background: AV_COLORS[p.av].bg, color: AV_COLORS[p.av].fg }}>
+                              style={{ background: AVATAR_COLORS[p.av].bg, color: AVATAR_COLORS[p.av].fg }}>
                               {initials(p.member)}
                             </div>
                             <div>
@@ -215,16 +181,14 @@ export default function PaymentsPage() {
                           {p.status === 'pending' && <Badge variant="amber" dot>Pendiente</Badge>}
                           {p.status === 'cancelled' && <Badge variant="red" dot>Cancelado</Badge>}
                         </td>
-                        <td className="px-[18px] py-[14px] border-b border-border align-middle">
-                          <div className="flex gap-1.5 justify-end">
-                            <IconBtn title="Ver recibo">
-                              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /><polyline points="10 9 9 9 8 9" /></svg>
-                            </IconBtn>
-                            <IconBtn title="Ver detalle">
-                              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" /></svg>
-                            </IconBtn>
-                          </div>
-                        </td>
+                          <td className="px-[18px] py-[14px] border-b border-border align-middle">
+                            <div className="flex gap-1.5 justify-end">
+                              <IconButton title="Ver recibo">
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /><polyline points="10 9 9 9 8 9" /></svg>
+                              </IconButton>
+                              <IconButton title="Ver detalle"><IconEye width="13" height="13" /></IconButton>
+                            </div>
+                          </td>
                       </tr>
                     ))
                   )}
@@ -245,15 +209,5 @@ export default function PaymentsPage() {
         )}
       </div>
     </>
-  );
-}
-
-function IconBtn({ children, title, danger, onClick }: { children: React.ReactNode; title: string; danger?: boolean; onClick?: () => void }) {
-  return (
-    <button title={title} onClick={onClick}
-      className={`w-7 h-7 rounded-sm bg-transparent border border-border flex items-center justify-center cursor-pointer transition-colors duration-150
-        ${danger ? 'text-red-text' : 'text-text-3'} hover:bg-surface2`}>
-      {children}
-    </button>
   );
 }

@@ -82,41 +82,6 @@ export const paymentsService = {
     }
   },
 
-  getByMembership: async (membershipId: string): Promise<Payment[]> => {
-    const { data, error } = await supabase
-      .from('payments')
-      .select('*')
-      .eq('membership_id', membershipId)
-      .order('payment_date', { ascending: false })
-
-    if (error) throw error
-    return (data || []) as Payment[]
-  },
-
-  create: async (input: {
-    membership_id: string
-    amount: number
-    payment_date?: string
-    method: 'cash' | 'card' | 'transfer'
-    notes?: string
-  }) => {
-    const { data, error } = await supabase
-      .from('payments')
-      .insert({
-        membership_id: input.membership_id,
-        amount: input.amount,
-        payment_date: input.payment_date || new Date().toISOString().split('T')[0],
-        method: input.method,
-        notes: input.notes || null,
-        status: 'paid',
-      })
-      .select()
-      .single()
-
-    if (error) throw error
-    return data as Payment
-  },
-
   getRevenueSummary: async (): Promise<RevenueSummary> => {
     const today = new Date().toISOString().split('T')[0]
 
