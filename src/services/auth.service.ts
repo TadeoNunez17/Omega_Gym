@@ -32,8 +32,8 @@ export const authService = {
     const { data, error } = await supabase
       .from('profiles')
       .select('*')
-      .eq('id', userId)
-      .single()
+      .eq('auth_user_id', userId)
+      .maybeSingle()
     if (error) return null
     return data as Profile | null
   },
@@ -47,6 +47,8 @@ export interface Profile {
   avatar_url: string | null
   role: 'admin' | 'trainer' | 'member'
   is_active: boolean | null
+  auth_user_id: string | null
+  registration_status: 'pending' | 'claimed' | 'registered'
   created_at: string
   updated_at: string
 }

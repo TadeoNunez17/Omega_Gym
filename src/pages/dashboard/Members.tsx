@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/atoms/Button';
 import { Badge } from '@/components/ui/atoms/Badge';
 import { IconButton } from '@/components/ui/atoms/IconButton';
@@ -8,14 +9,16 @@ import { PageHeader } from '@/components/ui/molecules/PageHeader';
 import { SearchInput } from '@/components/ui/molecules/SearchInput';
 import { TabBar } from '@/components/ui/molecules/TabBar';
 import { Pagination } from '@/components/ui/molecules/Pagination';
-import { IconDownload, IconPlus, IconEye, IconEdit, IconClose } from '@/lib/icons';
+import { IconDownload, IconPlus, IconEye, IconEdit, IconClose, IconTrash, IconSend } from '@/lib/icons';
 import { initials, avatarIndex, fmtDate, daysDiff, AVATAR_COLORS } from '@/lib/helpers';
 import { membersService, type MemberListItem } from '@/services/members.service';
+import { supabase } from '@/lib/supabase';
 import { ResponsiveTable, type Column } from '@/components/ui/molecules/ResponsiveTable';
+import { toast } from 'sonner';
 
 const ROWS_PER_PAGE = 8;
 type Role = 'admin' | 'trainer' | 'member';
-type FilterKey = 'all' | Role | 'inactive';
+type FilterKey = 'all' | Role | 'inactive' | 'pending';
 
 interface Member {
   id: string;
@@ -24,6 +27,7 @@ interface Member {
   phone: string | null;
   role: Role;
   status: 'active' | 'inactive';
+  registration_status: 'pending' | 'claimed' | 'registered';
   membresia: string | null;
   vence: string | null;
   plan: string | null;
@@ -39,6 +43,7 @@ function toMember(item: MemberListItem): Member {
     phone: item.phone,
     role: item.role,
     status: item.is_active ? 'active' : 'inactive',
+    registration_status: item.registration_status ?? 'registered',
     membresia: item.membership_type,
     vence: item.membership_end,
     plan: item.plan_name,
@@ -48,6 +53,7 @@ function toMember(item: MemberListItem): Member {
 }
 
 export default function MembersPage() {
+  const navigate = useNavigate();
   const [members, setMembers] = useState<Member[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -56,12 +62,13 @@ export default function MembersPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [search, setSearch] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
+  const [sendingIds, setSendingIds] = useState<Set<string>>(new Set());
+  const [deleteTarget, setDeleteTarget] = useState<Member | null>(null);
 
   const [fName, setFName] = useState('');
   const [fEmail, setFEmail] = useState('');
   const [fPhone, setFPhone] = useState('');
   const [fRole, setFRole] = useState<Role>('member');
-  const [fPlan, setFPlan] = useState('');
 
   const fetchMembers = useCallback(async () => {
     setLoading(true);
@@ -71,11 +78,13 @@ export default function MembersPage() {
         : currentFilter === 'trainer' ? 'trainer'
         : undefined;
       const filterStatus = currentFilter === 'inactive' ? 'inactive' : undefined;
+      const filterRegistration = currentFilter === 'pending' ? 'pending' : undefined;
 
       const result = await membersService.getAll({
         search: search || undefined,
         role: filterRole,
         status: filterStatus,
+        registration: filterRegistration,
         page: currentPage,
         pageSize: ROWS_PER_PAGE,
       });
@@ -90,7 +99,11 @@ export default function MembersPage() {
   }, [currentFilter, search, currentPage]);
 
   useEffect(() => {
-    fetchMembers();
+    supabase.auth.refreshSession().then(() => {
+      fetchMembers();
+    }).catch(() => {
+      fetchMembers();
+    });
   }, [fetchMembers]);
 
   const totalPages = Math.max(1, Math.ceil(total / ROWS_PER_PAGE));
@@ -98,6 +111,7 @@ export default function MembersPage() {
 
   const active = members.filter((m) => m.status === 'active' && m.role === 'member').length;
   const trainers = members.filter((m) => m.role === 'trainer').length;
+  const pending = members.filter((m) => m.registration_status === 'pending').length;
   const newThisMonth = members.filter((m) => {
     const joined = new Date(m.joinedAt);
     const now = new Date();
@@ -106,23 +120,24 @@ export default function MembersPage() {
 
   const resetForm = useCallback(() => {
     setFName(''); setFEmail(''); setFPhone('');
-    setFRole('member'); setFPlan('');
+    setFRole('member');
   }, []);
 
   const guardarMiembro = useCallback(async () => {
-    if (!fName.trim() || !fEmail.trim()) return;
+    if (!fName.trim()) return;
     try {
       await membersService.create({
         full_name: fName.trim(),
-        email: fEmail.trim(),
+        email: fEmail.trim() || undefined,
         phone: fPhone.trim() || undefined,
         role: fRole,
       });
       setModalOpen(false);
       resetForm();
       fetchMembers();
+      toast.success('Miembro creado. Envía la invitación para que active su cuenta.');
     } catch (e: any) {
-      alert('Error al crear miembro: ' + e.message);
+      toast.error('Error al crear miembro: ' + e.message);
     }
   }, [fName, fEmail, fPhone, fRole, resetForm, fetchMembers]);
 
@@ -132,14 +147,57 @@ export default function MembersPage() {
       await membersService.toggleActive(member.id, newStatus);
       fetchMembers();
     } catch (e: any) {
-      alert('Error al cambiar estado: ' + e.message);
+      toast.error('Error al cambiar estado: ' + e.message);
     }
   }, [fetchMembers]);
+
+  const sendInvite = useCallback(async (memberId: string) => {
+    setSendingIds(prev => new Set(prev).add(memberId));
+    try {
+      const result = await membersService.sendClaimCode(memberId);
+      toast.success(`Código enviado: ${result.sentTo.join(', ')}`);
+    } catch (e: any) {
+      toast.error(e.message || 'Error al enviar invitación');
+    } finally {
+      setSendingIds(prev => {
+        const next = new Set(prev);
+        next.delete(memberId);
+        return next;
+      });
+    }
+  }, []);
+
+  const viewMember = useCallback((member: Member) => {
+    navigate(`/members/${member.id}`);
+  }, [navigate]);
+
+  const editMember = useCallback((member: Member) => {
+    navigate(`/members/${member.id}?edit=true`);
+  }, [navigate]);
+
+  const deleteMember = useCallback((member: Member) => {
+    setDeleteTarget(member);
+  }, []);
+
+  const confirmDelete = useCallback(async () => {
+    const target = deleteTarget;
+    if (!target) return;
+    try {
+      await membersService.remove(target.id);
+      toast.success(`Miembro "${target.name}" eliminado`);
+      setDeleteTarget(null);
+      fetchMembers();
+    } catch (e: any) {
+      toast.error('Error al eliminar: ' + e.message);
+      setDeleteTarget(null);
+    }
+  }, [deleteTarget, fetchMembers]);
 
   const filters = [
     { key: 'all' as FilterKey, label: 'Todos' },
     { key: 'member' as FilterKey, label: 'Miembros' },
     { key: 'trainer' as FilterKey, label: 'Entrenadores' },
+    { key: 'pending' as FilterKey, label: 'Pendientes' },
     { key: 'inactive' as FilterKey, label: 'Inactivos' },
   ];
 
@@ -154,6 +212,15 @@ export default function MembersPage() {
         {diff !== null && diff > 7 && <span className="text-[11px] text-text-3">Vence {fmtDate(m.vence)}</span>}
       </div>
     );
+  }
+
+  function renderStatusBadge(m: Member) {
+    if (m.registration_status === 'pending') {
+      return <Badge variant="amber" dot>Pendiente</Badge>;
+    }
+    return m.status === 'active'
+      ? <Badge variant="green" dot>Activo</Badge>
+      : <Badge variant="red" dot>Inactivo</Badge>;
   }
 
   const memberColumns: Column<Member>[] = [
@@ -207,19 +274,25 @@ export default function MembersPage() {
     {
       key: 'status',
       label: 'Estado',
-      render: (m) => (
-        m.status === 'active'
-          ? <Badge variant="green" dot>Activo</Badge>
-          : <Badge variant="red" dot>Inactivo</Badge>
-      ),
+      render: (m) => renderStatusBadge(m),
     },
     {
       key: 'actions',
       label: '',
       render: (m) => (
         <div className="flex gap-1.5 justify-end">
-          <IconButton title="Ver detalle"><IconEye width="13" height="13" /></IconButton>
-          <IconButton title="Editar"><IconEdit width="13" height="13" /></IconButton>
+          {m.registration_status === 'pending' && (
+            <IconButton
+              title="Enviar invitación"
+              onClick={() => sendInvite(m.id)}
+              disabled={sendingIds.has(m.id)}
+            >
+              <IconSend width="13" height="13" />
+            </IconButton>
+          )}
+          <IconButton title="Ver detalle" onClick={() => viewMember(m)}><IconEye width="13" height="13" /></IconButton>
+          <IconButton title="Editar" onClick={() => editMember(m)}><IconEdit width="13" height="13" /></IconButton>
+          <IconButton title="Eliminar" danger onClick={() => deleteMember(m)}><IconTrash width="13" height="13" /></IconButton>
           <IconButton title={m.status === 'active' ? 'Desactivar' : 'Activar'} danger
             onClick={() => toggleStatus(m)}
           >
@@ -255,7 +328,7 @@ export default function MembersPage() {
           {[
             { label: 'Total miembros', value: total, color: 'blue', sub: 'Registrados en el sistema' },
             { label: 'Activos', value: active, color: 'green', sub: 'Con membresía vigente' },
-            { label: 'Entrenadores', value: trainers, color: 'amber', sub: 'Staff del gym' },
+            { label: 'Pendientes', value: pending, color: 'amber', sub: 'Sin activar su cuenta' },
             { label: 'Nuevos este mes', value: newThisMonth, color: 'accent', sub: 'Este mes' },
           ].map((m) => (
             <div key={m.label} className="relative bg-surface border border-border rounded overflow-hidden p-[18px]">
@@ -303,9 +376,7 @@ export default function MembersPage() {
                 { label: 'Rol', value: (m: Member) => (
                   <>{m.role === 'admin' ? <Badge variant="accent" dot>Admin</Badge> : m.role === 'trainer' ? <Badge variant="blue" dot>Entrenador</Badge> : <Badge variant="gray" dot>Miembro</Badge>}</>
                 )},
-                { label: 'Estado', value: (m: Member) => (
-                  m.status === 'active' ? <Badge variant="green" dot>Activo</Badge> : <Badge variant="red" dot>Inactivo</Badge>
-                )},
+                { label: 'Estado', value: (m: Member) => renderStatusBadge(m) },
                 { label: 'Teléfono', value: (m: Member) => m.phone || <span className="text-text-3">—</span> },
                 { label: 'Membresía', value: (m: Member) => renderMembership(m) },
                 { label: 'Plan', value: (m: Member) => (
@@ -333,7 +404,7 @@ export default function MembersPage() {
       </div>
 
       <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="Nuevo miembro" className="max-w-[400px]">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-1.5">
             <label className="text-[12px] text-text-2 font-medium">Nombre completo *</label>
             <input type="text" placeholder="Ej. Maria Gonzalez" value={fName} onChange={(e) => setFName(e.target.value)}
@@ -344,8 +415,8 @@ export default function MembersPage() {
             <input type="text" placeholder="311 234 5678" value={fPhone} onChange={(e) => setFPhone(e.target.value)}
               className="bg-surface2 border border-border2 text-text text-[13px] px-3 py-[9px] rounded-sm outline-none w-full font-sans" />
           </div>
-          <div className="flex flex-col gap-1.5 sm:col-span-2">
-            <label className="text-[12px] text-text-2 font-medium">Correo electrónico *</label>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[12px] text-text-2 font-medium">Correo electrónico</label>
             <input type="email" placeholder="correo@ejemplo.com" value={fEmail} onChange={(e) => setFEmail(e.target.value)}
               className="bg-surface2 border border-border2 text-text text-[13px] px-3 py-[9px] rounded-sm outline-none w-full font-sans" />
           </div>
@@ -358,27 +429,34 @@ export default function MembersPage() {
               <option value="admin">Admin</option>
             </select>
           </div>
-          <div className="flex flex-col gap-1.5">
-            <label className="text-[12px] text-text-2 font-medium">Tipo de membresía</label>
-            <select value={fPlan} onChange={(e) => setFPlan(e.target.value)}
-              className="bg-surface2 border border-border2 text-text text-[13px] px-3 py-[9px] rounded-sm outline-none w-full font-sans">
-              <option value="">Sin membresía</option>
-              <option value="Mensual">Mensual</option>
-              <option value="Trimestral">Trimestral</option>
-              <option value="Anual">Anual</option>
-            </select>
+          <div className="text-[11px] text-text-3 bg-amber-bg border border-amber/20 rounded-sm p-3 leading-relaxed">
+            El miembro recibirá un código para activar su cuenta. Mientras tanto, puedes asignarle membresía y plan.
           </div>
         </div>
         <div className="flex justify-end gap-2.5 mt-2">
           <Button variant="ghost" onClick={() => setModalOpen(false)}>Cancelar</Button>
           <Button variant="primary" onClick={guardarMiembro}
-            disabled={!fName.trim() || !fEmail.trim()}>
+            disabled={!fName.trim()}>
             Guardar miembro
           </Button>
+        </div>
+      </Modal>
+
+      <Modal open={deleteTarget !== null} onClose={() => setDeleteTarget(null)} title="Eliminar miembro" className="max-w-[400px]">
+        <div className="flex flex-col gap-4">
+          <div className="text-[13px] text-text-1 leading-relaxed">
+            ¿Estás seguro de eliminar a <strong>{deleteTarget?.name}</strong>?
+          </div>
+          <div className="text-[12px] text-text-3 bg-red-bg/10 border border-red/20 rounded-sm p-3 leading-relaxed">
+            Se eliminarán en cascada: membresías, pagos, planes de entrenamiento, ejercicios y registros de entrada.
+            Esta acción no se puede deshacer.
+          </div>
+        </div>
+        <div className="flex justify-end gap-2.5 mt-2">
+          <Button variant="ghost" onClick={() => setDeleteTarget(null)}>Cancelar</Button>
+          <Button variant="danger" onClick={confirmDelete}>Eliminar</Button>
         </div>
       </Modal>
     </>
   );
 }
-
-

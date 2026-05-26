@@ -70,6 +70,12 @@ export default function LoginPage() {
         <Link to="/register" className="text-accent-text no-underline font-medium">Registrarse</Link>
       </div>
 
+      <div className="text-center mt-2 text-[12px] text-text-3">
+        <Link to="/claim" className="text-accent-text no-underline font-medium">
+          ¿Recibiste un código de activación? Activa tu cuenta aquí
+        </Link>
+      </div>
+
       {import.meta.env.DEV && (
         <div className="mt-5 p-3 bg-amber-bg rounded-sm text-[11px] text-amber-text leading-relaxed">
           <strong>Demo:</strong> admin@omega.com / Admin123! &nbsp;·&nbsp; trainer@omega.com / Trainer123! &nbsp;·&nbsp; member@omega.com / Member123!
