@@ -197,9 +197,10 @@ export default function CheckInKioskPage() {
       {/* Top bar */}
       <div className="flex items-center justify-between px-8 py-[18px] border-b border-border bg-surface">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 bg-accent rounded-lg flex items-center justify-center">
-            <svg viewBox="0 0 24 24" fill="none" stroke="#000" strokeWidth="2.5" strokeLinecap="round" width="20" height="20">
-              <path d="M6 6h1v12H6M17 6h1v12h-1M3 9h3M18 9h3M3 15h3M18 15h3M9 12h6"/>
+          <div className="w-9 h-9 rounded-lg flex items-center justify-center"
+            style={{ background: '#0f0f0f', border: '1px solid rgba(255,45,45,0.35)' }}>
+            <svg viewBox="0 0 24 24" fill="none" width="18" height="18">
+              <text x="12" y="18" fontFamily="serif" fontSize="18" fontWeight="bold" fill="#ff2d2d" textAnchor="middle">Ω</text>
             </svg>
           </div>
           <div>

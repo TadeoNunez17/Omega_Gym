@@ -9,9 +9,10 @@ export function MemberLayout() {
     <div className="min-h-screen bg-bg text-text font-sans">
       <header className="sticky top-0 z-20 bg-bg/92 backdrop-blur-[10px] border-b border-border px-6 h-14 flex items-center justify-between">
         <div className="flex items-center gap-2.5">
-          <div className="w-[30px] h-[30px] bg-accent rounded-[7px] flex items-center justify-center">
-            <svg viewBox="0 0 24 24" fill="none" stroke="#000" strokeWidth="2.5" strokeLinecap="round" width="16" height="16">
-              <path d="M6 6h1v12H6M17 6h1v12h-1M3 9h3M18 9h3M3 15h3M18 15h3M9 12h6"/>
+          <div className="w-[30px] h-[30px] rounded-[7px] flex items-center justify-center"
+            style={{ background: '#0f0f0f', border: '1px solid rgba(255,45,45,0.35)' }}>
+            <svg viewBox="0 0 24 24" fill="none" width="14" height="14">
+              <text x="12" y="18" fontFamily="serif" fontSize="18" fontWeight="bold" fill="#ff2d2d" textAnchor="middle">Ω</text>
             </svg>
           </div>
           <span className="text-[15px] font-semibold -tracking-[0.01em]">Omega Gym</span>

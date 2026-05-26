@@ -39,9 +39,10 @@ export function Sidebar() {
     >
       <div className="px-5 py-[18px] border-b border-border">
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 bg-accent rounded-lg flex items-center justify-center flex-shrink-0">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#000" strokeWidth="2.5" strokeLinecap="round">
-              <path d="M6 6h1v12H6M17 6h1v12h-1M3 9h3M18 9h3M3 15h3M18 15h3M9 12h6"/>
+          <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
+            style={{ background: '#0f0f0f', border: '1px solid rgba(255,45,45,0.35)' }}>
+            <svg viewBox="0 0 24 24" fill="none" width="16" height="16">
+              <text x="12" y="18" fontFamily="serif" fontSize="18" fontWeight="bold" fill="#ff2d2d" textAnchor="middle">Ω</text>
             </svg>
           </div>
           <div>
