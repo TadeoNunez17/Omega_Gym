@@ -1,9 +1,16 @@
-import { useState, useMemo, useEffect } from 'react';
-import { membershipsService, type MembershipListItem } from '@/services/memberships.service';
+import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { membershipsService, type MembershipListItem, type MembershipType } from '@/services/memberships.service';
 import { dashboardService } from '@/services/dashboard.service';
+import { membersService, type MemberListItem } from '@/services/members.service';
+import { Modal } from '@/components/ui/molecules/Modal';
+import { Button } from '@/components/ui/atoms/Button';
+import { IconButton } from '@/components/ui/atoms/IconButton';
 import { SearchInput } from '@/components/ui/molecules/SearchInput';
 import { TabBar } from '@/components/ui/molecules/TabBar';
 import { Pagination } from '@/components/ui/molecules/Pagination';
+import { IconEye, IconEdit, IconPlus } from '@/lib/icons';
+import { toast } from 'sonner';
 
 const ROWS_PER_PAGE = 7;
 
@@ -11,6 +18,7 @@ type MembershipStatus = 'active' | 'warning' | 'expired';
 
 interface Member {
   id: string;
+  member_id: string;
   name: string;
   email: string;
   plan: string;
@@ -40,43 +48,6 @@ function fmtDate(s: string) {
   return `${parseInt(d)} ${m[parseInt(mo) - 1]} ${y}`;
 }
 
-function IconEye() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-      <circle cx="12" cy="12" r="3" />
-    </svg>
-  );
-}
-
-function IconEdit() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-    </svg>
-  );
-}
-
-function IconDownload() {
-  return (
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-      <polyline points="7 10 12 15 17 10" />
-      <line x1="12" y1="15" x2="12" y2="3" />
-    </svg>
-  );
-}
-
-function IconPlus() {
-  return (
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-      <line x1="12" y1="5" x2="12" y2="19" />
-      <line x1="5" y1="12" x2="19" y2="12" />
-    </svg>
-  );
-}
-
 function IconAlert() {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -102,6 +73,7 @@ function avatarIndex(id: string): number {
 function toMember(item: MembershipListItem): Member {
   return {
     id: item.id,
+    member_id: item.member_id,
     name: item.member_name,
     email: item.member_email ?? '',
     plan: item.type_name,
@@ -116,23 +88,39 @@ export default function MembershipsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [search, setSearch] = useState('');
   const [members, setMembers] = useState<Member[]>([]);
-  const [monthlyRevenue, setMonthlyRevenue] = useState('$0');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const [modalOpen, setModalOpen] = useState(false);
+  const [memberList, setMemberList] = useState<MemberListItem[]>([]);
+  const [membershipTypes, setMembershipTypes] = useState<MembershipType[]>([]);
+  const [selMember, setSelMember] = useState('');
+  const [selType, setSelType] = useState('');
+  const [startDate, setStartDate] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const [editId, setEditId] = useState<string | null>(null);
+  const [editType, setEditType] = useState('');
+  const [editStart, setEditStart] = useState('');
+  const [editEnd, setEditEnd] = useState('');
+  const [editStatus, setEditStatus] = useState<string>('active');
+  const [editSaving, setEditSaving] = useState(false);
+
+  const navigate = useNavigate();
 
   useEffect(() => {
     async function load() {
       setLoading(true);
       setError(null);
       try {
-        const [result, revenue] = await Promise.all([
+        const [result, mList, types] = await Promise.all([
           membershipsService.getAll({ pageSize: 200 }),
-          dashboardService.getMonthlyRevenue(new Date().getFullYear()),
+          membersService.getAll({ pageSize: 200 }),
+          membershipsService.getTypes(),
         ]);
         setMembers(result.data.map(toMember));
-        const currentMonth = new Date().getMonth();
-        const rev = revenue.find((r) => Number(r.month) - 1 === currentMonth);
-        setMonthlyRevenue(rev ? `$${rev.amount.toLocaleString()}` : '$0');
+        setMemberList(mList.data);
+        setMembershipTypes(types);
       } catch (e: any) {
         setError(e.message);
       } finally {
@@ -169,6 +157,77 @@ export default function MembershipsPage() {
   const warnCount = allWithStatus.filter((m) => m.status === 'warning').length;
   const expiredCount = allWithStatus.filter((m) => m.status === 'expired').length;
 
+  const selTypeData = membershipTypes.find((t) => t.id === selType);
+  const computedEnd = startDate && selTypeData
+    ? (() => {
+        const d = new Date(startDate);
+        d.setDate(d.getDate() + selTypeData.duration_days);
+        return d.toISOString().split('T')[0];
+      })()
+    : '';
+
+  const resetForm = useCallback(() => {
+    setSelMember('');
+    setSelType('');
+    setStartDate('');
+  }, []);
+
+  const guardarMembresia = useCallback(async () => {
+    if (!selMember || !selType || !startDate) return;
+    setSaving(true);
+    try {
+      await membershipsService.create({
+        member_id: selMember,
+        type_id: selType,
+        start_date: startDate,
+        end_date: computedEnd,
+      });
+      setModalOpen(false);
+      resetForm();
+      const result = await membershipsService.getAll({ pageSize: 200 });
+      setMembers(result.data.map(toMember));
+      toast.success('Membresía creada correctamente');
+    } catch (e: any) {
+      toast.error('Error al crear membresía: ' + e.message);
+    } finally {
+      setSaving(false);
+    }
+  }, [selMember, selType, startDate, computedEnd, resetForm]);
+
+  const viewMember = useCallback((memberId: string) => {
+    navigate(`/members/${memberId}`);
+  }, [navigate]);
+
+  const openEditModal = useCallback((membership: Member) => {
+    setEditId(membership.id);
+    setEditType(membership.plan);
+    setEditStart(membership.inicio.split('T')[0]);
+    setEditEnd(membership.vence.split('T')[0]);
+    setEditStatus(membership.status === 'expired' ? 'expired' : 'active');
+  }, []);
+
+  const guardarEdicion = useCallback(async () => {
+    if (!editId) return;
+    setEditSaving(true);
+    try {
+      const selectedType = membershipTypes.find((t) => t.name === editType);
+      await membershipsService.update(editId, {
+        type_id: selectedType?.id ?? '',
+        start_date: editStart,
+        end_date: editEnd,
+        status: editStatus as 'active' | 'expired' | 'cancelled',
+      });
+      setEditId(null);
+      const result = await membershipsService.getAll({ pageSize: 200 });
+      setMembers(result.data.map(toMember));
+      toast.success('Membresía actualizada correctamente');
+    } catch (e: any) {
+      toast.error('Error al actualizar: ' + e.message);
+    } finally {
+      setEditSaving(false);
+    }
+  }, [editId, editType, editStart, editEnd, editStatus, membershipTypes]);
+
   return (
     <>
       <header
@@ -185,12 +244,10 @@ export default function MembershipsPage() {
           <span style={{ color: 'var(--text-2)' }}>Membresías</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }} className="flex-wrap">
-          <button style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 12px', borderRadius: 'var(--radius-sm)', fontSize: 12, fontWeight: 500, cursor: 'pointer', background: 'transparent', color: 'var(--text-2)', border: '1px solid var(--border2)', fontFamily: 'inherit' }}>
-            <IconDownload /> Exportar
-          </button>
-          <button style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 12px', borderRadius: 'var(--radius-sm)', fontSize: 12, fontWeight: 500, cursor: 'pointer', border: 'none', background: 'var(--accent)', color: '#000', fontFamily: 'inherit' }}>
-            <IconPlus /> Nueva membresía
-          </button>
+
+          <Button variant="primary" size="sm" icon={<IconPlus />} onClick={() => { resetForm(); setModalOpen(true); }}>
+            Nueva membresía
+          </Button>
         </div>
       </header>
 
@@ -218,7 +275,6 @@ export default function MembershipsPage() {
                 { label: 'Activas', value: activeCount, color: 'green', sub: 'Al corriente' },
                 { label: 'Por vencer', value: warnCount, color: 'amber', sub: 'En los próximos 7 días' },
                 { label: 'Vencidas', value: expiredCount, color: 'red', sub: 'Sin renovar' },
-                { label: 'Ingresos del mes', value: monthlyRevenue, color: 'accent', sub: 'Este mes' },
               ].map((m) => (
                 <div key={m.label} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '18px 20px', position: 'relative', overflow: 'hidden' }}>
                   <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 2, background: `var(--${m.color})` }} />
@@ -326,12 +382,12 @@ export default function MembershipsPage() {
                             </td>
                             <td style={{ padding: '14px 18px', borderBottom: '1px solid var(--border)', verticalAlign: 'middle' }}>
                               <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
-                                <button title="Ver detalle" style={{ width: 28, height: 28, borderRadius: 'var(--radius-sm)', background: 'transparent', border: '1px solid var(--border)', color: 'var(--text-3)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
-                                  <IconEye />
-                                </button>
-                                <button title="Editar" style={{ width: 28, height: 28, borderRadius: 'var(--radius-sm)', background: 'transparent', border: '1px solid var(--border)', color: 'var(--text-3)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
-                                  <IconEdit />
-                                </button>
+                                <IconButton title="Ver detalle" onClick={() => viewMember(m.member_id)}>
+                                  <IconEye width="13" height="13" />
+                                </IconButton>
+                                <IconButton title="Editar" onClick={() => openEditModal(m)}>
+                                  <IconEdit width="13" height="13" />
+                                </IconButton>
                               </div>
                             </td>
                           </tr>
@@ -355,6 +411,129 @@ export default function MembershipsPage() {
           </>
         )}
       </div>
+
+      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="Nueva membresía" className="max-w-[400px]">
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[12px] text-text-2 font-medium">Miembro *</label>
+            <select
+              value={selMember}
+              onChange={(e) => setSelMember(e.target.value)}
+              className="bg-surface2 border border-border2 text-text text-[13px] px-3 py-[9px] rounded-sm outline-none w-full font-sans"
+            >
+              <option value="">Seleccionar miembro</option>
+              {memberList.filter((m) => m.role === 'member').map((m) => (
+                <option key={m.id} value={m.id}>{m.full_name}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[12px] text-text-2 font-medium">Tipo de membresía *</label>
+            <select
+              value={selType}
+              onChange={(e) => setSelType(e.target.value)}
+              className="bg-surface2 border border-border2 text-text text-[13px] px-3 py-[9px] rounded-sm outline-none w-full font-sans"
+            >
+              <option value="">Seleccionar tipo</option>
+              {membershipTypes.filter((t) => t.is_active).map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name} — ${t.price.toLocaleString()} · {t.duration_days} días
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[12px] text-text-2 font-medium">Fecha de inicio *</label>
+            <input
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="bg-surface2 border border-border2 text-text text-[13px] px-3 py-[9px] rounded-sm outline-none w-full font-sans"
+            />
+          </div>
+
+          {computedEnd && (
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[12px] text-text-2 font-medium">Fecha de vencimiento</label>
+              <div className="text-text text-[13px] px-3 py-[9px] bg-surface2 border border-border2 rounded-sm opacity-70">
+                {new Date(computedEnd).toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' })}
+              </div>
+            </div>
+          )}
+
+          <div className="text-[11px] text-text-3 bg-amber-bg border border-amber/20 rounded-sm p-3 leading-relaxed">
+            La fecha de vencimiento se calcula automáticamente según la duración del tipo de membresía seleccionado.
+          </div>
+        </div>
+
+        <div className="flex justify-end gap-2.5 mt-2">
+          <Button variant="ghost" onClick={() => setModalOpen(false)} disabled={saving}>
+            Cancelar
+          </Button>
+          <Button variant="primary" onClick={guardarMembresia} disabled={!selMember || !selType || !startDate || saving}>
+            {saving ? 'Guardando…' : 'Guardar membresía'}
+          </Button>
+        </div>
+      </Modal>
+
+      <Modal open={editId !== null} onClose={() => setEditId(null)} title="Editar membresía" className="max-w-[400px]">
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[12px] text-text-2 font-medium">Tipo de membresía</label>
+            <select
+              value={editType}
+              onChange={(e) => {
+                setEditType(e.target.value);
+                const t = membershipTypes.find((mt) => mt.name === e.target.value);
+                if (t && editStart) {
+                  const d = new Date(editStart);
+                  d.setDate(d.getDate() + t.duration_days);
+                  setEditEnd(d.toISOString().split('T')[0]);
+                }
+              }}
+              className="bg-surface2 border border-border2 text-text text-[13px] px-3 py-[9px] rounded-sm outline-none w-full font-sans"
+            >
+              {membershipTypes.filter((t) => t.is_active).map((t) => (
+                <option key={t.id} value={t.name}>{t.name} — ${t.price.toLocaleString()}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[12px] text-text-2 font-medium">Fecha de inicio</label>
+            <input type="date" value={editStart} onChange={(e) => setEditStart(e.target.value)}
+              className="bg-surface2 border border-border2 text-text text-[13px] px-3 py-[9px] rounded-sm outline-none w-full font-sans" />
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[12px] text-text-2 font-medium">Fecha de vencimiento</label>
+            <input type="date" value={editEnd} onChange={(e) => setEditEnd(e.target.value)}
+              className="bg-surface2 border border-border2 text-text text-[13px] px-3 py-[9px] rounded-sm outline-none w-full font-sans" />
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[12px] text-text-2 font-medium">Estado</label>
+            <select value={editStatus} onChange={(e) => setEditStatus(e.target.value)}
+              className="bg-surface2 border border-border2 text-text text-[13px] px-3 py-[9px] rounded-sm outline-none w-full font-sans"
+            >
+              <option value="active">Activa</option>
+              <option value="expired">Vencida</option>
+              <option value="cancelled">Cancelada</option>
+            </select>
+          </div>
+        </div>
+
+        <div className="flex justify-end gap-2.5 mt-2">
+          <Button variant="ghost" onClick={() => setEditId(null)} disabled={editSaving}>
+            Cancelar
+          </Button>
+          <Button variant="primary" onClick={guardarEdicion} disabled={!editType || !editStart || !editEnd || editSaving}>
+            {editSaving ? 'Guardando…' : 'Guardar cambios'}
+          </Button>
+        </div>
+      </Modal>
     </>
   );
 }

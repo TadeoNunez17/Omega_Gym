@@ -172,9 +172,7 @@ export default function DashboardPage() {
         </div>
         <div className="flex items-center gap-2 sm:gap-3">
           <span className="text-[11px] sm:text-[12px] text-text-3 font-mono bg-surface border border-border px-2.5 sm:px-3 py-1.5 rounded-sm hidden sm:inline">{TODAY_STR}</span>
-          <button className="inline-flex items-center gap-1.5 px-2.5 sm:px-4 py-2 rounded-sm text-[12px] sm:text-[13px] font-medium cursor-pointer bg-transparent text-text-2 border border-border2 font-sans whitespace-nowrap">
-            <IconDownload /> Exportar
-          </button>
+
         </div>
       </header>
 

@@ -171,7 +171,7 @@ export default function PaymentsPage() {
           <span className="text-text-2">Pagos</span>
         </div>
         <div className="flex items-center gap-2 sm:gap-2.5">
-          <Button variant="ghost" size="sm" icon={<IconDownload />}>Exportar</Button>
+
           <Button variant="primary" size="sm" icon={<IconPlus />}>Registrar pago</Button>
         </div>
       </header>

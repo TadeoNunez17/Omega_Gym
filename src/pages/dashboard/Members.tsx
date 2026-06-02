@@ -315,7 +315,7 @@ export default function MembersPage() {
           <span className="text-text-2">Miembros</span>
         </div>
         <div className="flex items-center gap-2 sm:gap-2.5">
-          <Button variant="ghost" size="sm" icon={<IconDownload />}>Exportar</Button>
+
           <Button variant="primary" size="sm" onClick={() => { resetForm(); setModalOpen(true); }} icon={<IconPlus />}>Nuevo miembro</Button>
         </div>
       </header>

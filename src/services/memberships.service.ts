@@ -137,6 +137,58 @@ export const membershipsService = {
     return data as (Membership & { membership_types: MembershipType }) | null
   },
 
+  update: async (id: string, input: Partial<{
+    type_id: string
+    start_date: string
+    end_date: string
+    status: 'active' | 'expired' | 'cancelled'
+  }>): Promise<Membership> => {
+    const { data, error } = await supabase
+      .from('memberships')
+      .update(input)
+      .eq('id', id)
+      .select()
+      .single()
+
+    if (error) throw error
+    return data as Membership
+  },
+
+  create: async (input: {
+    member_id: string
+    type_id: string
+    start_date: string
+    end_date?: string
+    status?: 'active' | 'expired' | 'cancelled'
+  }): Promise<Membership> => {
+    const { data: type } = await supabase
+      .from('membership_types')
+      .select('duration_days')
+      .eq('id', input.type_id)
+      .single()
+
+    const endDate = input.end_date ?? (() => {
+      const d = new Date(input.start_date)
+      d.setDate(d.getDate() + (type?.duration_days ?? 30))
+      return d.toISOString().split('T')[0]
+    })()
+
+    const { data, error } = await supabase
+      .from('memberships')
+      .insert({
+        member_id: input.member_id,
+        type_id: input.type_id,
+        start_date: input.start_date,
+        end_date: endDate,
+        status: input.status || 'active',
+      })
+      .select()
+      .single()
+
+    if (error) throw error
+    return data as Membership
+  },
+
   getExpiring: async (days: number = 7): Promise<MembershipListItem[]> => {
     const now = new Date()
     const future = new Date(now)
