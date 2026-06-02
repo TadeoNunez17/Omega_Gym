@@ -6,6 +6,7 @@ import { membershipsService } from '@/services/memberships.service'
 import { Button } from '@/components/ui/atoms/Button'
 import { Input, Select, Textarea } from '@/components/ui/atoms/Input'
 import { Modal } from '@/components/ui/molecules/Modal'
+import { IconPlus, IconEdit } from '@/lib/icons'
 
 const AV_COLORS = [
   { bg: 'rgba(59,130,246,0.15)', fg: '#60a5fa' },
@@ -584,27 +585,27 @@ export default function TrainerPanelPage() {
           </div>
 
           {/* Plan Modal */}
-          <Modal open={planModalOpen} onClose={() => setPlanModalOpen(false)} title="Nuevo plan de entrenamiento" className="max-w-[400px]">
+          <Modal open={planModalOpen} onClose={() => setPlanModalOpen(false)} title="Nuevo plan de entrenamiento" className="max-w-[400px]" icon={<IconPlus width="16" height="16" />}>
             <Input label="Nombre del plan *" value={pName} onChange={e => setPName(e.target.value)} placeholder="Ej. Fuerza C — Avanzado" />
             <Input label="Descripción" value={pDesc} onChange={e => setPDesc(e.target.value)} placeholder="Objetivo, observaciones…" />
             <Select label="Asignar a miembro" value={pMemberId} onChange={e => setPMemberId(e.target.value)}>
               <option value="">— Guardar como plantilla —</option>
               {members.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
             </Select>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 4 }}>
+            <div className="flex justify-end gap-2.5 mt-2">
               <Button variant="ghost" size="sm" onClick={() => setPlanModalOpen(false)}>Cancelar</Button>
               <Button variant="primary" size="sm" onClick={guardarPlan}>Crear plan</Button>
             </div>
           </Modal>
 
           {/* Note Modal */}
-          <Modal open={noteModalOpen} onClose={() => setNoteModalOpen(false)} title="Nueva nota de seguimiento" className="max-w-[400px]">
+          <Modal open={noteModalOpen} onClose={() => setNoteModalOpen(false)} title="Nueva nota de seguimiento" className="max-w-[400px]" icon={<IconEdit width="16" height="16" />}>
             <Select label="Miembro" value={nMember} onChange={e => setNMember(e.target.value)}>
               <option value="">— Seleccionar —</option>
               {members.map(m => <option key={m.id} value={m.name}>{m.name}</option>)}
             </Select>
             <Input label="Nota *" value={nText} onChange={e => setNText(e.target.value)} placeholder="Ej. Mejoró técnica en sentadilla. Aumentar peso la próxima sesión." />
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 4 }}>
+            <div className="flex justify-end gap-2.5 mt-2">
               <Button variant="ghost" size="sm" onClick={() => setNoteModalOpen(false)}>Cancelar</Button>
               <Button variant="primary" size="sm" onClick={guardarNota}>Guardar nota</Button>
             </div>

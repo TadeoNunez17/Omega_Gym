@@ -13,6 +13,7 @@ export interface Payment {
 
 export interface PaymentListItem {
   id: string
+  member_id: string
   member_name: string
   member_email: string | null
   concept: string
@@ -70,6 +71,7 @@ export const paymentsService = {
     return {
       data: (data || []).map((p: any) => ({
         id: p.id,
+        member_id: p.memberships?.member_id ?? '',
         member_name: p.memberships?.profiles?.full_name ?? '—',
         member_email: p.memberships?.profiles?.email ?? null,
         concept: `${p.memberships?.membership_types?.name ?? 'Membresía'} · ${p.payment_date}`,
@@ -117,6 +119,56 @@ export const paymentsService = {
       total_cancelled: sum(cancelled.data),
       today_collected: sum(todayCollected.data),
     }
+  },
+
+  create: async (input: {
+    membership_id: string
+    amount: number
+    payment_date: string
+    method: 'cash' | 'card' | 'transfer'
+    status: 'paid' | 'pending' | 'cancelled'
+    notes?: string
+  }): Promise<Payment> => {
+    const { data, error } = await supabase
+      .from('payments')
+      .insert({
+        membership_id: input.membership_id,
+        amount: input.amount,
+        payment_date: input.payment_date,
+        method: input.method,
+        status: input.status,
+        notes: input.notes || null,
+      })
+      .select()
+      .single()
+
+    if (error) throw error
+    return data as Payment
+  },
+
+  update: async (id: string, input: {
+    status?: 'paid' | 'pending' | 'cancelled'
+    notes?: string
+  }): Promise<Payment> => {
+    const { data, error } = await supabase
+      .from('payments')
+      .update(input)
+      .eq('id', id)
+      .select()
+      .single()
+
+    if (error) throw error
+    return data as Payment
+  },
+
+  getPendingCount: async (): Promise<number> => {
+    const { count, error } = await supabase
+      .from('payments')
+      .select('id', { count: 'exact', head: true })
+      .eq('status', 'pending')
+
+    if (error) throw error
+    return count ?? 0
   },
 
   getByMember: async (memberId: string): Promise<Payment[]> => {

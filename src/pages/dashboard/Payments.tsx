@@ -1,4 +1,5 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/atoms/Button';
 import { Badge } from '@/components/ui/atoms/Badge';
 import { IconButton } from '@/components/ui/atoms/IconButton';
@@ -7,10 +8,14 @@ import { PageHeader } from '@/components/ui/molecules/PageHeader';
 import { SearchInput } from '@/components/ui/molecules/SearchInput';
 import { TabBar } from '@/components/ui/molecules/TabBar';
 import { Pagination } from '@/components/ui/molecules/Pagination';
-import { IconDownload, IconPlus, IconEye } from '@/lib/icons';
+import { IconPlus, IconEye, IconEdit } from '@/lib/icons';
 import { initials, fmtDate, fmtMoney, avatarIndex, AVATAR_COLORS } from '@/lib/helpers';
 import { paymentsService, type PaymentListItem } from '@/services/payments.service';
+import { Modal } from '@/components/ui/molecules/Modal';
 import { ResponsiveTable, type Column } from '@/components/ui/molecules/ResponsiveTable';
+import { toast } from 'sonner';
+import { membersService, type MemberListItem } from '@/services/members.service';
+import { membershipsService, type Membership } from '@/services/memberships.service';
 
 const ROWS_PER_PAGE = 8;
 
@@ -19,6 +24,7 @@ type PaymentStatus = 'paid' | 'pending' | 'cancelled';
 
 interface Payment {
   id: string;
+  member_id: string;
   member: string;
   email: string;
   concept: string;
@@ -26,6 +32,8 @@ interface Payment {
   date: string;
   method: PaymentMethod;
   status: PaymentStatus;
+  notes: string | null;
+  membership_id: string;
   av: number;
 }
 
@@ -43,17 +51,82 @@ export default function PaymentsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [search, setSearch] = useState('');
 
+  const [modalOpen, setModalOpen] = useState(false);
+  const [memberList, setMemberList] = useState<MemberListItem[]>([]);
+  const [selMember, setSelMember] = useState('');
+  const [memberMemberships, setMemberMemberships] = useState<Membership[]>([]);
+  const [selMembership, setSelMembership] = useState('');
+  const [amount, setAmount] = useState('');
+  const [paymentDate, setPaymentDate] = useState(new Date().toISOString().split('T')[0]);
+  const [method, setMethod] = useState<'cash' | 'card' | 'transfer'>('cash');
+  const [payStatus, setPayStatus] = useState<'paid' | 'pending'>('paid');
+  const [notes, setNotes] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [receiptTarget, setReceiptTarget] = useState<Payment | null>(null);
+  const [previewTarget, setPreviewTarget] = useState<Payment | null>(null);
+  const [previewMember, setPreviewMember] = useState<MemberListItem | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [editTarget, setEditTarget] = useState<Payment | null>(null);
+  const [editStatus, setEditStatus] = useState<PaymentStatus>('paid');
+  const [editSaving, setEditSaving] = useState(false);
+
+  const navigate = useNavigate();
+
+  const handleEditSave = useCallback(async () => {
+    if (!editTarget) return;
+    setEditSaving(true);
+    try {
+      await paymentsService.update(editTarget.id, { status: editStatus });
+      setEditTarget(null);
+      const [result, rev] = await Promise.all([
+        paymentsService.getAll({ pageSize: 200 }),
+        paymentsService.getRevenueSummary(),
+      ]);
+      setPayments(result.data.map((p): Payment => ({
+        id: p.id,
+        member_id: p.member_id,
+        member: p.member_name,
+        email: p.member_email ?? '',
+        concept: p.concept,
+        amount: p.amount,
+        date: p.date,
+        method: p.method as PaymentMethod,
+        status: p.status as PaymentStatus,
+        notes: null,
+        membership_id: '',
+        av: avatarIndex(p.id),
+      })));
+      setRevenue(rev);
+      toast.success('Estado actualizado correctamente');
+    } catch (e: any) {
+      toast.error('Error al actualizar: ' + e.message);
+    } finally {
+      setEditSaving(false);
+    }
+  }, [editTarget, editStatus]);
+
+  useEffect(() => {
+    if (!previewTarget) { setPreviewMember(null); return; }
+    setPreviewLoading(true);
+    membersService.getById(previewTarget.member_id)
+      .then(setPreviewMember)
+      .catch(() => setPreviewMember(null))
+      .finally(() => setPreviewLoading(false));
+  }, [previewTarget]);
+
   useEffect(() => {
     async function load() {
       setLoading(true);
       setError(null);
       try {
-        const [result, rev] = await Promise.all([
+        const [result, rev, mList] = await Promise.all([
           paymentsService.getAll({ pageSize: 200 }),
           paymentsService.getRevenueSummary(),
+          membersService.getAll({ pageSize: 200 }),
         ]);
         setPayments(result.data.map((p): Payment => ({
           id: p.id,
+          member_id: p.member_id,
           member: p.member_name,
           email: p.member_email ?? '',
           concept: p.concept,
@@ -61,9 +134,12 @@ export default function PaymentsPage() {
           date: p.date,
           method: p.method as PaymentMethod,
           status: p.status as PaymentStatus,
+          notes: null,
+          membership_id: '',
           av: avatarIndex(p.id),
         })));
         setRevenue(rev);
+        setMemberList(mList.data);
       } catch (e: any) {
         setError(e.message);
       } finally {
@@ -86,6 +162,76 @@ export default function PaymentsPage() {
   const safePage = Math.min(currentPage, totalPages);
   const start = (safePage - 1) * ROWS_PER_PAGE;
   const rows = filtered.slice(start, start + ROWS_PER_PAGE);
+
+  const resetForm = useCallback(() => {
+    setSelMember('');
+    setSelMembership('');
+    setAmount('');
+    setPaymentDate(new Date().toISOString().split('T')[0]);
+    setMethod('cash');
+    setPayStatus('paid');
+    setNotes('');
+    setMemberMemberships([]);
+  }, []);
+
+  const handleMemberChange = useCallback(async (memberId: string) => {
+    setSelMember(memberId);
+    setSelMembership('');
+    if (!memberId) {
+      setMemberMemberships([]);
+      return;
+    }
+    try {
+      const memberships = await membershipsService.getByMember(memberId);
+      setMemberMemberships(memberships);
+      if (memberships.length === 1) {
+        setSelMembership(memberships[0].id);
+      }
+    } catch {
+      setMemberMemberships([]);
+    }
+  }, []);
+
+  const guardarPago = useCallback(async () => {
+    if (!selMembership || !amount || !paymentDate) return;
+    setSaving(true);
+    try {
+      await paymentsService.create({
+        membership_id: selMembership,
+        amount: parseFloat(amount),
+        payment_date: paymentDate,
+        method,
+        status: payStatus,
+        notes: notes || undefined,
+      });
+      setModalOpen(false);
+      resetForm();
+      const [result, rev] = await Promise.all([
+        paymentsService.getAll({ pageSize: 200 }),
+        paymentsService.getRevenueSummary(),
+      ]);
+      setPayments(result.data.map((p): Payment => ({
+        id: p.id,
+        member_id: p.member_id,
+        member: p.member_name,
+        email: p.member_email ?? '',
+        concept: p.concept,
+        amount: p.amount,
+        date: p.date,
+        method: p.method as PaymentMethod,
+        status: p.status as PaymentStatus,
+        notes: null,
+        membership_id: '',
+        av: avatarIndex(p.id),
+      })));
+      setRevenue(rev);
+      toast.success('Pago registrado correctamente');
+    } catch (e: any) {
+      toast.error('Error al registrar pago: ' + e.message);
+    } finally {
+      setSaving(false);
+    }
+  }, [selMembership, amount, paymentDate, method, payStatus, notes, resetForm]);
 
   const filters = [
     { key: 'all' as FilterKey, label: 'Todos' },
@@ -152,12 +298,17 @@ export default function PaymentsPage() {
     {
       key: 'actions',
       label: '',
-      render: () => (
+      render: (p) => (
         <div className="flex gap-1.5 justify-end">
-          <IconButton title="Ver recibo">
+          <IconButton title="Ver recibo" onClick={() => setReceiptTarget(p)}>
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /><polyline points="10 9 9 9 8 9" /></svg>
           </IconButton>
-          <IconButton title="Ver detalle"><IconEye width="13" height="13" /></IconButton>
+          <IconButton title="Ver detalle" onClick={() => setPreviewTarget(p)}>
+            <IconEye width="13" height="13" />
+          </IconButton>
+          <IconButton title="Editar estado" onClick={() => { setEditTarget(p); setEditStatus(p.status); }}>
+            <IconEdit width="13" height="13" />
+          </IconButton>
         </div>
       ),
     },
@@ -172,7 +323,7 @@ export default function PaymentsPage() {
         </div>
         <div className="flex items-center gap-2 sm:gap-2.5">
 
-          <Button variant="primary" size="sm" icon={<IconPlus />}>Registrar pago</Button>
+          <Button variant="primary" size="sm" icon={<IconPlus />} onClick={() => { resetForm(); setModalOpen(true); }}>Registrar pago</Button>
         </div>
       </header>
 
@@ -249,6 +400,338 @@ export default function PaymentsPage() {
           </div>
         )}
       </div>
+
+      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="Registrar pago" className="max-w-[400px]" icon={<IconPlus width="16" height="16" />}>
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[12px] text-text-2 font-medium">Miembro *</label>
+            <select
+              value={selMember}
+              onChange={(e) => handleMemberChange(e.target.value)}
+              className="bg-surface2 border border-border2 text-text text-[13px] px-3 py-[9px] rounded-sm outline-none w-full font-sans"
+            >
+              <option value="">Seleccionar miembro</option>
+              {memberList.filter((m) => m.role === 'member').map((m) => (
+                <option key={m.id} value={m.id}>{m.full_name}</option>
+              ))}
+            </select>
+          </div>
+
+          {selMember && (
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[12px] text-text-2 font-medium">Membresía *</label>
+              <select
+                value={selMembership}
+                onChange={(e) => setSelMembership(e.target.value)}
+                className="bg-surface2 border border-border2 text-text text-[13px] px-3 py-[9px] rounded-sm outline-none w-full font-sans"
+              >
+                <option value="">Seleccionar membresía</option>
+                {memberMemberships.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.start_date} → {m.end_date} ({m.status})
+                  </option>
+                ))}
+              </select>
+              {memberMemberships.length === 0 && (
+                <div className="text-[11px] text-amber-text">Este miembro no tiene membresías registradas.</div>
+              )}
+            </div>
+          )}
+
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[12px] text-text-2 font-medium">Monto *</label>
+            <input
+              type="number"
+              step="0.01"
+              min="0"
+              placeholder="0.00"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              className="bg-surface2 border border-border2 text-text text-[13px] px-3 py-[9px] rounded-sm outline-none w-full font-sans"
+            />
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[12px] text-text-2 font-medium">Fecha de pago *</label>
+            <input
+              type="date"
+              value={paymentDate}
+              onChange={(e) => setPaymentDate(e.target.value)}
+              className="bg-surface2 border border-border2 text-text text-[13px] px-3 py-[9px] rounded-sm outline-none w-full font-sans"
+            />
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[12px] text-text-2 font-medium">Método *</label>
+            <select
+              value={method}
+              onChange={(e) => setMethod(e.target.value as 'cash' | 'card' | 'transfer')}
+              className="bg-surface2 border border-border2 text-text text-[13px] px-3 py-[9px] rounded-sm outline-none w-full font-sans"
+            >
+              <option value="cash">Efectivo</option>
+              <option value="card">Tarjeta</option>
+              <option value="transfer">Transferencia</option>
+            </select>
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[12px] text-text-2 font-medium">Estado</label>
+            <select
+              value={payStatus}
+              onChange={(e) => setPayStatus(e.target.value as 'paid' | 'pending')}
+              className="bg-surface2 border border-border2 text-text text-[13px] px-3 py-[9px] rounded-sm outline-none w-full font-sans"
+            >
+              <option value="paid">Pagado</option>
+              <option value="pending">Pendiente</option>
+            </select>
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[12px] text-text-2 font-medium">Notas</label>
+            <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Notas opcionales..."
+              rows={2}
+              className="bg-surface2 border border-border2 text-text text-[13px] px-3 py-[9px] rounded-sm outline-none w-full font-sans resize-none"
+            />
+          </div>
+        </div>
+
+        <div className="flex justify-end gap-2.5 mt-2">
+          <Button variant="ghost" onClick={() => setModalOpen(false)} disabled={saving}>
+            Cancelar
+          </Button>
+          <Button variant="primary" onClick={guardarPago} disabled={!selMembership || !amount || !paymentDate || saving}>
+            {saving ? 'Guardando…' : 'Guardar pago'}
+          </Button>
+        </div>
+      </Modal>
+
+      <Modal compact icon={
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-accent">
+          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+          <circle cx="12" cy="7" r="4" />
+        </svg>
+      } title="PREVIEW" open={previewTarget !== null} onClose={() => setPreviewTarget(null)}>
+        {previewLoading ? (
+          <div className="flex flex-col items-center py-10 gap-4">
+            <div className="w-[64px] h-[64px] rounded-full bg-surface2 animate-pulse" />
+            <div className="w-32 h-4 rounded bg-surface2 animate-pulse" />
+            <div className="w-20 h-5 rounded-sm bg-surface2 animate-pulse" />
+            <div className="w-full space-y-3 mt-4">
+              <div className="h-4 rounded bg-surface2 animate-pulse" />
+              <div className="h-4 w-2/3 rounded bg-surface2 animate-pulse" />
+              <div className="grid grid-cols-2 gap-3 mt-6">
+                <div className="h-[52px] rounded bg-surface2 animate-pulse" />
+                <div className="h-[52px] rounded bg-surface2 animate-pulse" />
+                <div className="h-[52px] rounded bg-surface2 animate-pulse" />
+                <div className="h-[52px] rounded bg-surface2 animate-pulse" />
+              </div>
+            </div>
+          </div>
+        ) : previewMember && previewTarget ? (
+          <div className="flex flex-col gap-0">
+            <div className="flex flex-col items-center mb-6">
+              <div className="w-[64px] h-[64px] rounded-full flex items-center justify-center text-[22px] font-semibold mb-3"
+                style={{ background: AVATAR_COLORS[avatarIndex(previewMember.id)].bg, color: AVATAR_COLORS[avatarIndex(previewMember.id)].fg }}>
+                {initials(previewMember.full_name)}
+              </div>
+              <div className="text-[17px] font-semibold">{previewMember.full_name}</div>
+              <div className="mt-1.5">
+                {previewMember.role === 'member' ? <Badge variant="blue" dot>Miembro</Badge> : previewMember.role === 'trainer' ? <Badge variant="purple" dot>Entrenador</Badge> : <Badge variant="accent" dot>Admin</Badge>}
+              </div>
+            </div>
+
+            <div className="border-t border-border pt-4 space-y-3.5">
+              <div className="flex items-center gap-3">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-text-3 shrink-0">
+                  <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+                  <polyline points="22,6 12,13 2,6" />
+                </svg>
+                <span className="text-[12px] text-text-2">{previewMember.email}</span>
+              </div>
+              {previewMember.phone && (
+                <div className="flex items-center gap-3">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-text-3 shrink-0">
+                    <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
+                  </svg>
+                  <span className="text-[12px] text-text-2">{previewMember.phone}</span>
+                </div>
+              )}
+            </div>
+
+            <div className="mt-6 pt-4 border-t border-border">
+              <div className="text-[11px] text-text-3 uppercase tracking-[0.08em] mb-3">Información del pago</div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-surface2 rounded px-3 py-2.5">
+                  <div className="text-[10px] text-text-3 uppercase tracking-[0.06em]">Concepto</div>
+                  <div className="text-[13px] font-medium mt-0.5">{previewTarget!.concept}</div>
+                </div>
+                <div className="bg-surface2 rounded px-3 py-2.5">
+                  <div className="text-[10px] text-text-3 uppercase tracking-[0.06em]">Monto</div>
+                  <div className="text-[13px] font-mono font-semibold mt-0.5" style={{ color: previewTarget!.status === 'paid' ? 'var(--green-text)' : 'var(--amber-text)' }}>{fmtMoney(previewTarget!.amount)}</div>
+                </div>
+                <div className="bg-surface2 rounded px-3 py-2.5">
+                  <div className="text-[10px] text-text-3 uppercase tracking-[0.06em]">Método</div>
+                  <div className="text-[12px] font-medium mt-0.5" style={{ color: METHOD_COLORS[previewTarget!.method as PaymentMethod] }}>{METHOD_LABELS[previewTarget!.method as PaymentMethod]}</div>
+                </div>
+                <div className="bg-surface2 rounded px-3 py-2.5">
+                  <div className="text-[10px] text-text-3 uppercase tracking-[0.06em]">Estado</div>
+                  <div className="mt-0.5">
+                    {previewTarget!.status === 'paid' ? <Badge variant="green" dot>Pagado</Badge> : previewTarget!.status === 'pending' ? <Badge variant="amber" dot>Pendiente</Badge> : <Badge variant="red" dot>Cancelado</Badge>}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-6 pt-4 border-t border-border text-center">
+              <Button variant="primary" onClick={() => { setPreviewTarget(null); navigate(`/members/${previewTarget!.member_id}`); }}>
+                Ir a perfil completo
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <div className="flex items-center justify-center py-16 text-text-3 text-[13px]">No se pudo cargar la información del miembro.</div>
+        )}
+      </Modal>
+
+      <Modal compact icon={
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-accent">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+          <polyline points="14 2 14 8 20 8" />
+          <line x1="16" y1="13" x2="8" y2="13" />
+          <line x1="16" y1="17" x2="8" y2="17" />
+          <polyline points="10 9 9 9 8 9" />
+        </svg>
+      } title="COMPROBANTE" open={receiptTarget !== null} onClose={() => setReceiptTarget(null)}>
+        {receiptTarget && (
+          <>
+            <div className="flex flex-col items-center mb-5">
+              <div className="w-11 h-11 rounded-full flex items-center justify-center bg-accent-dim mb-2.5">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-accent">
+                  <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
+                  <polyline points="17 6 23 6 23 12" />
+                </svg>
+              </div>
+              <div className="text-[28px] font-semibold font-mono leading-none -tracking-[0.03em]" style={{ color: receiptTarget.status === 'paid' ? 'var(--green-text)' : 'var(--amber-text)' }}>
+                {fmtMoney(receiptTarget.amount)}
+              </div>
+              <div className="mt-2">
+                {receiptTarget.status === 'paid' ? <Badge variant="green" dot>Pagado</Badge> : receiptTarget.status === 'pending' ? <Badge variant="amber" dot>Pendiente</Badge> : <Badge variant="red" dot>Cancelado</Badge>}
+              </div>
+            </div>
+
+            <div className="border-t border-dashed border-border pt-4 space-y-3">
+              <div className="flex justify-between items-start">
+                <span className="text-[11px] text-text-3 uppercase tracking-[0.06em]">Miembro</span>
+                <div className="text-right">
+                  <div className="text-[13px] font-medium">{receiptTarget.member}</div>
+                  <div className="text-[11px] text-text-3">{receiptTarget.email}</div>
+                </div>
+              </div>
+
+              <div className="flex justify-between items-center">
+                <span className="text-[11px] text-text-3 uppercase tracking-[0.06em]">Concepto</span>
+                <span className="text-[12px] text-right max-w-[200px]">{receiptTarget.concept}</span>
+              </div>
+
+              <div className="flex justify-between items-center">
+                <span className="text-[11px] text-text-3 uppercase tracking-[0.06em]">Método</span>
+                <span className="inline-flex items-center gap-1.5 text-[12px] font-medium" style={{ color: METHOD_COLORS[receiptTarget.method] }}>
+                  {receiptTarget.method === 'cash' && <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="6" width="20" height="12" rx="2" /><circle cx="12" cy="12" r="2" /></svg>}
+                  {receiptTarget.method === 'card' && <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="1" y="4" width="22" height="16" rx="2" /><line x1="1" y1="10" x2="23" y2="10" /></svg>}
+                  {receiptTarget.method === 'transfer' && <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="17 1 21 5 17 9" /><path d="M3 11V9a4 4 0 0 1 4-4h14" /><polyline points="7 23 3 19 7 15" /><path d="M21 13v2a4 4 0 0 1-4 4H3" /></svg>}
+                  {METHOD_LABELS[receiptTarget.method]}
+                </span>
+              </div>
+
+              <div className="flex justify-between items-center">
+                <span className="text-[11px] text-text-3 uppercase tracking-[0.06em]">Fecha</span>
+                <span className="text-[12px]">{fmtDate(receiptTarget.date)}</span>
+              </div>
+
+              {receiptTarget.notes && (
+                <div className="flex justify-between items-start">
+                  <span className="text-[11px] text-text-3 uppercase tracking-[0.06em]">Notas</span>
+                  <span className="text-[11px] text-text-2 text-right max-w-[200px] italic">{receiptTarget.notes}</span>
+                </div>
+              )}
+            </div>
+
+            <div className="border-t border-dashed border-border mt-4 pt-3 flex justify-center">
+              <span className="text-[10px] text-text-3 tracking-[0.08em]">omega gym · recibo #{receiptTarget.id.slice(0, 8)}</span>
+            </div>
+          </>
+        )}
+      </Modal>
+
+      <Modal compact icon={
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-accent">
+          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+        </svg>
+      } title="EDITAR ESTADO" open={editTarget !== null} onClose={() => setEditTarget(null)}>
+        {editTarget && (
+          <div className="flex flex-col gap-0">
+            <div className="flex flex-col items-center mb-5">
+              <div className="text-[32px] font-semibold font-mono leading-none -tracking-[0.03em]" style={{ color: editTarget.status === 'paid' ? 'var(--green-text)' : editTarget.status === 'pending' ? 'var(--amber-text)' : 'var(--red-text)' }}>
+                {fmtMoney(editTarget.amount)}
+              </div>
+              <div className="text-[12px] text-text-3 mt-1">{editTarget.concept}</div>
+              <div className="mt-2">
+                {editTarget.status === 'paid' ? <Badge variant="green" dot>Pagado</Badge> : editTarget.status === 'pending' ? <Badge variant="amber" dot>Pendiente</Badge> : <Badge variant="red" dot>Cancelado</Badge>}
+              </div>
+            </div>
+
+            <div className="border-t border-border pt-4">
+              <div className="text-[11px] text-text-3 uppercase tracking-[0.08em] mb-3">Cambiar estado</div>
+              <div className="grid grid-cols-3 gap-2">
+                {([['paid', 'Pagado', 'green', '✓'],
+                  ['pending', 'Pendiente', 'amber', '⋯'],
+                  ['cancelled', 'Cancelado', 'red', '✕']] as const).map(([val, label, color, symbol]) => (
+                  <button
+                    key={val}
+                    onClick={() => setEditStatus(val)}
+                    className={`flex flex-col items-center gap-1.5 px-2 py-3 rounded-sm border text-center transition-all duration-150 ${
+                      editStatus === val
+                        ? 'border-' + color + ' bg-' + color + '-dim'
+                        : 'border-border2 bg-surface2 hover:border-text-3'
+                    }`}
+                    style={{
+                      borderColor: editStatus === val ? `var(--${color})` : undefined,
+                      background: editStatus === val ? `color-mix(in srgb, var(--${color}) 10%, var(--surface2))` : undefined,
+                    }}
+                  >
+                    <span className="text-[15px] font-semibold" style={{ color: `var(--${color}-text)` }}>{symbol}</span>
+                    <span className="text-[11px] font-medium" style={{ color: editStatus === val ? `var(--${color}-text)` : 'var(--text-3)' }}>{label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {editTarget.status !== editStatus && (
+              <div className="mt-4 pt-3 border-t border-border flex items-center gap-2 text-[11px] text-text-3">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="12" y1="16" x2="12" y2="12" />
+                  <line x1="12" y1="8" x2="12.01" y2="8" />
+                </svg>
+                Este cambio se guardará de forma permanente.
+              </div>
+            )}
+
+            <div className="flex justify-end gap-2.5 mt-5">
+              <Button variant="ghost" onClick={() => setEditTarget(null)} disabled={editSaving}>
+                Cancelar
+              </Button>
+              <Button variant="primary" onClick={handleEditSave} disabled={editStatus === editTarget!.status || editSaving}>
+                {editSaving ? 'Guardando…' : 'Guardar cambio'}
+              </Button>
+            </div>
+          </div>
+        )}
+      </Modal>
     </>
   );
 }

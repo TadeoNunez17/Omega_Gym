@@ -6,6 +6,7 @@ import { Chip } from '@/components/ui/atoms/Chip';
 import { Modal } from '@/components/ui/molecules/Modal';
 import { Input, Select } from '@/components/ui/atoms/Input';
 import { MetricCard } from '@/components/ui/atoms/MetricCard';
+import { IconPlus } from '@/lib/icons';
 
 const DAY_NAMES = ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'];
 
@@ -410,7 +411,7 @@ export default function TrainingPlansPage() {
         </>
       )}
 
-      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="Nuevo plan de entrenamiento" className="max-w-[400px]">
+      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="Nuevo plan de entrenamiento" className="max-w-[400px]" icon={<IconPlus width="16" height="16" />}>
         <div className="grid grid-cols-2 gap-3">
           <Input label="Nombre del plan *" value={fName} onChange={e => setFName(e.target.value)} placeholder="Ej. Fuerza A — Intermedio" />
           <Select label="Tipo" value={fType} onChange={e => setFType(e.target.value)}>

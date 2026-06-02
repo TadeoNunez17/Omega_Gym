@@ -1,5 +1,4 @@
 import { useState, useCallback, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/atoms/Button';
 import { Badge } from '@/components/ui/atoms/Badge';
 import { IconButton } from '@/components/ui/atoms/IconButton';
@@ -9,7 +8,8 @@ import { PageHeader } from '@/components/ui/molecules/PageHeader';
 import { SearchInput } from '@/components/ui/molecules/SearchInput';
 import { TabBar } from '@/components/ui/molecules/TabBar';
 import { Pagination } from '@/components/ui/molecules/Pagination';
-import { IconDownload, IconPlus, IconEye, IconEdit, IconClose, IconTrash, IconSend } from '@/lib/icons';
+import { IconDownload, IconPlus, IconEye, IconEdit, IconClose, IconTrash, IconSend, IconAlert } from '@/lib/icons';
+import { checkInsService } from '@/services/checkIns.service';
 import { initials, avatarIndex, fmtDate, daysDiff, AVATAR_COLORS } from '@/lib/helpers';
 import { membersService, type MemberListItem } from '@/services/members.service';
 import { supabase } from '@/lib/supabase';
@@ -53,7 +53,6 @@ function toMember(item: MemberListItem): Member {
 }
 
 export default function MembersPage() {
-  const navigate = useNavigate();
   const [members, setMembers] = useState<Member[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -69,6 +68,13 @@ export default function MembersPage() {
   const [fEmail, setFEmail] = useState('');
   const [fPhone, setFPhone] = useState('');
   const [fRole, setFRole] = useState<Role>('member');
+
+  const [detailTarget, setDetailTarget] = useState<Member | null>(null);
+  const [detailMode, setDetailMode] = useState<'view' | 'edit'>('view');
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailCheckins, setDetailCheckins] = useState(0);
+  const [dForm, setDForm] = useState({ full_name: '', email: '', phone: '', role: '' });
+  const [detailSaving, setDetailSaving] = useState(false);
 
   const fetchMembers = useCallback(async () => {
     setLoading(true);
@@ -167,13 +173,83 @@ export default function MembersPage() {
     }
   }, []);
 
-  const viewMember = useCallback((member: Member) => {
-    navigate(`/members/${member.id}`);
-  }, [navigate]);
+  const viewDetail = useCallback(async (member: Member) => {
+    setDetailTarget(member);
+    setDetailMode('view');
+    setDetailLoading(true);
+    setDForm({
+      full_name: member.name,
+      email: member.email,
+      phone: member.phone ?? '',
+      role: member.role,
+    });
+    try {
+      const [m, checkins] = await Promise.all([
+        membersService.getById(member.id),
+        checkInsService.getByMember(member.id).catch(() => []),
+      ]);
+      const now = new Date();
+      const thisMonth = checkins.filter((c) => {
+        const d = new Date(c.check_in_time);
+        return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+      });
+      setDetailCheckins(thisMonth.length);
+      setDForm({
+        full_name: m.full_name,
+        email: m.email ?? '',
+        phone: m.phone ?? '',
+        role: m.role,
+      });
+    } catch {
+      // use existing row data
+    } finally {
+      setDetailLoading(false);
+    }
+  }, []);
+
+  const guardarDetail = useCallback(async () => {
+    if (!detailTarget) return;
+    if (!dForm.full_name.trim()) { toast.error('El nombre es obligatorio'); return; }
+    setDetailSaving(true);
+    try {
+      await membersService.update(detailTarget.id, {
+        full_name: dForm.full_name.trim(),
+        email: dForm.email.trim() || undefined,
+        phone: dForm.phone.trim() || undefined,
+        role: dForm.role as Role,
+      });
+      toast.success('Miembro actualizado');
+      setDetailTarget(null);
+      fetchMembers();
+    } catch (e: any) {
+      toast.error('Error al guardar: ' + e.message);
+    } finally {
+      setDetailSaving(false);
+    }
+  }, [detailTarget, dForm, fetchMembers]);
 
   const editMember = useCallback((member: Member) => {
-    navigate(`/members/${member.id}?edit=true`);
-  }, [navigate]);
+    setDetailTarget(member);
+    setDetailMode('edit');
+    setDetailLoading(true);
+    setDForm({
+      full_name: member.name,
+      email: member.email,
+      phone: member.phone ?? '',
+      role: member.role,
+    });
+    membersService.getById(member.id)
+      .then((m) => {
+        setDForm({
+          full_name: m.full_name,
+          email: m.email ?? '',
+          phone: m.phone ?? '',
+          role: m.role,
+        });
+      })
+      .catch(() => {})
+      .finally(() => setDetailLoading(false));
+  }, []);
 
   const deleteMember = useCallback((member: Member) => {
     setDeleteTarget(member);
@@ -290,7 +366,7 @@ export default function MembersPage() {
               <IconSend width="13" height="13" />
             </IconButton>
           )}
-          <IconButton title="Ver detalle" onClick={() => viewMember(m)}><IconEye width="13" height="13" /></IconButton>
+          <IconButton title="Ver detalle" onClick={() => viewDetail(m)}><IconEye width="13" height="13" /></IconButton>
           <IconButton title="Editar" onClick={() => editMember(m)}><IconEdit width="13" height="13" /></IconButton>
           <IconButton title="Eliminar" danger onClick={() => deleteMember(m)}><IconTrash width="13" height="13" /></IconButton>
           <IconButton title={m.status === 'active' ? 'Desactivar' : 'Activar'} danger
@@ -403,7 +479,7 @@ export default function MembersPage() {
         )}
       </div>
 
-      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="Nuevo miembro" className="max-w-[400px]">
+      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="Nuevo miembro" className="max-w-[400px]" icon={<IconPlus width="16" height="16" />}>
         <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-1.5">
             <label className="text-[12px] text-text-2 font-medium">Nombre completo *</label>
@@ -442,7 +518,139 @@ export default function MembersPage() {
         </div>
       </Modal>
 
-      <Modal open={deleteTarget !== null} onClose={() => setDeleteTarget(null)} title="Eliminar miembro" className="max-w-[400px]">
+      <Modal open={detailTarget !== null} onClose={() => setDetailTarget(null)} title={detailMode === 'edit' ? (detailTarget?.name ?? '') : 'Detalle'} className="max-w-[540px] w-full" icon={<IconEye width="16" height="16" />}>
+        <div className="flex flex-col gap-0">
+          {detailLoading ? (
+            <div className="flex flex-col items-center py-10 gap-4">
+              <div className="w-[64px] h-[64px] rounded-full bg-surface2 animate-pulse" />
+              <div className="w-32 h-4 rounded bg-surface2 animate-pulse" />
+              <div className="w-20 h-5 rounded-sm bg-surface2 animate-pulse" />
+              <div className="w-full space-y-3 mt-4">
+                <div className="flex gap-3">
+                  <div className="flex-1 h-[72px] rounded bg-surface2 animate-pulse" />
+                  <div className="flex-1 h-[72px] rounded bg-surface2 animate-pulse" />
+                </div>
+                <div className="flex gap-3">
+                  <div className="flex-1 h-[72px] rounded bg-surface2 animate-pulse" />
+                  <div className="flex-1 h-[72px] rounded bg-surface2 animate-pulse" />
+                </div>
+                <div className="h-[240px] rounded bg-surface2 animate-pulse" />
+              </div>
+            </div>
+          ) : detailTarget ? (
+            <>
+              <div className="flex items-center gap-4 mb-6">
+                <div className="w-[56px] h-[56px] rounded-full flex items-center justify-center text-[18px] font-semibold shrink-0"
+                  style={{ background: AVATAR_COLORS[avatarIndex(detailTarget.id)].bg, color: AVATAR_COLORS[avatarIndex(detailTarget.id)].fg }}>
+                  {initials(detailTarget.name)}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h2 className="text-[17px] font-semibold truncate">{detailTarget.name}</h2>
+                  <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                    {detailTarget.role === 'admin' ? <Badge variant="accent" dot>Admin</Badge> : detailTarget.role === 'trainer' ? <Badge variant="blue" dot>Entrenador</Badge> : <Badge variant="gray" dot>Miembro</Badge>}
+                    {detailTarget.registration_status === 'pending'
+                      ? <Badge variant="amber" dot>Pendiente</Badge>
+                      : detailTarget.status === 'active'
+                        ? <Badge variant="green" dot>Activo</Badge>
+                        : <Badge variant="red" dot>Inactivo</Badge>
+                    }
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-4 text-[12px] text-text-2 mb-6 pb-5 border-b border-border">
+                <div className="flex items-center gap-1.5">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-text-3 shrink-0">
+                    <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+                    <polyline points="22,6 12,13 2,6" />
+                  </svg>
+                  <span>{detailTarget.email || <span className="text-text-3">—</span>}</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-text-3 shrink-0">
+                    <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
+                  </svg>
+                  <span>{detailTarget.phone || <span className="text-text-3">—</span>}</span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 mb-6">
+                {[
+                  { label: 'Antigüedad', value: `${daysDiff(detailTarget.joinedAt) ?? 0} días`, color: 'accent', sub: 'Desde ' + fmtDate(detailTarget.joinedAt) },
+                  { label: 'Membresía', value: detailTarget.membresia ? 'Activa' : 'Sin membresía', color: detailTarget.membresia ? 'green' : 'red', sub: detailTarget.vence ? `Vence ${fmtDate(detailTarget.vence)}` : '—' },
+                  { label: 'Check-ins', value: detailCheckins, color: 'blue', sub: 'Este mes' },
+                  { label: 'Vencimiento', value: detailTarget.vence ? fmtDate(detailTarget.vence) : '—', color: detailTarget.vence ? 'green' : 'gray', sub: detailTarget.membresia ?? 'Sin membresía' },
+                ].map((m) => (
+                  <div key={m.label} className="relative bg-surface border border-border rounded overflow-hidden p-[14px]">
+                    <div className="absolute top-0 left-0 right-0 h-0.5" style={{ background: `var(--${m.color})` }} />
+                    <div className="text-[10px] text-text-3 uppercase tracking-[0.06em] mb-2">{m.label}</div>
+                    <div className="text-[18px] font-semibold leading-none -tracking-[0.03em]" style={{ color: `var(--${m.color}-text)` }}>{m.value}</div>
+                    <div className="text-[10px] text-text-3 mt-1">{m.sub}</div>
+                  </div>
+                ))}
+              </div>
+
+              {detailMode === 'edit' && (
+                <div className="border-t border-border pt-5">
+                  <h3 className="text-[11px] text-text-3 uppercase tracking-[0.08em] mb-4 flex items-center gap-2">
+                    <IconEdit width="13" height="13" />
+                    Editar información
+                  </h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3">
+                    <div className="flex flex-col gap-1.5 sm:col-span-2">
+                      <label className="text-[11px] text-text-3 uppercase tracking-[0.06em] font-medium">Nombre completo</label>
+                      <input type="text" value={dForm.full_name}
+                        onChange={(e) => setDForm((f) => ({ ...f, full_name: e.target.value }))}
+                        className="bg-surface2 border border-border2 text-text text-[13px] px-3 py-[9px] rounded-sm outline-none w-full font-sans" />
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-[11px] text-text-3 uppercase tracking-[0.06em] font-medium">Correo electrónico</label>
+                      <input type="text" value={dForm.email}
+                        onChange={(e) => setDForm((f) => ({ ...f, email: e.target.value }))}
+                        className="bg-surface2 border border-border2 text-text text-[13px] px-3 py-[9px] rounded-sm outline-none w-full font-sans" />
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-[11px] text-text-3 uppercase tracking-[0.06em] font-medium">Teléfono</label>
+                      <input type="text" value={dForm.phone}
+                        onChange={(e) => setDForm((f) => ({ ...f, phone: e.target.value }))}
+                        className="bg-surface2 border border-border2 text-text text-[13px] px-3 py-[9px] rounded-sm outline-none w-full font-sans" />
+                    </div>
+                    <div className="flex flex-col gap-1.5 sm:col-span-2">
+                      <label className="text-[11px] text-text-3 uppercase tracking-[0.06em] font-medium">Rol</label>
+                      <select value={dForm.role}
+                        onChange={(e) => setDForm((f) => ({ ...f, role: e.target.value }))}
+                        className="bg-surface2 border border-border2 text-text text-[13px] px-3 py-[9px] rounded-sm outline-none w-full font-sans">
+                        <option value="member">Miembro</option>
+                        <option value="trainer">Entrenador</option>
+                        <option value="admin">Admin</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </>
+          ) : null}
+        </div>
+
+        {detailMode === 'edit' ? (
+          <div className="flex justify-end gap-2.5 mt-5 pt-4 border-t border-border">
+            <Button variant="ghost" onClick={() => setDetailTarget(null)} disabled={detailSaving}>
+              Cancelar
+            </Button>
+            <Button variant="primary" onClick={guardarDetail} disabled={detailSaving || !dForm.full_name.trim()}>
+              {detailSaving ? 'Guardando…' : 'Guardar cambios'}
+            </Button>
+          </div>
+        ) : (
+          <div className="flex justify-end gap-2.5 mt-5 pt-4 border-t border-border">
+            <Button variant="ghost" onClick={() => setDetailTarget(null)}>
+              Cerrar
+            </Button>
+          </div>
+        )}
+      </Modal>
+
+      <Modal open={deleteTarget !== null} onClose={() => setDeleteTarget(null)} title="Eliminar miembro" className="max-w-[400px]" icon={<IconAlert width="16" height="16" />}>
         <div className="flex flex-col gap-4">
           <div className="text-[13px] text-text-1 leading-relaxed">
             ¿Estás seguro de eliminar a <strong>{deleteTarget?.name}</strong>?

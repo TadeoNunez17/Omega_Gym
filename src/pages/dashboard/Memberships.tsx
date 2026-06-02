@@ -1,15 +1,19 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { membershipsService, type MembershipListItem, type MembershipType } from '@/services/memberships.service';
-import { dashboardService } from '@/services/dashboard.service';
 import { membersService, type MemberListItem } from '@/services/members.service';
 import { Modal } from '@/components/ui/molecules/Modal';
 import { Button } from '@/components/ui/atoms/Button';
+import { Badge } from '@/components/ui/atoms/Badge';
 import { IconButton } from '@/components/ui/atoms/IconButton';
+import { LoadingSpinner } from '@/components/ui/atoms/LoadingSpinner';
+import { PageHeader } from '@/components/ui/molecules/PageHeader';
 import { SearchInput } from '@/components/ui/molecules/SearchInput';
 import { TabBar } from '@/components/ui/molecules/TabBar';
 import { Pagination } from '@/components/ui/molecules/Pagination';
+import { ResponsiveTable, type Column } from '@/components/ui/molecules/ResponsiveTable';
 import { IconEye, IconEdit, IconPlus } from '@/lib/icons';
+import { initials, fmtDate, daysDiff, avatarIndex, AVATAR_COLORS } from '@/lib/helpers';
 import { toast } from 'sonner';
 
 const ROWS_PER_PAGE = 7;
@@ -27,47 +31,11 @@ interface Member {
   status: MembershipStatus;
 }
 
-function daysDiff(d: string) {
-  return Math.round((new Date(d).getTime() - Date.now()) / 86400000);
-}
-
 function getStatus(m: Member): MembershipStatus {
   const d = daysDiff(m.vence);
-  if (d < 0) return 'expired';
+  if (d === null || d < 0) return 'expired';
   if (d <= 7) return 'warning';
   return 'active';
-}
-
-function initials(n: string) {
-  return n.split(' ').map((w) => w[0]).slice(0, 2).join('').toUpperCase();
-}
-
-function fmtDate(s: string) {
-  const [y, mo, d] = s.split('-');
-  const m = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
-  return `${parseInt(d)} ${m[parseInt(mo) - 1]} ${y}`;
-}
-
-function IconAlert() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
-      <line x1="12" y1="9" x2="12" y2="13" />
-      <line x1="12" y1="17" x2="12.01" y2="17" />
-    </svg>
-  );
-}
-
-const AV_COLORS_BG = [
-  'rgba(59,130,246,0.15)', 'rgba(16,185,129,0.15)', 'rgba(244,114,182,0.15)',
-  'rgba(168,85,247,0.15)', 'rgba(251,146,60,0.15)', 'rgba(20,184,166,0.15)',
-];
-const AV_COLORS_FG = ['#60a5fa', '#34d399', '#f472b6', '#c084fc', '#fb923c', '#2dd4bf'];
-
-function avatarIndex(id: string): number {
-  let hash = 0;
-  for (let i = 0; i < id.length; i++) hash = (hash * 31 + id.charCodeAt(i)) >>> 0;
-  return hash % AV_COLORS_FG.length;
 }
 
 function toMember(item: MembershipListItem): Member {
@@ -106,7 +74,20 @@ export default function MembershipsPage() {
   const [editStatus, setEditStatus] = useState<string>('active');
   const [editSaving, setEditSaving] = useState(false);
 
+  const [previewTarget, setPreviewTarget] = useState<Member | null>(null);
+  const [previewMember, setPreviewMember] = useState<MemberListItem | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!previewTarget) { setPreviewMember(null); return; }
+    setPreviewLoading(true);
+    membersService.getById(previewTarget.member_id)
+      .then(setPreviewMember)
+      .catch(() => setPreviewMember(null))
+      .finally(() => setPreviewLoading(false));
+  }, [previewTarget]);
 
   useEffect(() => {
     async function load() {
@@ -194,10 +175,6 @@ export default function MembershipsPage() {
     }
   }, [selMember, selType, startDate, computedEnd, resetForm]);
 
-  const viewMember = useCallback((memberId: string) => {
-    navigate(`/members/${memberId}`);
-  }, [navigate]);
-
   const openEditModal = useCallback((membership: Member) => {
     setEditId(membership.id);
     setEditType(membership.plan);
@@ -228,177 +205,213 @@ export default function MembershipsPage() {
     }
   }, [editId, editType, editStart, editEnd, editStatus, membershipTypes]);
 
+  const columns: Column<Member>[] = [
+    {
+      key: 'name',
+      label: 'Miembro',
+      render: (m) => {
+        const av = avatarIndex(m.id);
+        return (
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-full flex items-center justify-center text-[12px] font-semibold flex-shrink-0"
+              style={{ background: AVATAR_COLORS[av].bg, color: AVATAR_COLORS[av].fg }}>
+              {initials(m.name)}
+            </div>
+            <div>
+              <div className="font-medium text-[13px]">{m.name}</div>
+              <div className="text-[11px] text-text-3 mt-0.5">{m.email}</div>
+            </div>
+          </div>
+        );
+      },
+    },
+    {
+      key: 'plan',
+      label: 'Plan',
+      render: (m) => (
+        <span className="font-mono text-[12px] text-text-2">{m.plan}</span>
+      ),
+    },
+    {
+      key: 'inicio',
+      label: 'Inicio',
+      hide: 'lg',
+      render: (m) => <span className="text-[12px]">{fmtDate(m.inicio)}</span>,
+    },
+    {
+      key: 'vence',
+      label: 'Vencimiento',
+      render: (m) => {
+        const diff = daysDiff(m.vence);
+        return (
+          <div>
+            <div className="text-[12px]">{fmtDate(m.vence)}</div>
+            {diff !== null && m.status === 'active' && <div className="text-[11px] text-text-3 mt-0.5">{diff} días restantes</div>}
+            {diff !== null && m.status === 'warning' && <div className="text-[11px] text-amber-text mt-0.5">Vence en {diff} día{diff === 1 ? '' : 's'}</div>}
+            {diff !== null && m.status === 'expired' && <div className="text-[11px] text-red-text mt-0.5">Venció hace {Math.abs(diff)} días</div>}
+          </div>
+        );
+      },
+    },
+    {
+      key: 'status',
+      label: 'Estado',
+      render: (m) => {
+        if (m.status === 'active') return <Badge variant="green" dot>Activa</Badge>;
+        if (m.status === 'warning') return <Badge variant="amber" dot>Por vencer</Badge>;
+        return <Badge variant="red" dot>Vencida</Badge>;
+      },
+    },
+    {
+      key: 'actions',
+      label: '',
+      render: (m) => (
+        <div className="flex gap-1.5 justify-end">
+          <IconButton title="Ver detalle" onClick={() => setPreviewTarget(m)}>
+            <IconEye width="13" height="13" />
+          </IconButton>
+          <IconButton title="Editar" onClick={() => openEditModal(m)}>
+            <IconEdit width="13" height="13" />
+          </IconButton>
+        </div>
+      ),
+    },
+  ];
+
   return (
     <>
-      <header
-        style={{
-          padding: '0 28px', height: 58,
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          borderBottom: '1px solid var(--border)', background: 'var(--bg)',
-          position: 'sticky', top: 0, zIndex: 9,
-        }}
-        className="flex-wrap gap-2"
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--text-3)' }}>
-          Panel <span style={{ fontSize: 10 }}>›</span>
-          <span style={{ color: 'var(--text-2)' }}>Membresías</span>
+      <header className="px-4 sm:px-7 h-14 flex items-center justify-between border-b border-border bg-bg sticky top-0 z-9">
+        <div className="flex items-center gap-2 text-xs sm:text-[13px] text-text-3">
+          Panel <span className="text-[10px]">›</span>
+          <span className="text-text-2">Membresías</span>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }} className="flex-wrap">
-
+        <div className="flex items-center gap-2 sm:gap-2.5">
           <Button variant="primary" size="sm" icon={<IconPlus />} onClick={() => { resetForm(); setModalOpen(true); }}>
             Nueva membresía
           </Button>
         </div>
       </header>
 
-      <div style={{ padding: '20px clamp(16px, 4vw, 28px)', flex: 1 }}>
-        <div style={{ marginBottom: 24 }}>
-          <div style={{ fontSize: 22, fontWeight: 600, letterSpacing: '-0.02em' }}>Membresías</div>
-          <div style={{ fontSize: 13, color: 'var(--text-2)', marginTop: 4 }}>
-            Control de membresías activas, vencidas y próximas a vencer
+      <div className="p-4 sm:p-7 flex-1">
+        <PageHeader title="Membresías" description="Control de membresías activas, vencidas y próximas a vencer" />
+
+        {/* METRICS */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+          {[
+            { label: 'Activas', value: activeCount, color: 'green', sub: 'Al corriente' },
+            { label: 'Por vencer', value: warnCount, color: 'amber', sub: 'En los próximos 7 días' },
+            { label: 'Vencidas', value: expiredCount, color: 'red', sub: 'Sin renovar' },
+          ].map((m) => (
+            <div key={m.label} className="relative bg-surface border border-border rounded overflow-hidden p-[18px]">
+              <div className="absolute top-0 left-0 right-0 h-0.5" style={{ background: `var(--${m.color})` }} />
+              <div className="text-[11px] text-text-3 uppercase tracking-[0.06em] mb-2.5">{m.label}</div>
+              <div className="text-[32px] font-semibold leading-none -tracking-[0.03em]" style={{ color: `var(--${m.color}-text)` }}>{m.value}</div>
+              <div className="text-[11px] text-text-3 mt-1.5">{m.sub}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* ALERT BANNER */}
+        {(warnCount > 0 || expiredCount > 0) && (
+          <div className="bg-amber-bg border border-amber/20 rounded-sm p-[10px_16px] flex items-center gap-2.5 text-xs text-amber-text mb-4">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4 shrink-0">
+              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+              <line x1="12" y1="9" x2="12" y2="13" />
+              <line x1="12" y1="17" x2="12.01" y2="17" />
+            </svg>
+            <span>
+              {warnCount > 0 && `${warnCount} membresía${warnCount > 1 ? 's' : ''} por vencer en los próximos 7 días`}
+              {warnCount > 0 && expiredCount > 0 && ' · '}
+              {expiredCount > 0 && `${expiredCount} membresía${expiredCount > 1 ? 's' : ''} vencida${expiredCount > 1 ? 's' : ''} sin renovar`}
+              . Considera contactar a estos miembros.
+            </span>
+          </div>
+        )}
+
+        {/* CONTROLS */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 mb-4">
+          <div className="flex-1">
+            <SearchInput value={search} onChange={(v) => { setSearch(v); setCurrentPage(1); }} placeholder="Buscar miembro, plan o email..." />
+          </div>
+          <div className="overflow-x-auto pb-1">
+            <TabBar tabs={[
+              { key: 'all', label: 'Todos' },
+              { key: 'active', label: 'Activos' },
+              { key: 'warning', label: 'Por vencer' },
+              { key: 'expired', label: 'Vencidos' },
+            ]} active={currentFilter} onChange={(k) => { setCurrentFilter(k as MembershipStatus | 'all'); setCurrentPage(1); }} />
           </div>
         </div>
 
-        {loading && (
-          <div style={{ textAlign: 'center', padding: 60, color: 'var(--text-3)' }}>Cargando membresías…</div>
-        )}
+        {/* Loading */}
+        {loading && <LoadingSpinner text="Cargando membresías…" />}
 
+        {/* Error */}
         {!loading && error && (
-          <div style={{ textAlign: 'center', padding: 60, color: 'var(--red-text)' }}>Error: {error}</div>
+          <div className="text-center py-[60px] text-red-text">Error: {error}</div>
         )}
 
+        {/* Table / Cards */}
         {!loading && !error && (
-          <>
-            {/* METRICS */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 12, marginBottom: 24 }}>
-              {[
-                { label: 'Activas', value: activeCount, color: 'green', sub: 'Al corriente' },
-                { label: 'Por vencer', value: warnCount, color: 'amber', sub: 'En los próximos 7 días' },
-                { label: 'Vencidas', value: expiredCount, color: 'red', sub: 'Sin renovar' },
-              ].map((m) => (
-                <div key={m.label} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '18px 20px', position: 'relative', overflow: 'hidden' }}>
-                  <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 2, background: `var(--${m.color})` }} />
-                  <div style={{ fontSize: 11, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>{m.label}</div>
-                  <div style={{ fontSize: 32, fontWeight: 600, lineHeight: 1, letterSpacing: '-0.03em', color: `var(--${m.color}-text)` }}>{m.value}</div>
-                  <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 6 }}>{m.sub}</div>
-                </div>
-              ))}
-            </div>
+          <div className="bg-surface border border-border rounded overflow-hidden">
+            <ResponsiveTable
+              columns={columns}
+              data={rows}
+              keyExtractor={(m) => m.id}
+              cardTitle={(m) => m.name}
+              cardSubtitle={(m) => m.email}
+              cardAvatar={(m) => {
+                const av = avatarIndex(m.id);
+                return (
+                  <div className="w-10 h-10 rounded-full flex items-center justify-center text-[13px] font-semibold shrink-0"
+                    style={{ background: AVATAR_COLORS[av].bg, color: AVATAR_COLORS[av].fg }}>
+                    {initials(m.name)}
+                  </div>
+                );
+              }}
+              cardFields={[
+                { label: 'Plan', value: (m) => <span className="font-mono text-[12px] text-text-2">{m.plan}</span> },
+                { label: 'Inicio', value: (m) => <span className="text-[12px]">{fmtDate(m.inicio)}</span> },
+                {
+                  label: 'Vencimiento',
+                  value: (m) => {
+                    const diff = daysDiff(m.vence);
+                    return (
+                      <div>
+                        {m.status === 'active' && diff !== null && <span className="text-[12px]">{fmtDate(m.vence)} ({diff}d)</span>}
+                        {m.status === 'warning' && diff !== null && <span className="text-[12px] text-amber-text">{fmtDate(m.vence)} ({diff}d)</span>}
+                        {m.status === 'expired' && diff !== null && <span className="text-[12px] text-red-text">{fmtDate(m.vence)} ({Math.abs(diff)}d)</span>}
+                        {diff === null && <span className="text-[12px]">{fmtDate(m.vence)}</span>}
+                      </div>
+                    );
+                  },
+                },
+                {
+                  label: 'Estado',
+                  value: (m) => {
+                    if (m.status === 'active') return <Badge variant="green" dot>Activa</Badge>;
+                    if (m.status === 'warning') return <Badge variant="amber" dot>Por vencer</Badge>;
+                    return <Badge variant="red" dot>Vencida</Badge>;
+                  },
+                },
+                {
+                  label: '',
+                  value: (m) => (
+                    <div className="flex gap-1.5">
+                      <IconButton title="Ver detalle" onClick={() => setPreviewTarget(m)}>
+                        <IconEye width="13" height="13" />
+                      </IconButton>
+                      <IconButton title="Editar" onClick={() => openEditModal(m)}>
+                        <IconEdit width="13" height="13" />
+                      </IconButton>
+                    </div>
+                  ),
+                },
+              ]}
+              emptyMessage="No se encontraron membresías con ese criterio."
+            />
 
-            {/* ALERT BANNER */}
-            {(warnCount > 0 || expiredCount > 0) && (
-              <div style={{ background: 'var(--amber-bg)', border: '1px solid rgba(245,158,11,0.2)', borderRadius: 'var(--radius-sm)', padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 10, fontSize: 12, color: 'var(--amber-text)', marginBottom: 16 }}>
-                <IconAlert />
-                <span>
-                  {warnCount > 0 && `${warnCount} membresía${warnCount > 1 ? 's' : ''} por vencer en los próximos 7 días`}
-                  {warnCount > 0 && expiredCount > 0 && ' · '}
-                  {expiredCount > 0 && `${expiredCount} membresía${expiredCount > 1 ? 's' : ''} vencida${expiredCount > 1 ? 's' : ''} sin renovar`}
-                  . Considera contactar a estos miembros.
-                </span>
-              </div>
-            )}
-
-            {/* CONTROLS */}
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 mb-4">
-              <div className="flex-1">
-                <SearchInput value={search} onChange={(v) => { setSearch(v); setCurrentPage(1); }} placeholder="Buscar miembro, plan o email..." />
-              </div>
-              <div className="overflow-x-auto pb-1">
-                <TabBar tabs={[
-                  { key: 'all', label: 'Todos' },
-                  { key: 'active', label: 'Activos' },
-                  { key: 'warning', label: 'Por vencer' },
-                  { key: 'expired', label: 'Vencidos' },
-                ]} active={currentFilter} onChange={(k) => { setCurrentFilter(k as MembershipStatus | 'all'); setCurrentPage(1); }} />
-              </div>
-            </div>
-
-            {/* TABLE */}
-            <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', overflow: 'hidden' }}>
-              <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, minWidth: 780 }}>
-                  <thead>
-                    <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                      <th style={{ padding: '11px 18px', textAlign: 'left', fontSize: 10, fontWeight: 500, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.07em', background: 'var(--surface2)', whiteSpace: 'nowrap' }}>Miembro</th>
-                      <th style={{ padding: '11px 18px', textAlign: 'left', fontSize: 10, fontWeight: 500, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.07em', background: 'var(--surface2)', whiteSpace: 'nowrap' }}>Plan</th>
-                      <th style={{ padding: '11px 18px', textAlign: 'left', fontSize: 10, fontWeight: 500, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.07em', background: 'var(--surface2)', whiteSpace: 'nowrap' }}>Inicio</th>
-                      <th style={{ padding: '11px 18px', textAlign: 'left', fontSize: 10, fontWeight: 500, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.07em', background: 'var(--surface2)', whiteSpace: 'nowrap' }}>Vencimiento</th>
-                      <th style={{ padding: '11px 18px', textAlign: 'left', fontSize: 10, fontWeight: 500, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.07em', background: 'var(--surface2)', whiteSpace: 'nowrap' }}>Estado</th>
-                      <th style={{ padding: '11px 18px', textAlign: 'right', fontSize: 10, fontWeight: 500, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.07em', background: 'var(--surface2)', whiteSpace: 'nowrap' }}>Acciones</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {rows.length === 0 ? (
-                      <tr>
-                        <td colSpan={6} style={{ textAlign: 'center', padding: 60, color: 'var(--text-3)' }}>
-                          No se encontraron membresías con ese criterio.
-                        </td>
-                      </tr>
-                    ) : (
-                      rows.map((m) => {
-                        const diff = daysDiff(m.vence);
-                        const av = avatarIndex(m.id);
-                        return (
-                          <tr key={m.id} style={{ transition: 'background 0.12s' }}>
-                            <td style={{ padding: '14px 18px', borderBottom: '1px solid var(--border)', verticalAlign: 'middle' }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                                <div style={{ width: 34, height: 34, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 600, flexShrink: 0, background: AV_COLORS_BG[av], color: AV_COLORS_FG[av] }}>
-                                  {initials(m.name)}
-                                </div>
-                                <div>
-                                  <div style={{ fontWeight: 500, fontSize: 13 }}>{m.name}</div>
-                                  <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 2 }}>{m.email}</div>
-                                </div>
-                              </div>
-                            </td>
-                            <td style={{ padding: '14px 18px', borderBottom: '1px solid var(--border)', verticalAlign: 'middle', fontFamily: 'DM Mono, monospace', fontSize: 12, color: 'var(--text-2)' }}>
-                              {m.plan}
-                            </td>
-                            <td style={{ padding: '14px 18px', borderBottom: '1px solid var(--border)', verticalAlign: 'middle', fontSize: 12 }}>
-                              {fmtDate(m.inicio)}
-                            </td>
-                            <td style={{ padding: '14px 18px', borderBottom: '1px solid var(--border)', verticalAlign: 'middle' }}>
-                              <div style={{ fontSize: 12 }}>{fmtDate(m.vence)}</div>
-                              {m.status === 'active' && <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 3 }}>{diff} días restantes</div>}
-                              {m.status === 'warning' && <div style={{ fontSize: 11, color: 'var(--amber-text)', marginTop: 3 }}>Vence en {diff} día{diff === 1 ? '' : 's'}</div>}
-                              {m.status === 'expired' && <div style={{ fontSize: 11, color: 'var(--red-text)', marginTop: 3 }}>Venció hace {Math.abs(diff)} días</div>}
-                            </td>
-                            <td style={{ padding: '14px 18px', borderBottom: '1px solid var(--border)', verticalAlign: 'middle' }}>
-                              {m.status === 'active' && (
-                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 10px', borderRadius: 100, fontSize: 11, fontWeight: 500, background: 'var(--green-bg)', color: 'var(--green-text)' }}>
-                                  <span style={{ width: 5, height: 5, borderRadius: '50%', background: 'var(--green)' }} /> Activa
-                                </span>
-                              )}
-                              {m.status === 'warning' && (
-                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 10px', borderRadius: 100, fontSize: 11, fontWeight: 500, background: 'var(--amber-bg)', color: 'var(--amber-text)' }}>
-                                  <span style={{ width: 5, height: 5, borderRadius: '50%', background: 'var(--amber)' }} /> Por vencer
-                                </span>
-                              )}
-                              {m.status === 'expired' && (
-                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 10px', borderRadius: 100, fontSize: 11, fontWeight: 500, background: 'var(--red-bg)', color: 'var(--red-text)' }}>
-                                  <span style={{ width: 5, height: 5, borderRadius: '50%', background: 'var(--red)' }} /> Vencida
-                                </span>
-                              )}
-                            </td>
-                            <td style={{ padding: '14px 18px', borderBottom: '1px solid var(--border)', verticalAlign: 'middle' }}>
-                              <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
-                                <IconButton title="Ver detalle" onClick={() => viewMember(m.member_id)}>
-                                  <IconEye width="13" height="13" />
-                                </IconButton>
-                                <IconButton title="Editar" onClick={() => openEditModal(m)}>
-                                  <IconEdit width="13" height="13" />
-                                </IconButton>
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      })
-                    )}
-                  </tbody>
-                </table>
-              </div>
-
-              <Pagination
+            <Pagination
               current={safePage}
               total={totalPages}
               start={start}
@@ -407,12 +420,99 @@ export default function MembershipsPage() {
               label="membresías"
               onChange={setCurrentPage}
             />
-            </div>
-          </>
+          </div>
         )}
       </div>
 
-      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="Nueva membresía" className="max-w-[400px]">
+      <Modal compact icon={
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-accent">
+          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+          <circle cx="12" cy="7" r="4" />
+        </svg>
+      } title="PREVIEW" open={previewTarget !== null} onClose={() => setPreviewTarget(null)}>
+        {previewLoading ? (
+          <div className="flex flex-col items-center py-10 gap-4">
+            <div className="w-[64px] h-[64px] rounded-full bg-surface2 animate-pulse" />
+            <div className="w-32 h-4 rounded bg-surface2 animate-pulse" />
+            <div className="w-20 h-5 rounded-sm bg-surface2 animate-pulse" />
+            <div className="w-full space-y-3 mt-4">
+              <div className="h-4 rounded bg-surface2 animate-pulse" />
+              <div className="h-4 w-3/4 rounded bg-surface2 animate-pulse" />
+              <div className="grid grid-cols-2 gap-3 mt-6">
+                <div className="h-[52px] rounded bg-surface2 animate-pulse" />
+                <div className="h-[52px] rounded bg-surface2 animate-pulse" />
+                <div className="h-[52px] rounded bg-surface2 animate-pulse" />
+                <div className="h-[52px] rounded bg-surface2 animate-pulse" />
+              </div>
+            </div>
+          </div>
+        ) : previewMember && previewTarget ? (
+          <div className="flex flex-col gap-0">
+            <div className="flex flex-col items-center mb-6">
+              <div className="w-[64px] h-[64px] rounded-full flex items-center justify-center text-[22px] font-semibold mb-3"
+                style={{ background: AVATAR_COLORS[avatarIndex(previewMember.id)].bg, color: AVATAR_COLORS[avatarIndex(previewMember.id)].fg }}>
+                {initials(previewMember.full_name)}
+              </div>
+              <div className="text-[17px] font-semibold">{previewMember.full_name}</div>
+              <div className="mt-1.5">
+                {previewMember.role === 'member' ? <Badge variant="blue" dot>Miembro</Badge> : previewMember.role === 'trainer' ? <Badge variant="purple" dot>Entrenador</Badge> : <Badge variant="accent" dot>Admin</Badge>}
+              </div>
+            </div>
+
+            <div className="border-t border-border pt-4 space-y-3.5">
+              <div className="flex items-center gap-3">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-text-3 shrink-0">
+                  <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+                  <polyline points="22,6 12,13 2,6" />
+                </svg>
+                <span className="text-[12px] text-text-2">{previewMember.email}</span>
+              </div>
+              {previewMember.phone && (
+                <div className="flex items-center gap-3">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-text-3 shrink-0">
+                    <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
+                  </svg>
+                  <span className="text-[12px] text-text-2">{previewMember.phone}</span>
+                </div>
+              )}
+            </div>
+
+            <div className="mt-6 pt-4 border-t border-border">
+              <div className="text-[11px] text-text-3 uppercase tracking-[0.08em] mb-3">Membresía actual</div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-surface2 rounded px-3 py-2.5">
+                  <div className="text-[10px] text-text-3 uppercase tracking-[0.06em]">Plan</div>
+                  <div className="text-[13px] font-medium mt-0.5">{previewTarget!.plan}</div>
+                </div>
+                <div className="bg-surface2 rounded px-3 py-2.5">
+                  <div className="text-[10px] text-text-3 uppercase tracking-[0.06em]">Inicio</div>
+                  <div className="text-[12px] mt-0.5">{fmtDate(previewTarget!.inicio)}</div>
+                </div>
+                <div className="bg-surface2 rounded px-3 py-2.5">
+                  <div className="text-[10px] text-text-3 uppercase tracking-[0.06em]">Vencimiento</div>
+                  <div className="text-[12px] mt-0.5">{fmtDate(previewTarget!.vence)}</div>
+                </div>
+                <div className="bg-surface2 rounded px-3 py-2.5">
+                  <div className="text-[10px] text-text-3 uppercase tracking-[0.06em]">Estado</div>
+                  <div className="mt-0.5">
+                    {previewTarget!.status === 'active' ? <Badge variant="green" dot>Activa</Badge> : previewTarget!.status === 'warning' ? <Badge variant="amber" dot>Por vencer</Badge> : <Badge variant="red" dot>Vencida</Badge>}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-6 pt-4 border-t border-border text-center">
+              <Button variant="primary" onClick={() => { setPreviewTarget(null); navigate(`/members/${previewTarget!.member_id}`); }}>
+                Ir a perfil completo
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <div className="flex items-center justify-center py-16 text-text-3 text-[13px]">No se pudo cargar la información del miembro.</div>
+        )}
+      </Modal>
+
+      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="Nueva membresía" className="max-w-[400px]" icon={<IconPlus width="16" height="16" />}>
         <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-1.5">
             <label className="text-[12px] text-text-2 font-medium">Miembro *</label>
@@ -478,7 +578,7 @@ export default function MembershipsPage() {
         </div>
       </Modal>
 
-      <Modal open={editId !== null} onClose={() => setEditId(null)} title="Editar membresía" className="max-w-[400px]">
+      <Modal open={editId !== null} onClose={() => setEditId(null)} title="Editar membresía" className="max-w-[400px]" icon={<IconEdit width="16" height="16" />}>
         <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-1.5">
             <label className="text-[12px] text-text-2 font-medium">Tipo de membresía</label>

@@ -3,6 +3,7 @@ import { trainerService, type TrainerMember, type TrainerPlan } from '@/services
 import { Button } from '@/components/ui/atoms/Button';
 import { Modal } from '@/components/ui/molecules/Modal';
 import { Input, Select } from '@/components/ui/atoms/Input';
+import { IconPlus } from '@/lib/icons';
 
 const ICON_COLORS = [
   { bg: 'rgba(168,85,247,0.1)', fg: '#c084fc' },
@@ -131,7 +132,7 @@ export default function TrainerPlansPage() {
         </div>
       )}
 
-      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="Nuevo plan de entrenamiento" className="max-w-[400px]">
+      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="Nuevo plan de entrenamiento" className="max-w-[400px]" icon={<IconPlus width="16" height="16" />}>
         <Input label="Nombre del plan *" value={pName} onChange={e => setPName(e.target.value)} placeholder="Ej. Fuerza C — Avanzado" />
         <Input label="Descripción" value={pDesc} onChange={e => setPDesc(e.target.value)} placeholder="Objetivo, observaciones…" />
         <Select label="Asignar a miembro" value={pMember} onChange={e => setPMember(e.target.value)}>

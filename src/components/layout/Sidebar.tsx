@@ -1,14 +1,18 @@
 import { Link, useLocation } from 'react-router-dom';
 import { useAuthStore } from '@/store/auth.store';
 
-const navItems = [
+interface SidebarProps {
+  pendingPaymentsCount?: number;
+}
+
+const baseNavItems = [
   { section: 'Principal', items: [
     { label: 'Dashboard', href: '/dashboard', icon: 'dashboard' },
   ]},
   { section: 'Gestion', items: [
     { label: 'Miembros', href: '/members', icon: 'members' },
-    { label: 'Membresias', href: '/memberships', icon: 'memberships', badge: null },
-    { label: 'Pagos', href: '/payments', icon: 'payments', badge: 3 },
+    { label: 'Membresias', href: '/memberships', icon: 'memberships' },
+    { label: 'Pagos', href: '/payments', icon: 'payments', badgeKey: 'pendingPayments' as const },
     { label: 'Planes de Entrenamiento', href: '/training-plans', icon: 'plans' },
     { label: 'Registro de Huella', href: '/fingerprint', icon: 'fingerprint' },
   ]},
@@ -27,10 +31,22 @@ const icons: Record<string, string> = {
   fingerprint: '<path d="M12 11c0-1.1.9-2 2-2s2 .9 2 2-.9 2-2 2-2-.9-2-2z"/><path d="M17.657 16.657L13.414 20.9a1.998 1.998 0 0 1-2.827 0l-4.244-4.243a8 8 0 1 1 11.314 0z"/>',
 };
 
-export function Sidebar() {
+export function Sidebar({ pendingPaymentsCount = 0 }: SidebarProps) {
   const pathname = useLocation().pathname;
   const user = useAuthStore((s) => s.user);
   const initials = user ? user.full_name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() : 'AD';
+
+  const badgeValues: Record<string, number | undefined> = {
+    pendingPayments: pendingPaymentsCount || undefined,
+  };
+
+  const navItems = baseNavItems.map(section => ({
+    ...section,
+    items: section.items.map(item => ({
+      ...item,
+      badge: 'badgeKey' in item ? badgeValues[(item as any).badgeKey] : undefined,
+    })),
+  }));
 
   return (
     <aside

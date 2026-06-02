@@ -10,6 +10,7 @@ import { AuthLayout } from '@/components/layout/AuthLayout'
 import LoginPage from '@/pages/auth/Login'
 import RegisterPage from '@/pages/auth/Register'
 import ClaimAccountPage from '@/pages/auth/ClaimAccount'
+import AuthCallbackPage from '@/pages/auth/AuthCallback'
 import DashboardPage from '@/pages/dashboard/Dashboard'
 import MembersPage from '@/pages/dashboard/Members'
 import MemberDetailPage from '@/pages/dashboard/MemberDetail'
@@ -44,6 +45,8 @@ export default function App() {
         </Route>
 
         <Route path="/check-in" element={<CheckInPage />} />
+
+        <Route path="/auth/callback" element={<AuthCallbackPage />} />
 
         <Route element={<ProtectedRoute roles={['admin']}><AdminLayout /></ProtectedRoute>}>
           <Route path="/dashboard" element={<DashboardPage />} />

@@ -18,6 +18,18 @@ export interface CheckInWithMember extends CheckIn {
 }
 
 export const checkInsService = {
+  getByMember: async (memberId: string): Promise<CheckIn[]> => {
+    const { data, error } = await supabase
+      .from('check_ins')
+      .select('*')
+      .eq('member_id', memberId)
+      .order('check_in_time', { ascending: false })
+      .limit(50)
+
+    if (error) throw error
+    return (data || []) as CheckIn[]
+  },
+
   create: async (input: {
     member_id: string
     membership_id?: string
