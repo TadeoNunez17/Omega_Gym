@@ -232,7 +232,7 @@ export default function TrainerPanelPage() {
           </div>
 
           {/* Metrics */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 12 }}>
+          <div className="flex overflow-x-auto gap-3" style={{}}>
             <MetricCard color="var(--pink)" label="Miembros registrados" value={members.length} sub="En el sistema" />
             <MetricCard color="var(--green)" label="Con plan asignado" value={withPlanCount} sub="En entrenamiento" />
             <MetricCard color="var(--purple)" label="Planes creados" value={planCount} sub="Rutinas activas" />
@@ -629,11 +629,11 @@ function HeroStat({ value, label, color }: { value: number; label: string; color
 
 function MetricCard({ color, label, value, sub }: { color: string; label: string; value: number; sub: string }) {
   return (
-    <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '18px 20px', position: 'relative', overflow: 'hidden' }}>
+    <div className="shrink-0 min-w-[140px] sm:min-w-0" style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '14px 16px', position: 'relative', overflow: 'hidden' }}>
       <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 2, background: color }} />
-      <div style={{ fontSize: 11, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>{label}</div>
-      <div style={{ fontSize: 32, fontWeight: 600, lineHeight: 1, letterSpacing: '-0.03em', color }}>{value}</div>
-      <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 6 }}>{sub}</div>
+      <div className="text-[10px] sm:text-[11px]" style={{ color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>{label}</div>
+      <div className="text-xl sm:text-[32px]" style={{ fontWeight: 600, lineHeight: 1, letterSpacing: '-0.03em', color }}>{value}</div>
+      <div className="text-[10px] sm:text-[11px]" style={{ color: 'var(--text-3)', marginTop: 4 }}>{sub}</div>
     </div>
   );
 }

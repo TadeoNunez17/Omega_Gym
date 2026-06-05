@@ -41,15 +41,15 @@ export function MetricCard({
   };
 
   return (
-    <div className={`relative bg-surface border border-border rounded overflow-hidden ${className}`}>
+    <div className={`relative bg-surface border border-border rounded overflow-hidden p-3 sm:p-4 shrink-0 min-w-[140px] sm:min-w-0 ${className}`}>
       <div className={`absolute top-0 left-0 right-0 h-0.5 ${c.bar}`} />
       {icon && (
-        <div className="flex items-start justify-between mb-3">
+        <div className="hidden sm:flex items-start justify-between mb-2 sm:mb-3">
           <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${c.bg} ${c.text}`}>
             <div className="w-4 h-4">{icon}</div>
           </div>
           {delta && (
-            <span className={`text-[11px] font-medium px-2 py-[3px] rounded-full ${deltaColors[deltaType]}`}>
+            <span className={`hidden sm:inline text-[11px] font-medium px-2 py-[3px] rounded-full ${deltaColors[deltaType]}`}>
               {delta}
             </span>
           )}
@@ -58,13 +58,13 @@ export function MetricCard({
       {children ? (
         children
       ) : (
-        <div className={`text-[28px] sm:text-[30px] font-semibold leading-none tracking-tight ${c.value}`}>
+        <div className={`text-xl sm:text-[28px] font-semibold leading-none tracking-tight ${c.value}`}>
           {value}
         </div>
       )}
-      <div className="text-[12px] text-text-3 mt-1.5">{label}</div>
+      <div className="text-[11px] sm:text-[12px] text-text-3 mt-1 sm:mt-1.5">{label}</div>
       {sub && (
-        <div className="text-[11px] text-text-3 mt-2">{sub}</div>
+        <div className="text-[10px] sm:text-[11px] text-text-3 mt-1 sm:mt-2">{sub}</div>
       )}
     </div>
   );

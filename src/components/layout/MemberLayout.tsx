@@ -1,4 +1,4 @@
-import { Outlet, Link } from 'react-router-dom'
+import { Outlet } from 'react-router-dom'
 import { useAuthStore } from '@/store/auth.store'
 
 export function MemberLayout() {
@@ -30,14 +30,6 @@ export function MemberLayout() {
         </div>
       </header>
       <Outlet />
-      <nav className="fixed bottom-0 left-0 right-0 z-30 bg-surface border-t border-border flex items-center justify-around lg:hidden" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
-        <Link to="/my-plan" className="flex flex-col items-center gap-0.5 py-1.5 px-3 min-w-[56px] min-h-[44px] text-accent">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-            <path d="M9 11l3 3L22 4" /><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
-          </svg>
-          <span className="text-[10px] font-medium">Mi Plan</span>
-        </Link>
-      </nav>
     </div>
   )
 }

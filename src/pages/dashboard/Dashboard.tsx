@@ -110,7 +110,7 @@ export default function DashboardPage() {
           <div className="text-center py-[60px] text-text-3">Cargando dashboard…</div>
         ) : (
           <>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-5">
+            <div className="flex overflow-x-auto gap-3 mb-5 sm:grid sm:grid-cols-2 lg:grid-cols-3">
               <MetricCard icon={<IconPeople />} color="blue" value={kpis?.total_members ?? 0} label="Total de miembros" delta="Registrados" deltaType="up" />
               <MetricCard icon={<IconCard />} color="green" value={kpis?.active_memberships ?? 0} label="Membresías activas" delta="Vigentes" deltaType="up" />
               <MetricCard icon={<IconClock />} color="amber" value={kpis?.expiring_soon ?? 0} label="Vencen en 7 días" delta="Atención" deltaType="down" />
