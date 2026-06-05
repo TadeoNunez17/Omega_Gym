@@ -405,14 +405,14 @@ export default function MembersPage() {
         <PageHeader title="Miembros" description="Registro completo de socios, roles y estado de membresía" />
 
         {/* KPI Metrics */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+        <div className="flex overflow-x-auto gap-3 mb-6 sm:grid sm:grid-cols-2 lg:grid-cols-4">
           {[
             { label: 'Total miembros', value: total, color: 'blue', sub: 'Registrados en el sistema' },
             { label: 'Activos', value: active, color: 'green', sub: 'Con membresía vigente' },
             { label: 'Pendientes', value: pending, color: 'amber', sub: 'Sin activar su cuenta' },
             { label: 'Nuevos este mes', value: newThisMonth, color: 'accent', sub: 'Este mes' },
           ].map((m) => (
-            <div key={m.label} className="relative bg-surface border border-border rounded overflow-hidden p-[18px]">
+            <div key={m.label} className="relative bg-surface border border-border rounded overflow-hidden p-[18px] shrink-0 min-w-[140px] sm:min-w-0">
               <div className="absolute top-0 left-0 right-0 h-0.5" style={{ background: `var(--${m.color})` }} />
               <div className="text-[11px] text-text-3 uppercase tracking-[0.06em] mb-2.5">{m.label}</div>
               <div className="text-[32px] font-semibold leading-none -tracking-[0.03em]" style={{ color: `var(--${m.color}-text)` }}>{m.value}</div>

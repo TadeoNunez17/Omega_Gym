@@ -118,19 +118,19 @@ export default function DashboardPage() {
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 mb-5">
               <div className="bg-surface border border-border rounded-lg overflow-hidden">
-                <div className="flex items-center justify-between px-4 sm:px-5 py-4 border-b border-border">
+                <div className="flex items-center justify-between px-3 sm:px-5 py-3 sm:py-4 border-b border-border">
                   <div>
                     <div className="text-[13px] font-semibold">Pagos pendientes</div>
-                    <div className="text-[11px] text-text-3 mt-0.5">Requieren atención</div>
+                    <div className="text-[11px] text-text-3 mt-0.5 hidden sm:block">Requieren atención</div>
                   </div>
                   <span className="text-[11px] font-medium px-[9px] py-[3px] rounded-full bg-red-bg text-red-text">{pendingPayments.length}</span>
                 </div>
                 <div className="flex flex-col">
                   {pendingPayments.length === 0 ? (
-                    <div className="text-center py-8 text-[12px] text-text-3">Sin pagos pendientes</div>
+                    <div className="text-center py-6 sm:py-8 text-[12px] text-text-3">Sin pagos pendientes</div>
                   ) : (
                     pendingPayments.slice(0, 5).map((p) => (
-                      <div key={p.id} className="flex items-center justify-between px-4 sm:px-5 py-3 border-b border-border">
+                      <div key={p.id} className="flex items-center justify-between px-3 sm:px-5 py-2.5 sm:py-3 border-b border-border">
                         <div className="flex items-center gap-2.5">
                           <div className="text-[13px] font-medium">{p.member_name}</div>
                         </div>
@@ -139,13 +139,13 @@ export default function DashboardPage() {
                     ))
                   )}
                 </div>
-                <div className="px-4 sm:px-5 py-3 border-t border-border">
+                <div className="px-3 sm:px-5 py-2.5 sm:py-3 border-t border-border">
                   <Link to="/payments" className="text-[11px] text-text-3 no-underline cursor-pointer">Ver todos los pagos →</Link>
                 </div>
               </div>
 
               <div className="bg-surface border border-border rounded-lg overflow-hidden">
-                <div className="flex items-center justify-between px-4 sm:px-5 py-4 border-b border-border">
+                <div className="flex items-center justify-between px-3 sm:px-5 py-3 sm:py-4 border-b border-border">
                   <div>
                     <div className="text-[13px] font-semibold">Membresías por vencer</div>
                     <div className="text-[11px] text-text-3 mt-0.5">Próximos 7 días</div>
@@ -154,7 +154,7 @@ export default function DashboardPage() {
                 </div>
                 <div className="flex flex-col">
                   {expiring.length === 0 ? (
-                    <div className="text-center py-8 text-[12px] text-text-3">Sin membresías por vencer</div>
+                    <div className="text-center py-6 sm:py-8 text-[12px] text-text-3">Sin membresías por vencer</div>
                   ) : (
                     expiring.slice(0, 5).map((e) => {
                       const av = AV_COLORS[e.member_name.length % AV_COLORS.length];
@@ -162,7 +162,7 @@ export default function DashboardPage() {
                       const ev = e.days_remaining === 0 ? 'Hoy' : e.days_remaining === 1 ? '1 día' : `${e.days_remaining} días`;
                       const isUrgent = e.days_remaining <= 1;
                       return (
-                        <div key={e.id} className="flex items-center gap-3 px-4 sm:px-5 py-3 border-b border-border">
+                        <div key={e.id} className="flex items-center gap-2 sm:gap-3 px-3 sm:px-5 py-2.5 sm:py-3 border-b border-border">
                           <div className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-semibold flex-shrink-0"
                             style={{ background: av.bg, color: av.fg }}>
                             {initials}
@@ -182,18 +182,18 @@ export default function DashboardPage() {
               </div>
 
               <div className="bg-surface border border-border rounded-lg overflow-hidden">
-                <div className="px-4 sm:px-5 py-4 border-b border-border">
+                <div className="px-3 sm:px-5 py-3 sm:py-4 border-b border-border">
                   <div className="text-[13px] font-semibold">Actividad reciente</div>
-                  <div className="text-[11px] text-text-3 mt-0.5">Últimas acciones en el sistema</div>
+                  <div className="text-[11px] text-text-3 mt-0.5 hidden sm:block">Últimas acciones en el sistema</div>
                 </div>
                 <div className="flex flex-col">
                   {activities.length === 0 ? (
-                    <div className="text-center py-8 text-[12px] text-text-3">Sin actividad reciente</div>
+                    <div className="text-center py-6 sm:py-8 text-[12px] text-text-3">Sin actividad reciente</div>
                   ) : (
                     activities.map((a, i) => {
                       const act = activityIcons[a.type] || { icon: <IconCheck />, cls: 'green' };
                       return (
-                        <div key={a.id || i} className="flex items-start gap-3 px-4 sm:px-5 py-3 border-b border-border">
+                        <div key={a.id || i} className="flex items-start gap-2 sm:gap-3 px-3 sm:px-5 py-2.5 sm:py-3 border-b border-border">
                           <div className={`w-[30px] h-[30px] rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 ${clsStyles[act.cls]}`}>
                             <div className="w-[13px] h-[13px]">{act.icon}</div>
                           </div>

@@ -330,14 +330,14 @@ export default function PaymentsPage() {
       <div className="p-4 sm:p-7 flex-1">
         <PageHeader title="Pagos" description="Registro de pagos, membresías y transacciones del gimnasio" />
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+        <div className="flex overflow-x-auto gap-3 mb-6 sm:grid sm:grid-cols-2 lg:grid-cols-4">
           {[
             { label: 'Recaudado', value: fmtMoney(revenue.total_collected), color: 'green', sub: 'Total histórico' },
             { label: 'Pendiente', value: fmtMoney(revenue.total_pending), color: 'amber', sub: 'Por cobrar' },
             { label: 'Cancelado', value: fmtMoney(revenue.total_cancelled), color: 'red', sub: 'Transacciones canceladas' },
             { label: 'Hoy', value: fmtMoney(revenue.today_collected), color: 'accent', sub: 'Hoy' },
           ].map((m) => (
-            <div key={m.label} className="relative bg-surface border border-border rounded overflow-hidden p-[18px]">
+            <div key={m.label} className="relative bg-surface border border-border rounded overflow-hidden p-[18px] shrink-0 min-w-[140px] sm:min-w-0">
               <div className="absolute top-0 left-0 right-0 h-0.5" style={{ background: `var(--${m.color})` }} />
               <div className="text-[11px] text-text-3 uppercase tracking-[0.06em] mb-2.5">{m.label}</div>
               <div className="text-[32px] font-semibold leading-none -tracking-[0.03em]" style={{ color: `var(--${m.color}-text)` }}>{m.value}</div>

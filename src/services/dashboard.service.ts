@@ -37,6 +37,7 @@ const MONTHS_SHORT = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 's
 
 export const dashboardService = {
   getKPIs: async (): Promise<DashboardKPIs> => {
+    await supabase.rpc('sync_membership_status')
     const today = new Date().toISOString().split('T')[0]
     const future = new Date()
     future.setDate(future.getDate() + 7)
@@ -183,6 +184,7 @@ export const dashboardService = {
   },
 
   getExpiringMemberships: async (days: number = 7) => {
+    await supabase.rpc('sync_membership_status')
     const today = new Date().toISOString().split('T')[0]
     const future = new Date()
     future.setDate(future.getDate() + days)
@@ -201,16 +203,22 @@ export const dashboardService = {
       .order('end_date')
 
     if (error) throw error
-    return (data || []).map((m: any) => ({
-      id: m.id,
-      member_name: m.profiles?.full_name ?? '—',
-      member_email: m.profiles?.email ?? null,
-      type_name: m.membership_types?.name ?? '—',
-      end_date: m.end_date,
-      days_remaining: Math.round(
-        (new Date(m.end_date).getTime() - new Date().getTime()) / 86400000
-      ),
-    }))
+    const now = new Date()
+    const todayLocal = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+    return (data || [])
+      .map((m: any) => {
+        const [y, mo, d] = m.end_date.split('-').map(Number)
+        const endLocal = new Date(y, mo - 1, d)
+        return {
+          id: m.id,
+          member_name: m.profiles?.full_name ?? '—',
+          member_email: m.profiles?.email ?? null,
+          type_name: m.membership_types?.name ?? '—',
+          end_date: m.end_date,
+          days_remaining: Math.round((endLocal.getTime() - todayLocal.getTime()) / 86400000),
+        }
+      })
+      .filter((m) => m.days_remaining > 0)
   },
 
   getPendingPayments: async (): Promise<PendingPaymentItem[]> => {

@@ -119,7 +119,7 @@ export default function TrainerPlansPage() {
                   <span className="text-[11px] text-text-3 font-mono">
                     {new Date(p.created_at).toLocaleDateString('es-MX')}
                   </span>
-                  <button className="w-9 sm:w-7 h-9 sm:h-7 [&>svg]:w-4 [&>svg]:h-4 sm:[&>svg]:w-[13px] sm:[&>svg]:h-[13px] rounded-[var(--radius-sm)] bg-transparent border border-border text-text-3 cursor-pointer flex items-center justify-center hover:bg-surface2 transition-colors">
+                  <button className="w-12 sm:w-9 h-12 sm:h-9 [&>svg]:w-[22px] [&>svg]:h-[22px] sm:[&>svg]:w-4 sm:[&>svg]:h-4 rounded-[var(--radius-sm)] bg-transparent border border-border text-text-3 cursor-pointer flex items-center justify-center hover:bg-surface2 transition-colors">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="13" height="13">
                       <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
                       <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>

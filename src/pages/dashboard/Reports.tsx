@@ -137,7 +137,7 @@ export default function ReportsPage() {
         </div>
 
         {/* KPI row */}
-        <div className="flex overflow-x-auto gap-3 mb-5" style={{}}>
+        <div className="flex overflow-x-auto gap-3 mb-5 sm:grid sm:grid-cols-2 lg:grid-cols-4" style={{}}>
           <MetricCard color="green" label="Ingresos del mes" value={kpis ? fmtMoney(kpis.revenue) : '—'} sub="Mes actual" />
           <MetricCard color="blue" label="Miembros activos" value={kpis ? kpis.members.toString() : '—'} sub="Con membresía activa" />
           <MetricCard color="accent" label="Check-ins hoy" value={kpis ? kpis.todayCheckins.toString() : '—'} sub="Entradas registradas" />

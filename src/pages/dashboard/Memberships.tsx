@@ -72,11 +72,14 @@ export default function MembershipsPage() {
   const [saving, setSaving] = useState(false);
 
   const [editId, setEditId] = useState<string | null>(null);
-  const [editType, setEditType] = useState('');
+  const [editTypeId, setEditTypeId] = useState('');
   const [editStart, setEditStart] = useState('');
   const [editEnd, setEditEnd] = useState('');
   const [editStatus, setEditStatus] = useState<string>('active');
   const [editSaving, setEditSaving] = useState(false);
+  const [editMemberName, setEditMemberName] = useState('');
+  const [editMemberEmail, setEditMemberEmail] = useState('');
+  const [editMemberPlan, setEditMemberPlan] = useState('');
 
   const [previewTarget, setPreviewTarget] = useState<Member | null>(null);
   const [previewMember, setPreviewMember] = useState<MemberListItem | null>(null);
@@ -187,17 +190,20 @@ export default function MembershipsPage() {
 
   const openEditModal = useCallback((membership: Member) => {
     setEditId(membership.id);
-    setEditType(membership.plan);
+    setEditTypeId(membershipTypes.find((t) => t.name === membership.plan)?.id ?? '');
     setEditStart(membership.inicio.split('T')[0]);
     setEditEnd(membership.vence.split('T')[0]);
     setEditStatus(membership.status === 'expired' ? 'expired' : 'active');
-  }, []);
+    setEditMemberName(membership.name);
+    setEditMemberEmail(membership.email);
+    setEditMemberPlan(membership.plan);
+  }, [membershipTypes]);
 
   const guardarEdicion = useCallback(async () => {
     if (!editId) return;
     setEditSaving(true);
     try {
-      const selectedType = membershipTypes.find((t) => t.name === editType);
+      const selectedType = membershipTypes.find((t) => t.id === editTypeId);
       await membershipsService.update(editId, {
         type_id: selectedType?.id ?? '',
         start_date: editStart,
@@ -213,7 +219,7 @@ export default function MembershipsPage() {
     } finally {
       setEditSaving(false);
     }
-  }, [editId, editType, editStart, editEnd, editStatus, membershipTypes]);
+  }, [editId, editTypeId, editStart, editEnd, editStatus, membershipTypes]);
 
   const columns: Column<Member>[] = [
     {
@@ -307,13 +313,13 @@ export default function MembershipsPage() {
         <PageHeader title="Membresías" description="Control de membresías activas, vencidas y próximas a vencer" />
 
         {/* METRICS */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+        <div className="flex overflow-x-auto gap-3 mb-6 sm:grid sm:grid-cols-2 lg:grid-cols-3">
           {[
             { label: 'Activas', value: activeCount, color: 'green', sub: 'Al corriente' },
             { label: 'Por vencer', value: warnCount, color: 'amber', sub: 'En los próximos 7 días' },
             { label: 'Vencidas', value: expiredCount, color: 'red', sub: 'Sin renovar' },
           ].map((m) => (
-            <div key={m.label} className="relative bg-surface border border-border rounded overflow-hidden p-[18px]">
+            <div key={m.label} className="relative bg-surface border border-border rounded overflow-hidden p-3 sm:p-[18px] shrink-0 min-w-[140px] sm:min-w-0">
               <div className="absolute top-0 left-0 right-0 h-0.5" style={{ background: `var(--${m.color})` }} />
               <div className="text-[11px] text-text-3 uppercase tracking-[0.06em] mb-2.5">{m.label}</div>
               <div className="text-[32px] font-semibold leading-none -tracking-[0.03em]" style={{ color: `var(--${m.color}-text)` }}>{m.value}</div>
@@ -331,10 +337,17 @@ export default function MembershipsPage() {
               <line x1="12" y1="17" x2="12.01" y2="17" />
             </svg>
             <span>
-              {warnCount > 0 && `${warnCount} membresía${warnCount > 1 ? 's' : ''} por vencer en los próximos 7 días`}
-              {warnCount > 0 && expiredCount > 0 && ' · '}
-              {expiredCount > 0 && `${expiredCount} membresía${expiredCount > 1 ? 's' : ''} vencida${expiredCount > 1 ? 's' : ''} sin renovar`}
-              . Considera contactar a estos miembros.
+              <span className="sm:hidden">
+                {warnCount > 0 && `${warnCount} por vencer`}
+                {warnCount > 0 && expiredCount > 0 && ' · '}
+                {expiredCount > 0 && `${expiredCount} vencidas`}
+              </span>
+              <span className="hidden sm:inline">
+                {warnCount > 0 && `${warnCount} membresía${warnCount > 1 ? 's' : ''} por vencer en los próximos 7 días`}
+                {warnCount > 0 && expiredCount > 0 && ' · '}
+                {expiredCount > 0 && `${expiredCount} membresía${expiredCount > 1 ? 's' : ''} vencida${expiredCount > 1 ? 's' : ''} sin renovar`}
+                . Considera contactar a estos miembros.
+              </span>
             </span>
           </div>
         )}
@@ -679,61 +692,178 @@ export default function MembershipsPage() {
         </div>
       </Modal>
 
-      <Modal open={editId !== null} onClose={() => setEditId(null)} title="Editar membresía" className="max-w-[400px]" icon={<IconEdit width="16" height="16" />}>
-        <div className="flex flex-col gap-4">
-          <div className="flex flex-col gap-1.5">
-            <label className="text-[12px] text-text-2 font-medium">Tipo de membresía</label>
-            <select
-              value={editType}
-              onChange={(e) => {
-                setEditType(e.target.value);
-                const t = membershipTypes.find((mt) => mt.name === e.target.value);
-                if (t && editStart) {
-                  const d = new Date(editStart);
-                  d.setDate(d.getDate() + t.duration_days);
-                  setEditEnd(d.toISOString().split('T')[0]);
-                }
-              }}
-              className="bg-surface2 border border-border2 text-text text-[13px] px-3 py-[9px] rounded-sm outline-none w-full font-sans"
-            >
-              {membershipTypes.filter((t) => t.is_active).map((t) => (
-                <option key={t.id} value={t.name}>{t.name} — ${t.price.toLocaleString()}</option>
-              ))}
-            </select>
-          </div>
+      <Modal open={editId !== null} onClose={() => setEditId(null)} title="Editar membresía" className="max-w-[420px]" icon={<IconEdit width="16" height="16" />}>
+        {editId && (
+          <div className="flex flex-col gap-4">
+            {/* MEMBER CONTEXT */}
+            <div className="flex items-center gap-3 pb-3 border-b border-border">
+              <div className="w-10 h-10 rounded-full flex items-center justify-center text-[13px] font-semibold shrink-0"
+                style={{ background: AVATAR_COLORS[avatarIndex(editId)].bg, color: AVATAR_COLORS[avatarIndex(editId)].fg }}>
+                {initials(editMemberName)}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="text-[13px] font-semibold truncate">{editMemberName}</div>
+                <div className="text-[11px] text-text-3 truncate">{editMemberEmail}</div>
+              </div>
+              <Badge variant="gray">{editMemberPlan}</Badge>
+            </div>
 
-          <div className="flex flex-col gap-1.5">
-            <label className="text-[12px] text-text-2 font-medium">Fecha de inicio</label>
-            <input type="date" value={editStart} onChange={(e) => setEditStart(e.target.value)}
-              className="bg-surface2 border border-border2 text-text text-[13px] px-3 py-[9px] rounded-sm outline-none w-full font-sans" />
-          </div>
+            {/* PLAN TYPE */}
+            <div className="flex flex-col gap-2">
+              <label className="text-[11px] text-text-3 uppercase tracking-[0.08em] font-medium">Tipo de membresía</label>
+              <div className="grid grid-cols-2 gap-2">
+                {membershipTypes.filter((t) => t.is_active).map((type) => {
+                  const selected = editTypeId === type.id;
+                  return (
+                    <button key={type.id} type="button"
+                      onClick={() => {
+                        setEditTypeId(type.id);
+                        if (editStart) {
+                          const d = new Date(editStart);
+                          d.setDate(d.getDate() + type.duration_days);
+                          setEditEnd(d.toISOString().split('T')[0]);
+                        }
+                      }}
+                      className={`relative flex flex-col items-start p-3 rounded-sm border text-left transition-all duration-150 cursor-pointer font-sans
+                        ${selected
+                          ? 'border-accent bg-accent/8 ring-1 ring-accent/40'
+                          : 'border-border2 bg-surface2 hover:border-text-3'
+                        }`}
+                    >
+                      <div className={`text-[13px] font-semibold ${selected ? 'text-accent' : 'text-text'}`}>
+                        {type.name}
+                      </div>
+                      <div className="text-[18px] font-bold tracking-tight mt-1">
+                        ${type.price.toLocaleString()}
+                      </div>
+                      <div className="text-[11px] text-text-3 mt-0.5">
+                        {type.name === 'Visita' ? 'Hoy · 1 día' : `${type.duration_days} días`}
+                      </div>
+                      {selected && (
+                        <div className="absolute top-2 right-2 w-4 h-4 rounded-full bg-accent flex items-center justify-center">
+                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="black" strokeWidth="3">
+                            <polyline points="20 6 9 17 4 12" />
+                          </svg>
+                        </div>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
 
-          <div className="flex flex-col gap-1.5">
-            <label className="text-[12px] text-text-2 font-medium">Fecha de vencimiento</label>
-            <input type="date" value={editEnd} onChange={(e) => setEditEnd(e.target.value)}
-              className="bg-surface2 border border-border2 text-text text-[13px] px-3 py-[9px] rounded-sm outline-none w-full font-sans" />
-          </div>
+            {/* DATES */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[11px] text-text-3 uppercase tracking-[0.08em] font-medium">Inicio</label>
+                <input type="date" value={editStart} onChange={(e) => {
+                  setEditStart(e.target.value);
+                  const t = membershipTypes.find((mt) => mt.id === editTypeId);
+                  if (t && e.target.value) {
+                    const d = new Date(e.target.value);
+                    d.setDate(d.getDate() + t.duration_days);
+                    setEditEnd(d.toISOString().split('T')[0]);
+                  }
+                }}
+                  className="bg-surface2 border border-border2 text-text text-[13px] px-3 py-2 rounded-sm outline-none w-full font-sans [color-scheme:dark]" />
+                {editStart && (
+                  <span className="text-[10px] text-text-3 font-mono">{fmtDate(editStart)}</span>
+                )}
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[11px] text-text-3 uppercase tracking-[0.08em] font-medium">Vencimiento</label>
+                <input type="date" value={editEnd} onChange={(e) => setEditEnd(e.target.value)}
+                  className="bg-surface2 border border-border2 text-text text-[13px] px-3 py-2 rounded-sm outline-none w-full font-sans [color-scheme:dark]" />
+                {editEnd && (
+                  <span className="text-[10px] text-text-3 font-mono">{fmtDate(editEnd)}</span>
+                )}
+              </div>
+            </div>
 
-          <div className="flex flex-col gap-1.5">
-            <label className="text-[12px] text-text-2 font-medium">Estado</label>
-            <select value={editStatus} onChange={(e) => setEditStatus(e.target.value)}
-              className="bg-surface2 border border-border2 text-text text-[13px] px-3 py-[9px] rounded-sm outline-none w-full font-sans"
-            >
-              <option value="active">Activa</option>
-              <option value="expired">Vencida</option>
-              <option value="cancelled">Cancelada</option>
-            </select>
-          </div>
-        </div>
+            {/* STATUS */}
+            <div className="flex flex-col gap-2">
+              <label className="text-[11px] text-text-3 uppercase tracking-[0.08em] font-medium">Estado</label>
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  { value: 'active', label: 'Activa', color: 'green' as const },
+                  { value: 'expired', label: 'Vencida', color: 'red' as const },
+                  { value: 'cancelled', label: 'Cancelada', color: 'gray' as const },
+                ].map((opt) => {
+                  const selected = editStatus === opt.value;
+                  return (
+                    <button key={opt.value} type="button"
+                      onClick={() => setEditStatus(opt.value)}
+                      className={`flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-sm border text-[12px] font-medium transition-all duration-150 cursor-pointer font-sans
+                        ${selected
+                          ? opt.color === 'green' ? 'border-green bg-green-bg text-green-text ring-1 ring-green/30'
+                            : opt.color === 'red' ? 'border-red bg-red-bg text-red-text ring-1 ring-red/30'
+                            : 'border-text-3 bg-surface2 text-text-3 ring-1 ring-text-3/30'
+                          : 'border-border2 bg-surface2 text-text-2 hover:border-text-3'
+                        }`}
+                    >
+                      <span className={`w-1.5 h-1.5 rounded-full ${
+                        selected
+                          ? opt.color === 'green' ? 'bg-green'
+                            : opt.color === 'red' ? 'bg-red'
+                            : 'bg-text-3'
+                          : 'bg-text-3'
+                      }`} />
+                      {opt.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
 
-        <div className="flex justify-end gap-2.5 mt-2">
-          <Button variant="ghost" onClick={() => setEditId(null)} disabled={editSaving}>
-            Cancelar
-          </Button>
-          <Button variant="primary" onClick={guardarEdicion} disabled={!editType || !editStart || !editEnd || editSaving}>
-            {editSaving ? 'Guardando…' : 'Guardar cambios'}
-          </Button>
-        </div>
+            {/* SUMMARY */}
+            {editId && (
+              <div className="bg-surface2 border border-border rounded-sm p-3 space-y-1.5">
+                <div className="text-[10px] text-text-3 uppercase tracking-[0.08em] font-medium mb-2">Resumen de cambios</div>
+                <div className="flex items-center justify-between text-[12px]">
+                  <span className="text-text-3">Tipo</span>
+                  <span className="text-text font-medium">
+                    {editMemberPlan}
+                    {editTypeId && membershipTypes.find((t) => t.id === editTypeId)?.name !== editMemberPlan && (
+                      <span className="text-accent"> → {membershipTypes.find((t) => t.id === editTypeId)?.name}</span>
+                    )}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-[12px]">
+                  <span className="text-text-3">Vencimiento</span>
+                  <span className="text-text font-medium">
+                    {fmtDate(editEnd)}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-[12px]">
+                  <span className="text-text-3">Estado</span>
+                  <span className={`font-medium ${
+                    editStatus === 'active' ? 'text-green-text'
+                      : editStatus === 'expired' ? 'text-red-text'
+                      : 'text-text-3'
+                  }`}>
+                    {editStatus === 'active' ? 'Activa' : editStatus === 'expired' ? 'Vencida' : 'Cancelada'}
+                  </span>
+                </div>
+                {editTypeId && (
+                  <div className="flex items-center justify-between text-[12px] pt-1.5 border-t border-border mt-1.5">
+                    <span className="text-text-3">Total</span>
+                    <span className="text-text font-semibold">${membershipTypes.find((t) => t.id === editTypeId)?.price.toLocaleString() ?? '—'}</span>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ACTIONS */}
+            <div className="flex justify-end gap-2.5 pt-1">
+              <Button variant="ghost" onClick={() => setEditId(null)} disabled={editSaving}>
+                Cancelar
+              </Button>
+              <Button variant="primary" onClick={guardarEdicion} disabled={!editTypeId || !editStart || !editEnd || editSaving}>
+                {editSaving ? 'Guardando…' : 'Guardar cambios'}
+              </Button>
+            </div>
+          </div>
+        )}
       </Modal>
     </>
   );
