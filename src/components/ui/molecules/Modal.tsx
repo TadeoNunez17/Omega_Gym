@@ -49,7 +49,7 @@ export function Modal({ open, onClose, title, children, className, icon, compact
           </div>
           <button
             onClick={onClose}
-            className="w-7 h-7 rounded-sm bg-transparent border border-border text-text-3 cursor-pointer flex items-center justify-center text-base font-sans hover:bg-surface2 transition-colors"
+            className="w-9 sm:w-7 h-9 sm:h-7 rounded-sm bg-transparent border border-border text-text-3 cursor-pointer flex items-center justify-center text-base font-sans hover:bg-surface2 transition-colors"
           >
             ✕
           </button>

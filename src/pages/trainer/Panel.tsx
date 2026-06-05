@@ -344,8 +344,8 @@ export default function TrainerPanelPage() {
                               </span>
                             </td>
                             <td style={{ padding: '13px 18px', borderBottom: '1px solid var(--border)', textAlign: 'right' }}>
-                              <button style={{
-                                width: 28, height: 28, borderRadius: 'var(--radius-sm)',
+                              <button className="w-9 sm:w-7 h-9 sm:h-7 [&>svg]:w-4 [&>svg]:h-4 sm:[&>svg]:w-[13px] sm:[&>svg]:h-[13px]" style={{
+                                borderRadius: 'var(--radius-sm)',
                                 background: 'transparent', border: '1px solid var(--border)',
                                 color: 'var(--text-3)', cursor: 'pointer',
                                 display: 'flex', alignItems: 'center', justifyContent: 'center',
