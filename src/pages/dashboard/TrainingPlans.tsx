@@ -391,7 +391,7 @@ export default function TrainingPlansPage() {
 
                                 <Chip value={`${e.rest_seconds ?? 0}s`} label="Descanso" />
                               </div>
-                              <button className="w-12 sm:w-9 h-12 sm:h-9 [&>svg]:w-[22px] [&>svg]:h-[22px] sm:[&>svg]:w-4 sm:[&>svg]:h-4 rounded-[var(--radius-sm)] bg-transparent border border-border text-text-3 flex items-center justify-center cursor-pointer transition-all duration-150 shrink-0 hover:bg-surface3 hover:text-text-2 hover:border-border2">
+                              <button className="w-10 sm:w-7 h-10 sm:h-7 [&>svg]:w-[18px] [&>svg]:h-[18px] sm:[&>svg]:w-[13px] sm:[&>svg]:h-[13px] rounded-[var(--radius-sm)] bg-transparent border border-border text-text-3 flex items-center justify-center cursor-pointer transition-all duration-150 shrink-0 hover:bg-surface3 hover:text-text-2 hover:border-border2">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="11" height="11"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                               </button>
                             </div>
@@ -454,7 +454,7 @@ function ChipSm({ icon, text }: { icon: string; text: string }) {
 function IconBtn({ children, title, danger }: { children: React.ReactNode; title: string; danger?: boolean }) {
   return (
     <button title={title}
-      className={`w-12 sm:w-9 h-12 sm:h-9 rounded-[var(--radius-sm)] bg-transparent border border-border flex items-center justify-center cursor-pointer transition-all duration-150 ${
+      className={`w-10 sm:w-7 h-10 sm:h-7 rounded-[var(--radius-sm)] bg-transparent border border-border flex items-center justify-center cursor-pointer transition-all duration-150 ${
         danger ? 'text-red-text hover:bg-red-bg hover:border-[rgba(239,68,68,0.3)]' : 'text-text-3 hover:bg-surface2 hover:text-text hover:border-border2'
       }`}>
       {children}
