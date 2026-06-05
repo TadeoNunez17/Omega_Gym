@@ -7,14 +7,31 @@ export const authService = {
     return data
   },
 
-  register: async (email: string, password: string, fullName: string) => {
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: { data: { full_name: fullName } },
-    })
-    if (error) throw error
-    return data
+  register: async (params: {
+    email?: string
+    phone?: string
+    password: string
+    fullName: string
+  }) => {
+    if (params.email) {
+      const { data, error } = await supabase.auth.signUp({
+        email: params.email,
+        password: params.password,
+        options: { data: { full_name: params.fullName, phone: params.phone } },
+      })
+      if (error) throw error
+      return data
+    }
+    if (params.phone) {
+      const { data, error } = await supabase.auth.signUp({
+        phone: params.phone,
+        password: params.password,
+        options: { data: { full_name: params.fullName } },
+      })
+      if (error) throw error
+      return data
+    }
+    throw new Error('Se requiere correo electrónico o teléfono')
   },
 
   logout: async () => {
@@ -52,6 +69,7 @@ export interface Profile {
   id: string
   email: string | null
   full_name: string
+  alias: string | null
   phone: string | null
   avatar_url: string | null
   role: 'admin' | 'trainer' | 'member'

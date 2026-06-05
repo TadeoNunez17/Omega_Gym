@@ -20,20 +20,4 @@ export const smsService = {
   sendEmail: async (email: string, subject: string, body: string): Promise<void> => {
     console.log(`[EMAIL SIMULATED] To: ${email}, Subject: ${subject}, Body: ${body}`)
   },
-
-  sendClaimCode: async (phone?: string | null, email?: string | null, code?: string | null): Promise<void> => {
-    const message = `Omega Gym: Tu codigo de activacion es ${code}. Valido por 15 minutos.`
-
-    if (phone) {
-      await smsService.sendSms(phone, message)
-    }
-
-    if (email) {
-      await smsService.sendEmail(
-        email,
-        'Omega Gym — Activa tu cuenta',
-        `Hola,\n\nTu código de activación es: ${code}\n\nIngresa a omega-gym.com/claim e introduce este código para activar tu cuenta.\n\nVálido por 15 minutos.\n\n— Omega Gym`
-      )
-    }
-  },
 }

@@ -4,6 +4,7 @@ export interface Member {
   id: string
   email: string | null
   full_name: string
+  alias: string | null
   phone: string | null
   avatar_url: string | null
   role: 'admin' | 'trainer' | 'member'
@@ -17,6 +18,7 @@ export interface Member {
 export interface MemberListItem {
   id: string
   full_name: string
+  alias: string | null
   email: string | null
   phone: string | null
   role: 'admin' | 'trainer' | 'member'
@@ -43,6 +45,7 @@ function toMemberListItem(raw: any): MemberListItem {
   return {
     id: raw.id,
     full_name: raw.full_name,
+    alias: raw.alias,
     email: raw.email,
     phone: raw.phone,
     role: raw.role,
@@ -53,19 +56,6 @@ function toMemberListItem(raw: any): MemberListItem {
     plan_name: plan?.name ?? null,
     created_at: raw.created_at,
   }
-}
-
-async function sha256(message: string): Promise<string> {
-  const encoder = new TextEncoder()
-  const data = encoder.encode(message)
-  const hashBuffer = await crypto.subtle.digest('SHA-256', data)
-  return Array.from(new Uint8Array(hashBuffer))
-    .map(b => b.toString(16).padStart(2, '0'))
-    .join('')
-}
-
-function generateClaimCode(): string {
-  return Math.floor(100000 + Math.random() * 900000).toString()
 }
 
 export const membersService = {
@@ -129,16 +119,13 @@ export const membersService = {
 
   create: async (input: {
     full_name: string
-    email?: string
-    phone?: string
     role?: 'admin' | 'trainer' | 'member'
   }) => {
     const { data, error } = await supabase
       .from('profiles')
       .insert({
         full_name: input.full_name,
-        email: input.email || null,
-        phone: input.phone || null,
+        alias: input.full_name,
         role: input.role || 'member',
         registration_status: 'pending',
         auth_user_id: null,
@@ -148,6 +135,69 @@ export const membersService = {
 
     if (error) throw error
     return data as Member
+  },
+
+  linkPendingProfile: async (pendingId: string, registeredId: string) => {
+    const { data: pending, error: err1 } = await supabase
+      .from('profiles')
+      .select('full_name, alias')
+      .eq('id', pendingId)
+      .single()
+
+    if (err1 || !pending) throw new Error('Perfil pendiente no encontrado')
+
+    const { error: err2 } = await supabase
+      .from('profiles')
+      .update({
+        full_name: pending.full_name,
+        alias: pending.alias || pending.full_name,
+        registration_status: 'claimed',
+      })
+      .eq('id', registeredId)
+
+    if (err2) throw err2
+
+    const { error: err3 } = await supabase
+      .from('profiles')
+      .delete()
+      .eq('id', pendingId)
+
+    if (err3) throw err3
+  },
+
+  getUnlinkedCandidates: async (search?: string): Promise<{
+    id: string
+    full_name: string
+    alias: string | null
+    email: string | null
+    phone: string | null
+    created_at: string
+  }[]> => {
+    let query = supabase
+      .from('profiles')
+      .select('id, full_name, alias, email, phone, created_at')
+      .not('auth_user_id', 'is', null)
+      .eq('registration_status', 'registered')
+
+    if (search) {
+      query = query.or(
+        `full_name.ilike.%${search}%,email.ilike.%${search}%,phone.ilike.%${search}%`
+      )
+    }
+
+    const { data, error } = await query
+      .order('created_at', { ascending: false })
+      .limit(50)
+
+    if (error) throw error
+    return (data || []) as {
+      id: string
+      full_name: string
+      alias: string | null
+      email: string | null
+      phone: string | null
+      created_at: string
+    }[]
   },
 
   update: async (id: string, input: Partial<{
@@ -189,89 +239,6 @@ export const membersService = {
     if (error) throw error
   },
 
-  sendClaimCode: async (profileId: string): Promise<{ sentTo: string[] }> => {
-    const { data: profile, error: profileError } = await supabase
-      .from('profiles')
-      .select('id, phone, email, full_name')
-      .eq('id', profileId)
-      .single()
-
-    if (profileError) throw profileError
-    if (!profile.phone && !profile.email) {
-      throw new Error('El miembro necesita teléfono o email para recibir el código')
-    }
-
-    const code = generateClaimCode()
-    const hash = await sha256(code)
-    const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString()
-
-    const { error: updateError } = await supabase
-      .from('profiles')
-      .update({
-        claim_code_hash: hash,
-        claim_code_expires_at: expiresAt,
-      })
-      .eq('id', profileId)
-
-    if (updateError) throw updateError
-
-    const sentTo: string[] = []
-
-    if (profile.phone) {
-      try {
-        const { error: smsError } = await supabase.auth.signInWithOtp({
-          phone: profile.phone,
-          options: { shouldCreateUser: false },
-        })
-        if (!smsError) {
-          console.log(`[SMS] Código ${code} enviado a ${profile.phone}`)
-          sentTo.push(`tel:${profile.phone}`)
-        }
-      } catch {
-        console.log(`[SMS SIMULATED] Código ${code} para ${profile.phone}`)
-        sentTo.push(`tel:${profile.phone} (simulado)`)
-      }
-    }
-
-    if (profile.email) {
-      console.log(`[EMAIL SIMULATED] Código ${code} para ${profile.email}`)
-      sentTo.push(`email:${profile.email} (simulado)`)
-    }
-
-    return { sentTo }
-  },
-
-  verifyClaimCode: async (identifier: string, code: string): Promise<{ valid: boolean; profileId: string }> => {
-    const isEmail = identifier.includes('@')
-
-    const query = isEmail
-      ? supabase.from('profiles').select('id, claim_code_hash, claim_code_expires_at').eq('email', identifier)
-      : supabase.from('profiles').select('id, claim_code_hash, claim_code_expires_at').eq('phone', identifier)
-
-    const { data: profiles, error } = await query
-
-    if (error) throw error
-    if (!profiles || profiles.length === 0) {
-      return { valid: false, profileId: '' }
-    }
-
-    const profile = profiles[0]
-    if (!profile.claim_code_hash || !profile.claim_code_expires_at) {
-      return { valid: false, profileId: '' }
-    }
-
-    if (new Date(profile.claim_code_expires_at) < new Date()) {
-      return { valid: false, profileId: '' }
-    }
-
-    const inputHash = await sha256(code)
-    if (inputHash !== profile.claim_code_hash) {
-      return { valid: false, profileId: '' }
-    }
-
-    return { valid: true, profileId: profile.id }
-  },
-
   getPendingMembers: async (): Promise<MemberListItem[]> => {
     const { data, error } = await supabase
       .from('profiles')
@@ -281,30 +248,6 @@ export const membersService = {
 
     if (error) throw error
     return (data || []).map(toMemberListItem)
-  },
-
-  claimProfile: async (profileId: string, authUserId: string) => {
-    const { data: duplicate } = await supabase
-      .from('profiles')
-      .select('id')
-      .eq('auth_user_id', authUserId)
-      .neq('id', profileId)
-      .maybeSingle()
-
-    if (duplicate) {
-      await supabase.from('profiles').delete().eq('id', duplicate.id)
-    }
-
-    const { error } = await supabase
-      .from('profiles')
-      .update({
-        auth_user_id: authUserId,
-        registration_status: 'claimed',
-      })
-      .eq('id', profileId)
-      .eq('registration_status', 'pending')
-
-    if (error) throw error
   },
 
   getMonthlyGrowth: async (year?: number): Promise<{ month: number; count: number }[]> => {

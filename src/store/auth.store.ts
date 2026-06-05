@@ -7,7 +7,7 @@ interface AuthState {
   loading: boolean
   initialized: boolean
   login: (email: string, password: string) => Promise<void>
-  register: (email: string, password: string, fullName: string) => Promise<void>
+  register: (params: { email?: string; phone?: string; password: string; fullName: string }) => Promise<void>
   loginWithGoogle: () => Promise<void>
   logout: () => Promise<void>
   initialize: () => Promise<void>
@@ -42,8 +42,8 @@ export const useAuthStore = create<AuthState>((set) => ({
     }
   },
 
-  register: async (email: string, password: string, fullName: string) => {
-    await authService.register(email, password, fullName)
+  register: async (params: { email?: string; phone?: string; password: string; fullName: string }) => {
+    await authService.register(params)
     const session = await authService.getSession()
     if (session?.user) {
       const profile = await authService.getProfile(session.user.id)
