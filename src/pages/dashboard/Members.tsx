@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/atoms/Button';
 import { Badge } from '@/components/ui/atoms/Badge';
 import { IconButton } from '@/components/ui/atoms/IconButton';
@@ -55,6 +56,7 @@ function toMember(item: MemberListItem): Member {
 }
 
 export default function MembersPage() {
+  const navigate = useNavigate();
   const [members, setMembers] = useState<Member[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -68,11 +70,12 @@ export default function MembersPage() {
   const [fName, setFName] = useState('');
   const [fRole, setFRole] = useState<Role>('member');
 
+  const [previewTarget, setPreviewTarget] = useState<Member | null>(null);
   const [detailTarget, setDetailTarget] = useState<Member | null>(null);
-  const [detailMode, setDetailMode] = useState<'view' | 'edit'>('view');
+  const [detailMode, setDetailMode] = useState<'edit'>('edit');
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailCheckins, setDetailCheckins] = useState(0);
-  const [dForm, setDForm] = useState({ full_name: '', email: '', phone: '', role: '' });
+  const [dForm, setDForm] = useState({ full_name: '', email: '', phone: '', role: '', alias: '' });
   const [detailSaving, setDetailSaving] = useState(false);
 
   const [linkTarget, setLinkTarget] = useState<Member | null>(null);
@@ -160,40 +163,6 @@ export default function MembersPage() {
     }
   }, [fetchMembers]);
 
-  const viewDetail = useCallback(async (member: Member) => {
-    setDetailTarget(member);
-    setDetailMode('view');
-    setDetailLoading(true);
-    setDForm({
-      full_name: member.name,
-      email: member.email,
-      phone: member.phone ?? '',
-      role: member.role,
-    });
-    try {
-      const [m, checkins] = await Promise.all([
-        membersService.getById(member.id),
-        checkInsService.getByMember(member.id).catch(() => []),
-      ]);
-      const now = new Date();
-      const thisMonth = checkins.filter((c) => {
-        const d = new Date(c.check_in_time);
-        return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
-      });
-      setDetailCheckins(thisMonth.length);
-      setDForm({
-        full_name: m.full_name,
-        email: m.email ?? '',
-        phone: m.phone ?? '',
-        role: m.role,
-      });
-    } catch {
-      // use existing row data
-    } finally {
-      setDetailLoading(false);
-    }
-  }, []);
-
   const guardarDetail = useCallback(async () => {
     if (!detailTarget) return;
     if (!dForm.full_name.trim()) { toast.error('El nombre es obligatorio'); return; }
@@ -204,6 +173,7 @@ export default function MembersPage() {
         email: dForm.email.trim() || undefined,
         phone: dForm.phone.trim() || undefined,
         role: dForm.role as Role,
+        alias: dForm.alias.trim() || undefined,
       });
       toast.success('Miembro actualizado');
       setDetailTarget(null);
@@ -224,6 +194,7 @@ export default function MembersPage() {
       email: member.email,
       phone: member.phone ?? '',
       role: member.role,
+      alias: member.alias ?? '',
     });
     membersService.getById(member.id)
       .then((m) => {
@@ -232,6 +203,7 @@ export default function MembersPage() {
           email: m.email ?? '',
           phone: m.phone ?? '',
           role: m.role,
+          alias: m.alias ?? '',
         });
       })
       .catch(() => {})
@@ -381,29 +353,20 @@ export default function MembersPage() {
     },
     {
       key: 'alias',
-      label: 'Alias',
+      label: 'Sobrenombre',
       hide: 'lg',
-      render: (m) => {
-        if (!m.alias || m.alias === m.name) return <span className="text-text-3 text-[12px]">—</span>;
-        const isEmail = m.alias.includes('@');
-        return (
-          <span className={`inline-flex items-center gap-1.5 px-[9px] py-[3px] rounded-sm text-[11px] border ${isEmail ? 'bg-blue-bg/10 border-blue/20 text-blue-text' : 'bg-surface2 text-text-2 border-border'}`}>
-            {isEmail ? (
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
-            ) : (
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-            )}
-            {m.alias}
-          </span>
-        );
-      },
+      render: (m) => (
+        m.alias
+          ? <span className="inline-flex items-center gap-1.5 px-[9px] py-[3px] rounded-sm text-[11px] bg-surface2 text-accent-text border border-border">{m.alias}</span>
+          : <span className="text-text-3 text-[12px]">—</span>
+      ),
     },
     {
       key: 'actions',
       label: '',
       render: (m) => (
         <div className="flex gap-1.5 justify-end">
-          <IconButton title="Ver detalle" onClick={() => viewDetail(m)}><IconEye width="13" height="13" /></IconButton>
+          <IconButton title="Vista rápida" onClick={() => setPreviewTarget(m)}><IconEye width="13" height="13" /></IconButton>
           <IconButton title="Editar" onClick={() => editMember(m)}><IconEdit width="13" height="13" /></IconButton>
           {m.registration_status === 'pending' && (
             <IconButton title="Vincular con usuario registrado" onClick={() => openLinkModal(m)}>
@@ -495,20 +458,11 @@ export default function MembersPage() {
                   <>{m.role === 'admin' ? <Badge variant="accent" dot>Admin</Badge> : m.role === 'trainer' ? <Badge variant="blue" dot>Entrenador</Badge> : <Badge variant="gray" dot>Miembro</Badge>}</>
                 )},
                 { label: 'Estado', value: (m: Member) => renderStatusBadge(m) },
-                { label: 'Alias', value: (m: Member) => {
-                  if (!m.alias || m.alias === m.name) return <span className="text-text-3">—</span>;
-                  const isEmail = m.alias.includes('@');
-                  return (
-                    <span className={`inline-flex items-center gap-1.5 px-[9px] py-[3px] rounded-sm text-[11px] border ${isEmail ? 'bg-blue-bg/10 border-blue/20 text-blue-text' : 'bg-surface2 text-text-2 border-border'}`}>
-                      {isEmail ? (
-                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
-                      ) : (
-                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-                      )}
-                      {m.alias}
-                    </span>
-                  );
-                }},
+                { label: 'Sobrenombre', value: (m: Member) => (
+                  m.alias
+                    ? <span className="inline-flex items-center gap-1.5 px-[9px] py-[3px] rounded-sm text-[11px] bg-surface2 text-accent-text border border-border">{m.alias}</span>
+                    : <span className="text-text-3">—</span>
+                )},
                 { label: 'Teléfono', value: (m: Member) => m.phone || <span className="text-text-3">—</span> },
                 { label: 'Membresía', value: (m: Member) => renderMembership(m) },
                 { label: 'Plan', value: (m: Member) => (
@@ -519,6 +473,27 @@ export default function MembersPage() {
                   )
                 )},
               ]}
+              cardActions={(m: Member) => (
+                <div className="flex gap-1.5 justify-end">
+                  <IconButton title="Vista rápida" onClick={() => setPreviewTarget(m)}><IconEye width="13" height="13" /></IconButton>
+                  <IconButton title="Editar" onClick={() => editMember(m)}><IconEdit width="13" height="13" /></IconButton>
+                  {m.registration_status === 'pending' && (
+                    <IconButton title="Vincular" onClick={() => openLinkModal(m)}>
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                    </IconButton>
+                  )}
+                  <IconButton title="Eliminar" danger onClick={() => deleteMember(m)}><IconTrash width="13" height="13" /></IconButton>
+                  <IconButton title={m.status === 'active' ? 'Desactivar' : 'Activar'} danger
+                    onClick={() => toggleStatus(m)}
+                  >
+                    {m.status === 'active' ? (
+                      <IconClose width="13" height="13" />
+                    ) : (
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10" /><polyline points="9 12 11 14 15 10" /></svg>
+                    )}
+                  </IconButton>
+                </div>
+              )}
               emptyMessage="No se encontraron miembros con ese criterio."
             />
 
@@ -538,33 +513,163 @@ export default function MembersPage() {
       <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="Nuevo miembro" className="max-w-[400px]" icon={<IconPlus width="16" height="16" />}>
         <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-1.5">
-            <label className="text-[12px] text-text-2 font-medium">Nombre completo *</label>
-            <input type="text" placeholder="Ej. Maria Gonzalez" value={fName} onChange={(e) => setFName(e.target.value)}
-              className="bg-surface2 border border-border2 text-text text-[13px] px-3 py-[9px] rounded-sm outline-none w-full font-sans" />
+            <label className="text-[11px] text-text-3 uppercase tracking-[0.06em] font-medium">Nombre completo</label>
+            <div className="relative">
+              <svg className="absolute left-3 top-1/2 -translate-y-1/2 text-text-3/50 pointer-events-none" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+              </svg>
+              <input type="text" placeholder="Ej. María González" value={fName} onChange={(e) => setFName(e.target.value)}
+                className="w-full bg-surface2 border border-border2 text-text text-[13px] pl-9 pr-3 py-[10px] rounded-sm outline-none font-sans
+                  placeholder:text-text-3/40 transition-all duration-150
+                  focus:border-accent/60 focus:ring-1 focus:ring-accent/30" />
+            </div>
           </div>
+
           <div className="flex flex-col gap-1.5">
-            <label className="text-[12px] text-text-2 font-medium">Rol</label>
-            <select value={fRole} onChange={(e) => setFRole(e.target.value as Role)}
-              className="bg-surface2 border border-border2 text-text text-[13px] px-3 py-[9px] rounded-sm outline-none w-full font-sans">
-              <option value="member">Miembro</option>
-              <option value="trainer">Entrenador</option>
-              <option value="admin">Admin</option>
-            </select>
+            <label className="text-[11px] text-text-3 uppercase tracking-[0.06em] font-medium">Rol</label>
+            <div className="grid grid-cols-3 gap-1.5">
+              {[
+                { value: 'member' as Role, label: 'Miembro', desc: 'Acceso a su plan' },
+                { value: 'trainer' as Role, label: 'Entrenador', desc: 'Gestiona planes' },
+                { value: 'admin' as Role, label: 'Admin', desc: 'Control total' },
+              ].map((r) => {
+                const selected = fRole === r.value;
+                return (
+                  <button key={r.value} type="button" onClick={() => setFRole(r.value)}
+                    className={`relative flex flex-col items-center gap-0.5 p-2.5 rounded-sm border text-center transition-all duration-150 cursor-pointer font-sans
+                      ${selected
+                        ? 'border-accent bg-accent/8 ring-1 ring-accent/35'
+                        : 'border-border2 bg-surface2 hover:border-text-3/50'
+                      }`}
+                  >
+                    <span className={`text-[12px] font-semibold leading-tight ${selected ? 'text-accent' : 'text-text'}`}>
+                      {r.label}
+                    </span>
+                    <span className={`text-[9px] leading-tight ${selected ? 'text-accent/70' : 'text-text-3/60'}`}>
+                      {r.desc}
+                    </span>
+                    {selected && (
+                      <div className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-accent flex items-center justify-center">
+                        <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="black" strokeWidth="3.5">
+                          <polyline points="20 6 9 17 4 12" />
+                        </svg>
+                      </div>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
           </div>
-          <div className="text-[11px] text-text-3 bg-amber-bg border border-amber/20 rounded-sm p-3 leading-relaxed">
-            Crea un perfil pendiente con solo el nombre. Cuando la persona se registre en el sistema, podrás vincularlo manualmente desde la lista.
+
+          <div className="flex items-start gap-2.5 p-3 rounded-sm bg-surface2 border border-border text-[11px] text-text-3 leading-relaxed">
+            <svg className="mt-0.5 shrink-0 text-accent" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>
+            </svg>
+            <span>Se crea un perfil <strong className="text-text-2">pendiente</strong> con solo el nombre. Cuando la persona se registre, vincúlalo desde la lista con el botón <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="inline align-middle"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>.</span>
           </div>
         </div>
-        <div className="flex justify-end gap-2.5 mt-2">
+        <div className="flex justify-end gap-2.5 mt-1">
           <Button variant="ghost" onClick={() => setModalOpen(false)}>Cancelar</Button>
-          <Button variant="primary" onClick={guardarMiembro}
-            disabled={!fName.trim()}>
+          <Button variant="primary" onClick={guardarMiembro} disabled={!fName.trim()}>
             Guardar miembro
           </Button>
         </div>
       </Modal>
 
-      <Modal open={detailTarget !== null} onClose={() => setDetailTarget(null)} title={detailMode === 'edit' ? (detailTarget?.name ?? '') : 'Detalle'} className="max-w-[540px] w-full" icon={<IconEye width="16" height="16" />}>
+      <Modal compact icon={
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-accent">
+          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+          <circle cx="12" cy="12" r="3" />
+        </svg>
+      } title="VISTA RÁPIDA" open={previewTarget !== null} onClose={() => setPreviewTarget(null)}>
+        {previewTarget && (() => {
+          const m = previewTarget;
+          const av = AVATAR_COLORS[m.av];
+          return (
+            <div className="flex flex-col gap-0">
+              <div className="flex flex-col items-center mb-5">
+                <div className="w-[64px] h-[64px] rounded-full flex items-center justify-center text-[22px] font-semibold mb-3"
+                  style={{ background: av.bg, color: av.fg }}>
+                  {initials(m.name)}
+                </div>
+                <div className="text-[17px] font-semibold">{m.name}</div>
+                <div className="flex gap-1.5 mt-1.5">
+                  {m.role === 'admin' ? <Badge variant="accent" dot>Admin</Badge> : m.role === 'trainer' ? <Badge variant="blue" dot>Entrenador</Badge> : <Badge variant="gray" dot>Miembro</Badge>}
+                  {m.registration_status === 'pending'
+                    ? <Badge variant="amber" dot>Pendiente</Badge>
+                    : m.status === 'active'
+                      ? <Badge variant="green" dot>Activo</Badge>
+                      : <Badge variant="red" dot>Inactivo</Badge>
+                  }
+                </div>
+              </div>
+
+              <div className="border-t border-border pt-4 space-y-3">
+                {m.alias && (
+                  <div className="flex items-center gap-2.5">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-text-3 shrink-0">
+                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+                    </svg>
+                    <span className="text-[12px] text-accent-text">{m.alias}</span>
+                  </div>
+                )}
+                <div className="flex items-center gap-2.5">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-text-3 shrink-0">
+                    <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+                    <polyline points="22,6 12,13 2,6" />
+                  </svg>
+                  <span className="text-[12px] text-text-2">{m.email || <span className="text-text-3">—</span>}</span>
+                </div>
+                <div className="flex items-center gap-2.5">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-text-3 shrink-0">
+                    <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
+                  </svg>
+                  <span className="text-[12px] text-text-2">{m.phone || <span className="text-text-3">—</span>}</span>
+                </div>
+              </div>
+
+              <div className="mt-5 pt-4 border-t border-border">
+                <div className="text-[11px] text-text-3 uppercase tracking-[0.08em] mb-3">Membresía</div>
+                {m.membresia ? (
+                  <div className="grid grid-cols-2 gap-2.5">
+                    <div className="bg-surface2 rounded px-3 py-2.5">
+                      <div className="text-[10px] text-text-3 uppercase tracking-[0.06em]">Plan</div>
+                      <div className="text-[13px] font-medium mt-0.5">{m.membresia}</div>
+                    </div>
+                    <div className="bg-surface2 rounded px-3 py-2.5">
+                      <div className="text-[10px] text-text-3 uppercase tracking-[0.06em]">Vencimiento</div>
+                      <div className="text-[12px] mt-0.5">{m.vence ? fmtDate(m.vence) : '—'}</div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-[13px] text-text-3">Sin membresía activa</div>
+                )}
+              </div>
+
+              <div className="mt-4 pt-4 border-t border-border">
+                <div className="text-[11px] text-text-3 uppercase tracking-[0.08em] mb-3">Plan de entrenamiento</div>
+                {m.plan ? (
+                  <div className="flex items-center gap-2 bg-surface2 rounded px-3 py-2.5 border border-border">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-text-3 shrink-0">
+                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
+                    </svg>
+                    <span className="text-[13px] text-text-2">{m.plan}</span>
+                  </div>
+                ) : (
+                  <div className="text-[13px] text-text-3">Sin plan asignado</div>
+                )}
+              </div>
+            </div>
+          );
+        })()}
+        <div className="mt-5 pt-4 border-t border-border text-center">
+            <Button variant="primary" onClick={() => { setPreviewTarget(null); navigate(`/members/${previewTarget!.id}`); }}>
+            Ir a perfil completo
+          </Button>
+        </div>
+      </Modal>
+
+      <Modal open={detailTarget !== null} onClose={() => setDetailTarget(null)} title={detailTarget?.name ?? ''} className="max-w-[540px] w-full" icon={<IconEdit width="16" height="16" />}>
         <div className="flex flex-col gap-0">
           {detailLoading ? (
             <div className="flex flex-col items-center py-10 gap-4">
@@ -605,6 +710,14 @@ export default function MembersPage() {
               </div>
 
               <div className="flex items-center gap-4 text-[12px] text-text-2 mb-6 pb-5 border-b border-border">
+                {detailTarget.alias && (
+                  <div className="flex items-center gap-1.5">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-text-3 shrink-0">
+                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+                    </svg>
+                    <span className="text-accent-text font-medium">{detailTarget.alias}</span>
+                  </div>
+                )}
                 <div className="flex items-center gap-1.5">
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-text-3 shrink-0">
                     <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
@@ -638,39 +751,52 @@ export default function MembersPage() {
 
               {detailMode === 'edit' && (
                 <div className="border-t border-border pt-5">
-                  <h3 className="text-[11px] text-text-3 uppercase tracking-[0.08em] mb-4 flex items-center gap-2">
-                    <IconEdit width="13" height="13" />
-                    Editar información
-                  </h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3">
-                    <div className="flex flex-col gap-1.5 sm:col-span-2">
-                      <label className="text-[11px] text-text-3 uppercase tracking-[0.06em] font-medium">Nombre completo</label>
-                      <input type="text" value={dForm.full_name}
-                        onChange={(e) => setDForm((f) => ({ ...f, full_name: e.target.value }))}
-                        className="bg-surface2 border border-border2 text-text text-[13px] px-3 py-[9px] rounded-sm outline-none w-full font-sans" />
+                  {/* Read-only info zone */}
+                  <div className="mb-5">
+                    <h3 className="text-[11px] text-text-3 uppercase tracking-[0.08em] mb-3 flex items-center gap-2">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                        <circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>
+                      </svg>
+                      Información del perfil
+                    </h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {[
+                        { label: 'Nombre completo', value: dForm.full_name, span: true },
+                        { label: 'Correo electrónico', value: dForm.email || '—' },
+                        { label: 'Teléfono', value: dForm.phone || '—' },
+                        { label: 'Rol', value: dForm.role === 'admin' ? 'Admin' : dForm.role === 'trainer' ? 'Entrenador' : 'Miembro' },
+                      ].map((f) => (
+                        <div key={f.label} className={`flex flex-col gap-1 px-3 py-2.5 rounded-sm bg-surface2/50 border border-border ${f.span ? 'sm:col-span-2' : ''}`}>
+                          <div className="flex items-center justify-between">
+                            <span className="text-[10px] text-text-3 uppercase tracking-[0.06em] font-medium">{f.label}</span>
+                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-text-3/40 shrink-0">
+                              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                            </svg>
+                          </div>
+                          <span className="text-[13px] text-text-2">{f.value}</span>
+                        </div>
+                      ))}
                     </div>
-                    <div className="flex flex-col gap-1.5">
-                      <label className="text-[11px] text-text-3 uppercase tracking-[0.06em] font-medium">Correo electrónico</label>
-                      <input type="text" value={dForm.email}
-                        onChange={(e) => setDForm((f) => ({ ...f, email: e.target.value }))}
-                        className="bg-surface2 border border-border2 text-text text-[13px] px-3 py-[9px] rounded-sm outline-none w-full font-sans" />
+                  </div>
+
+                  {/* Editable zone — only alias */}
+                  <div className="border border-accent/15 bg-accent/5 rounded-sm p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="text-[11px] text-accent uppercase tracking-[0.08em] font-semibold flex items-center gap-1.5">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                        </svg>
+                        Sobrenombre
+                      </h3>
+                      <Badge variant="accent" dot>Editable</Badge>
                     </div>
-                    <div className="flex flex-col gap-1.5">
-                      <label className="text-[11px] text-text-3 uppercase tracking-[0.06em] font-medium">Teléfono</label>
-                      <input type="text" value={dForm.phone}
-                        onChange={(e) => setDForm((f) => ({ ...f, phone: e.target.value }))}
-                        className="bg-surface2 border border-border2 text-text text-[13px] px-3 py-[9px] rounded-sm outline-none w-full font-sans" />
-                    </div>
-                    <div className="flex flex-col gap-1.5 sm:col-span-2">
-                      <label className="text-[11px] text-text-3 uppercase tracking-[0.06em] font-medium">Rol</label>
-                      <select value={dForm.role}
-                        onChange={(e) => setDForm((f) => ({ ...f, role: e.target.value }))}
-                        className="bg-surface2 border border-border2 text-text text-[13px] px-3 py-[9px] rounded-sm outline-none w-full font-sans">
-                        <option value="member">Miembro</option>
-                        <option value="trainer">Entrenador</option>
-                        <option value="admin">Admin</option>
-                      </select>
-                    </div>
+                    <input type="text" value={dForm.alias}
+                      onChange={(e) => setDForm((f) => ({ ...f, alias: e.target.value }))}
+                      placeholder="Apodo o nombre corto"
+                      className="w-full bg-surface border border-accent/30 text-text text-[14px] px-3 py-[10px] rounded-sm outline-none font-sans
+                        placeholder:text-text-3/40 transition-all duration-150
+                        focus:border-accent focus:ring-1 focus:ring-accent/40" />
+                    <p className="text-[10px] text-text-3/60 mt-2">Este nombre es visible en listados y reportes internos.</p>
                   </div>
                 </div>
               )}

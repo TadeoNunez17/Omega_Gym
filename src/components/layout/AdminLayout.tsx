@@ -16,7 +16,7 @@ export function AdminLayout() {
       <div className="hidden lg:block">
         <Sidebar pendingPaymentsCount={pendingCount} />
       </div>
-      <main className="flex-1 flex flex-col min-h-screen pb-16 lg:pb-0 lg:ml-[220px]">
+      <main className="flex-1 flex flex-col min-h-screen pb-16 lg:pb-0" style={{ marginLeft: 'var(--sidebar-w)' }}>
         <Outlet />
       </main>
       <BottomNav />

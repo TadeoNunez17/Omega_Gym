@@ -52,7 +52,7 @@ export default function MemberDetailPage() {
 
   const [editModal, setEditModal] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState({ full_name: '', email: '', phone: '', role: '' });
+  const [form, setForm] = useState({ full_name: '', email: '', phone: '', role: '', alias: '' });
 
   useEffect(() => {
     if (!id) { navigate('/members'); return; }
@@ -69,6 +69,7 @@ export default function MemberDetailPage() {
           email: data.email ?? '',
           phone: data.phone ?? '',
           role: data.role,
+          alias: data.alias ?? '',
         });
       })
       .catch((e) => {
@@ -138,6 +139,7 @@ export default function MemberDetailPage() {
         email: form.email.trim() || undefined,
         phone: form.phone.trim() || undefined,
         role: form.role as 'admin' | 'trainer' | 'member',
+        alias: form.alias.trim() || undefined,
       });
       toast.success('Miembro actualizado');
       setEditModal(false);
@@ -319,6 +321,15 @@ export default function MemberDetailPage() {
                     <div>
                       <div className="text-[10px] text-text-3 uppercase tracking-[0.06em]">Teléfono</div>
                       <div className="text-[13px]">{m.phone || <span className="text-text-3">—</span>}</div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-text-3 shrink-0">
+                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+                    </svg>
+                    <div>
+                      <div className="text-[10px] text-text-3 uppercase tracking-[0.06em]">Sobrenombre</div>
+                      <div className="text-[13px]">{m.alias || <span className="text-text-3">—</span>}</div>
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
@@ -679,6 +690,12 @@ export default function MemberDetailPage() {
           <div className="flex flex-col gap-1.5">
             <label className="text-[12px] text-text-2 font-medium">Teléfono</label>
             <input type="text" value={form.phone} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
+              className="bg-surface2 border border-border2 text-text text-[13px] px-3 py-[9px] rounded-sm outline-none w-full font-sans" />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[12px] text-text-2 font-medium">Sobrenombre</label>
+            <input type="text" value={form.alias} onChange={(e) => setForm((f) => ({ ...f, alias: e.target.value }))}
+              placeholder="Apodo o nombre corto"
               className="bg-surface2 border border-border2 text-text text-[13px] px-3 py-[9px] rounded-sm outline-none w-full font-sans" />
           </div>
           <div className="flex flex-col gap-1.5">

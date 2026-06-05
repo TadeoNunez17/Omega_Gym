@@ -81,6 +81,7 @@ body {
   --pink-text: #f472b6;
   --gray-bg: rgba(255, 255, 255, 0.05);
   --gray-text: #707070;
+  --sidebar-w: 220px;
 }
 
 ::-webkit-scrollbar { width: 4px; height: 4px; }

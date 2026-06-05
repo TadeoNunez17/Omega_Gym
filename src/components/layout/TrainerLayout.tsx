@@ -32,7 +32,7 @@ export function TrainerLayout() {
 
   return (
     <div className="flex min-h-screen bg-bg">
-      <aside className="fixed top-0 left-0 bottom-0 z-10 flex flex-col border-r border-border hidden lg:flex" style={{ width: 220, background: 'var(--surface)' }}>
+      <aside className="fixed top-0 left-0 bottom-0 z-10 flex flex-col border-r border-border hidden lg:flex" style={{ width: 'var(--sidebar-w)', background: 'var(--surface)' }}>
         <div className="px-5 py-[18px] border-b border-border">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-lg flex items-center justify-center"
@@ -99,7 +99,7 @@ export function TrainerLayout() {
         </div>
       </aside>
 
-      <main className="flex-1 flex flex-col min-h-screen pb-16 lg:pb-0 lg:ml-[220px]">
+      <main className="flex-1 flex flex-col min-h-screen pb-16 lg:pb-0" style={{ marginLeft: 'var(--sidebar-w)' }}>
         <Outlet />
       </main>
 

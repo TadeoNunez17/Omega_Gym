@@ -33,6 +33,10 @@ export interface MembershipListItem {
   payment_status: 'paid' | 'pending' | null
 }
 
+const syncExpired = async () => {
+  await supabase.rpc('sync_membership_status')
+}
+
 export const membershipsService = {
   // ---- Membership Types ----
 
@@ -54,6 +58,7 @@ export const membershipsService = {
     page?: number
     pageSize?: number
   }): Promise<{ data: MembershipListItem[]; count: number }> => {
+    await syncExpired()
     let query = supabase
       .from('memberships')
       .select(`
@@ -97,6 +102,7 @@ export const membershipsService = {
   },
 
   getByMember: async (memberId: string): Promise<Membership[]> => {
+    await syncExpired()
     const { data, error } = await supabase
       .from('memberships')
       .select('*')
@@ -108,6 +114,7 @@ export const membershipsService = {
   },
 
   getActiveByMember: async (memberId: string): Promise<Membership | null> => {
+    await syncExpired()
     const { data, error } = await supabase
       .from('memberships')
       .select('*')
@@ -122,6 +129,7 @@ export const membershipsService = {
   },
 
   getActiveWithType: async (memberId: string) => {
+    await syncExpired()
     const { data, error } = await supabase
       .from('memberships')
       .select(`*, membership_types(*)`)
@@ -160,6 +168,7 @@ export const membershipsService = {
     start_date: string
     end_date?: string
     status?: 'active' | 'expired' | 'cancelled'
+    payment_method?: 'cash' | 'card' | 'transfer' | 'pending'
   }): Promise<Membership> => {
     const { data: type } = await supabase
       .from('membership_types')
@@ -186,10 +195,35 @@ export const membershipsService = {
       .single()
 
     if (error) throw error
+
+    if (input.payment_method) {
+      const { data: typePrice } = await supabase
+        .from('membership_types')
+        .select('price')
+        .eq('id', input.type_id)
+        .single()
+
+      const payMethod = input.payment_method === 'pending' ? 'cash' : input.payment_method
+      const payStatus = input.payment_method === 'pending' ? 'pending' : 'paid'
+
+      const { error: payError } = await supabase
+        .from('payments')
+        .insert({
+          membership_id: data.id,
+          amount: typePrice?.price ?? 0,
+          payment_date: input.start_date,
+          method: payMethod,
+          status: payStatus,
+        })
+
+      if (payError) throw payError
+    }
+
     return data as Membership
   },
 
   getExpiring: async (days: number = 7): Promise<MembershipListItem[]> => {
+    await syncExpired()
     const now = new Date()
     const future = new Date(now)
     future.setDate(future.getDate() + days)

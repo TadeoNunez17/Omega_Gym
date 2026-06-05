@@ -125,7 +125,6 @@ export const membersService = {
       .from('profiles')
       .insert({
         full_name: input.full_name,
-        alias: input.full_name,
         role: input.role || 'member',
         registration_status: 'pending',
         auth_user_id: null,
@@ -140,7 +139,7 @@ export const membersService = {
   linkPendingProfile: async (pendingId: string, registeredId: string) => {
     const { data: pending, error: err1 } = await supabase
       .from('profiles')
-      .select('full_name, alias')
+      .select('full_name')
       .eq('id', pendingId)
       .single()
 
@@ -149,8 +148,7 @@ export const membersService = {
     const { error: err2 } = await supabase
       .from('profiles')
       .update({
-        full_name: pending.full_name,
-        alias: pending.alias || pending.full_name,
+        alias: pending.full_name,
         registration_status: 'claimed',
       })
       .eq('id', registeredId)
@@ -205,6 +203,7 @@ export const membersService = {
     email: string
     phone: string
     avatar_url: string
+    alias: string
     role: 'admin' | 'trainer' | 'member'
   }>) => {
     const { data, error } = await supabase

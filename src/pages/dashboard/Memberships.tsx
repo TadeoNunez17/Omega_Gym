@@ -12,7 +12,7 @@ import { SearchInput } from '@/components/ui/molecules/SearchInput';
 import { TabBar } from '@/components/ui/molecules/TabBar';
 import { Pagination } from '@/components/ui/molecules/Pagination';
 import { ResponsiveTable, type Column } from '@/components/ui/molecules/ResponsiveTable';
-import { IconEye, IconEdit, IconPlus } from '@/lib/icons';
+import { IconEye, IconEdit, IconPlus, IconCalendar } from '@/lib/icons';
 import { initials, fmtDate, daysDiff, avatarIndex, AVATAR_COLORS } from '@/lib/helpers';
 import { toast } from 'sonner';
 
@@ -29,9 +29,11 @@ interface Member {
   inicio: string;
   vence: string;
   status: MembershipStatus;
+  isVisita: boolean;
 }
 
 function getStatus(m: Member): MembershipStatus {
+  if (m.isVisita) return 'active';
   const d = daysDiff(m.vence);
   if (d === null || d < 0) return 'expired';
   if (d <= 7) return 'warning';
@@ -48,6 +50,7 @@ function toMember(item: MembershipListItem): Member {
     inicio: item.start_date,
     vence: item.end_date,
     status: 'active',
+    isVisita: item.type_name === 'Visita',
   };
 }
 
@@ -65,6 +68,7 @@ export default function MembershipsPage() {
   const [selMember, setSelMember] = useState('');
   const [selType, setSelType] = useState('');
   const [startDate, setStartDate] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'card' | 'transfer' | 'pending' | ''>('');
   const [saving, setSaving] = useState(false);
 
   const [editId, setEditId] = useState<string | null>(null);
@@ -78,6 +82,7 @@ export default function MembershipsPage() {
   const [previewMember, setPreviewMember] = useState<MemberListItem | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
 
+  const today = new Date().toISOString().split('T')[0];
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -139,18 +144,22 @@ export default function MembershipsPage() {
   const expiredCount = allWithStatus.filter((m) => m.status === 'expired').length;
 
   const selTypeData = membershipTypes.find((t) => t.id === selType);
+  const isVisita = selTypeData?.name === 'Visita';
   const computedEnd = startDate && selTypeData
-    ? (() => {
-        const d = new Date(startDate);
-        d.setDate(d.getDate() + selTypeData.duration_days);
-        return d.toISOString().split('T')[0];
-      })()
+    ? isVisita
+      ? startDate
+      : (() => {
+          const d = new Date(startDate);
+          d.setDate(d.getDate() + selTypeData.duration_days);
+          return d.toISOString().split('T')[0];
+        })()
     : '';
 
   const resetForm = useCallback(() => {
     setSelMember('');
     setSelType('');
     setStartDate('');
+    setPaymentMethod('');
   }, []);
 
   const guardarMembresia = useCallback(async () => {
@@ -162,6 +171,7 @@ export default function MembershipsPage() {
         type_id: selType,
         start_date: startDate,
         end_date: computedEnd,
+        payment_method: paymentMethod || undefined,
       });
       setModalOpen(false);
       resetForm();
@@ -173,7 +183,7 @@ export default function MembershipsPage() {
     } finally {
       setSaving(false);
     }
-  }, [selMember, selType, startDate, computedEnd, resetForm]);
+  }, [selMember, selType, startDate, computedEnd, paymentMethod, resetForm]);
 
   const openEditModal = useCallback((membership: Member) => {
     setEditId(membership.id);
@@ -242,6 +252,7 @@ export default function MembershipsPage() {
       key: 'vence',
       label: 'Vencimiento',
       render: (m) => {
+        if (m.isVisita) return <div className="text-[12px] text-text-3">—</div>;
         const diff = daysDiff(m.vence);
         return (
           <div>
@@ -375,6 +386,7 @@ export default function MembershipsPage() {
                 {
                   label: 'Vencimiento',
                   value: (m) => {
+                    if (m.isVisita) return <span className="text-[12px] text-text-3">—</span>;
                     const diff = daysDiff(m.vence);
                     return (
                       <div>
@@ -514,61 +526,150 @@ export default function MembershipsPage() {
 
       <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="Nueva membresía" className="max-w-[400px]" icon={<IconPlus width="16" height="16" />}>
         <div className="flex flex-col gap-4">
-          <div className="flex flex-col gap-1.5">
-            <label className="text-[12px] text-text-2 font-medium">Miembro *</label>
-            <select
-              value={selMember}
-              onChange={(e) => setSelMember(e.target.value)}
-              className="bg-surface2 border border-border2 text-text text-[13px] px-3 py-[9px] rounded-sm outline-none w-full font-sans"
-            >
-              <option value="">Seleccionar miembro</option>
-              {memberList.filter((m) => m.role === 'member').map((m) => (
-                <option key={m.id} value={m.id}>{m.full_name}</option>
-              ))}
-            </select>
-          </div>
-
-          <div className="flex flex-col gap-1.5">
-            <label className="text-[12px] text-text-2 font-medium">Tipo de membresía *</label>
-            <select
-              value={selType}
-              onChange={(e) => setSelType(e.target.value)}
-              className="bg-surface2 border border-border2 text-text text-[13px] px-3 py-[9px] rounded-sm outline-none w-full font-sans"
-            >
-              <option value="">Seleccionar tipo</option>
-              {membershipTypes.filter((t) => t.is_active).map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name} — ${t.price.toLocaleString()} · {t.duration_days} días
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="flex flex-col gap-1.5">
-            <label className="text-[12px] text-text-2 font-medium">Fecha de inicio *</label>
-            <input
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              className="bg-surface2 border border-border2 text-text text-[13px] px-3 py-[9px] rounded-sm outline-none w-full font-sans"
-            />
-          </div>
-
-          {computedEnd && (
-            <div className="flex flex-col gap-1.5">
-              <label className="text-[12px] text-text-2 font-medium">Fecha de vencimiento</label>
-              <div className="text-text text-[13px] px-3 py-[9px] bg-surface2 border border-border2 rounded-sm opacity-70">
-                {new Date(computedEnd).toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' })}
-              </div>
+          <div className="flex flex-col gap-2">
+            <label className="text-[12px] text-text-2 font-medium tracking-[0.03em]">Tipo de membresía *</label>
+            <div className="grid grid-cols-2 gap-2">
+              {membershipTypes.filter((t) => t.is_active).map((type) => {
+                const selected = selType === type.id;
+                const isVisitaType = type.name === 'Visita';
+                return (
+                  <button key={type.id} type="button"
+                    onClick={() => {
+                      setSelType(type.id);
+                      if (isVisitaType) setStartDate(today);
+                    }}
+                    className={`relative flex flex-col items-start p-3 rounded-sm border text-left transition-all duration-150 cursor-pointer font-sans
+                      ${selected
+                        ? 'border-accent bg-accent/8 ring-1 ring-accent/40'
+                        : 'border-border2 bg-surface2 hover:border-text-3'
+                      }`}
+                  >
+                    <div className={`text-[13px] font-semibold ${selected ? 'text-accent' : 'text-text'}`}>
+                      {type.name}
+                    </div>
+                    <div className="text-[18px] font-bold tracking-tight mt-1">
+                      ${type.price.toLocaleString()}
+                    </div>
+                    <div className="text-[11px] text-text-3 mt-0.5">
+                      {isVisitaType ? 'Hoy · 1 día' : `${type.duration_days} días`}
+                    </div>
+                    {selected && (
+                      <div className="absolute top-2 right-2 w-4 h-4 rounded-full bg-accent flex items-center justify-center">
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="black" strokeWidth="3">
+                          <polyline points="20 6 9 17 4 12" />
+                        </svg>
+                      </div>
+                    )}
+                  </button>
+                );
+              })}
             </div>
-          )}
-
-          <div className="text-[11px] text-text-3 bg-amber-bg border border-amber/20 rounded-sm p-3 leading-relaxed">
-            La fecha de vencimiento se calcula automáticamente según la duración del tipo de membresía seleccionado.
           </div>
+
+          {selType && (
+            <>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[12px] text-text-2 font-medium">Miembro *</label>
+                <select
+                  value={selMember}
+                  onChange={(e) => setSelMember(e.target.value)}
+                  className="bg-surface2 border border-border2 text-text text-[13px] px-3 py-[9px] rounded-sm outline-none w-full font-sans cursor-pointer"
+                >
+                  <option value="">Seleccionar miembro</option>
+                  {memberList.filter((m) => m.role === 'member').map((m) => (
+                    <option key={m.id} value={m.id}>{m.full_name}</option>
+                  ))}
+                </select>
+              </div>
+
+              {isVisita ? (
+                <div className="border border-accent/20 bg-accent/5 rounded-sm p-3.5">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="text-[12px] text-text-2 font-medium tracking-[0.03em] uppercase">Pase del día</div>
+                    <Badge variant="accent" dot>Vence hoy</Badge>
+                  </div>
+                  <div className="flex items-center gap-2 text-[13px] text-text">
+                    <IconCalendar width="14" height="14" className="text-text-3 shrink-0" />
+                    {new Date(startDate || today).toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+                  </div>
+                  <div className="mt-2 text-[11px] text-text-3 leading-relaxed">
+                    Membresía válida únicamente el día de hoy. No requiere renovación.
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-[12px] text-text-2 font-medium">Fecha de inicio *</label>
+                    <input
+                      type="date"
+                      value={startDate}
+                      onChange={(e) => setStartDate(e.target.value)}
+                      className="bg-surface2 border border-border2 text-text text-[13px] px-3 py-[9px] rounded-sm outline-none w-full font-sans"
+                    />
+                  </div>
+                  {computedEnd && (
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[12px] text-text-2 font-medium">Fecha de vencimiento</label>
+                      <div className="flex items-center gap-2 text-[13px] text-text px-3 py-[9px] bg-surface2 border border-border2 rounded-sm opacity-80">
+                        <IconCalendar width="13" height="13" className="text-text-3 shrink-0" />
+                        {new Date(computedEnd).toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' })}
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+
+              {selMember && (
+                <div className="text-[11px] text-text-3 bg-amber-bg border border-amber/20 rounded-sm p-2.5 leading-relaxed">
+                  {isVisita
+                    ? 'Se creará un pase de Visita con vencimiento hoy. El miembro podrá ingresar el día de hoy únicamente.'
+                    : 'La fecha de vencimiento se calcula automáticamente según la duración del tipo de membresía seleccionado.'}
+                </div>
+              )}
+
+              <div className="flex flex-col gap-2">
+                <label className="text-[12px] text-text-2 font-medium tracking-[0.03em]">Método de pago <span className="text-text-3 font-normal">(opcional)</span></label>
+                <div className="grid grid-cols-2 gap-1.5">
+                  {[
+                    { value: 'cash' as const, label: 'Efectivo' },
+                    { value: 'transfer' as const, label: 'Transferencia' },
+                    { value: 'pending' as const, label: 'Pendiente', center: true },
+                  ].map((opt) => {
+                    const selected = paymentMethod === opt.value;
+                    return (
+                      <button key={opt.value} type="button"
+                        onClick={() => setPaymentMethod(selected ? '' : opt.value)}
+                        className={`flex items-center gap-2 px-3 py-[9px] rounded-sm border text-[12px] font-medium transition-all duration-150 cursor-pointer font-sans
+                          ${(opt as any).center ? 'col-span-2 justify-center' : 'text-left'}
+                          ${selected
+                            ? 'border-accent bg-accent/8 ring-1 ring-accent/40 text-accent'
+                            : 'border-border2 bg-surface2 hover:border-text-3 text-text-2'
+                          }`}
+                      >
+                        {selected && (
+                          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="shrink-0">
+                            <polyline points="20 6 9 17 4 12" />
+                          </svg>
+                        )}
+                        <span className={selected ? 'text-accent' : 'text-text-2'}>{opt.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+                {selTypeData && paymentMethod && (
+                  <div className="flex items-center gap-2 text-[12px] text-text-2 px-3 py-2 bg-surface2 border border-border2 rounded-sm">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-text-3 shrink-0">
+                      <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+                    </svg>
+                    <span><strong className="text-text">${selTypeData.price.toLocaleString()}</strong> — {paymentMethod === 'pending' ? 'Pendiente' : 'Pagado'} · {new Date(startDate || today).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
         </div>
 
-        <div className="flex justify-end gap-2.5 mt-2">
+        <div className="flex justify-end gap-2.5 mt-1">
           <Button variant="ghost" onClick={() => setModalOpen(false)} disabled={saving}>
             Cancelar
           </Button>

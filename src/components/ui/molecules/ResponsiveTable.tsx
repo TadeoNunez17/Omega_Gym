@@ -18,6 +18,7 @@ interface ResponsiveTableProps<T> {
   cardSubtitle: (item: T) => string;
   cardAvatar?: (item: T) => ReactNode;
   cardFields: (keyof T | { label: string; value: (item: T) => ReactNode })[];
+  cardActions?: (item: T) => ReactNode;
   emptyMessage?: string;
   onRowClick?: (item: T) => void;
 }
@@ -41,6 +42,7 @@ export function ResponsiveTable<T>({
   cardSubtitle,
   cardAvatar,
   cardFields,
+  cardActions,
   emptyMessage = 'Sin datos',
   onRowClick,
 }: ResponsiveTableProps<T>) {
@@ -128,6 +130,11 @@ export function ResponsiveTable<T>({
                 );
               })}
             </div>
+            {cardActions && (
+              <div className="mt-3 pt-3 border-t border-border">
+                {cardActions(item)}
+              </div>
+            )}
           </div>
         ))}
       </div>
