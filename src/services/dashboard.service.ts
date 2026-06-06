@@ -46,34 +46,43 @@ export const dashboardService = {
     const currentMonth = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`
     const monthStart = `${currentMonth}-01`
 
-    const [totalMembers, activeMemberships, expiringMemberships, monthlyRevenue] =
-      await Promise.all([
-        supabase
-          .from('profiles')
-          .select('id', { count: 'exact', head: true })
-          .eq('role', 'member')
-          .eq('is_active', true),
+    const promises = await Promise.allSettled([
+      supabase
+        .from('profiles')
+        .select('id', { count: 'exact', head: true })
+        .eq('role', 'member')
+        .eq('is_active', true),
 
-        supabase
-          .from('memberships')
-          .select('id', { count: 'exact', head: true })
-          .eq('status', 'active')
-          .lte('start_date', today)
-          .gte('end_date', today),
+      supabase
+        .from('memberships')
+        .select('id', { count: 'exact', head: true })
+        .eq('status', 'active')
+        .lte('start_date', today)
+        .gte('end_date', today),
 
-        supabase
-          .from('memberships')
-          .select('id', { count: 'exact', head: true })
-          .eq('status', 'active')
-          .gte('end_date', today)
-          .lte('end_date', futureDate),
+      supabase
+        .from('memberships')
+        .select('id', { count: 'exact', head: true })
+        .eq('status', 'active')
+        .gte('end_date', today)
+        .lte('end_date', futureDate),
 
-        supabase
-          .from('payments')
-          .select('amount')
-          .eq('status', 'paid')
-          .gte('payment_date', monthStart),
-      ])
+      supabase
+        .from('payments')
+        .select('amount')
+        .eq('status', 'paid')
+        .gte('payment_date', monthStart),
+    ])
+
+    const totalMembers = promises[0].status === 'fulfilled' ? promises[0].value : { count: null, error: promises[0].reason }
+    const activeMemberships = promises[1].status === 'fulfilled' ? promises[1].value : { count: null, error: promises[1].reason }
+    const expiringMemberships = promises[2].status === 'fulfilled' ? promises[2].value : { count: null, error: promises[2].reason }
+    const monthlyRevenue = promises[3].status === 'fulfilled' ? promises[3].value : { data: null, error: promises[3].reason }
+
+    if (totalMembers.error) console.error('KPIs totalMembers query failed:', totalMembers.error)
+    if (activeMemberships.error) console.error('KPIs activeMemberships query failed:', activeMemberships.error)
+    if (expiringMemberships.error) console.error('KPIs expiringMemberships query failed:', expiringMemberships.error)
+    if (monthlyRevenue.error) console.error('KPIs monthlyRevenue query failed:', monthlyRevenue.error)
 
     const revenue =
       (monthlyRevenue.data || []).reduce(
@@ -207,6 +216,7 @@ export const dashboardService = {
     const todayLocal = new Date(now.getFullYear(), now.getMonth(), now.getDate())
     return (data || [])
       .map((m: any) => {
+        if (!m.end_date) return null
         const [y, mo, d] = m.end_date.split('-').map(Number)
         const endLocal = new Date(y, mo - 1, d)
         return {
@@ -218,7 +228,7 @@ export const dashboardService = {
           days_remaining: Math.round((endLocal.getTime() - todayLocal.getTime()) / 86400000),
         }
       })
-      .filter((m) => m.days_remaining > 0)
+      .filter((m): m is NonNullable<typeof m> => m !== null && m.days_remaining > 0)
   },
 
   getPendingPayments: async (): Promise<PendingPaymentItem[]> => {

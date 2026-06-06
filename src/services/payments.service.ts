@@ -18,6 +18,7 @@ export interface PaymentListItem {
   member_email: string | null
   concept: string
   amount: number
+  expected_amount: number | null
   date: string
   method: 'cash' | 'card' | 'transfer'
   status: 'paid' | 'pending' | 'cancelled'
@@ -29,6 +30,8 @@ export interface PaymentFilters {
   method?: string
   page?: number
   pageSize?: number
+  dateFrom?: string
+  dateTo?: string
 }
 
 export interface RevenueSummary {
@@ -47,7 +50,7 @@ export const paymentsService = {
         memberships(
           member_id,
           profiles!member_id(full_name, email),
-          membership_types(name)
+          membership_types(name, price)
         )
       `, { count: 'exact' })
 
@@ -57,6 +60,14 @@ export const paymentsService = {
 
     if (filters?.method) {
       query = query.eq('method', filters.method)
+    }
+
+    if (filters?.dateFrom) {
+      query = query.gte('payment_date', filters.dateFrom)
+    }
+
+    if (filters?.dateTo) {
+      query = query.lte('payment_date', filters.dateTo)
     }
 
     const from = ((filters?.page ?? 1) - 1) * (filters?.pageSize ?? 20)
@@ -69,39 +80,42 @@ export const paymentsService = {
     if (error) throw error
 
     return {
-      data: (data || []).map((p: any) => ({
-        id: p.id,
-        member_id: p.memberships?.member_id ?? '',
-        member_name: p.memberships?.profiles?.full_name ?? '—',
-        member_email: p.memberships?.profiles?.email ?? null,
-        concept: `${p.memberships?.membership_types?.name ?? 'Membresía'} · ${p.payment_date}`,
-        amount: p.amount,
-        date: p.payment_date,
-        method: p.method,
-        status: p.status,
-      })),
+      data: (data || []).map((p: any) => {
+        const typePrice = p.memberships?.membership_types?.price
+        return {
+          id: p.id,
+          member_id: p.memberships?.member_id ?? '',
+          member_name: p.memberships?.profiles?.full_name ?? '—',
+          member_email: p.memberships?.profiles?.email ?? null,
+          concept: `${p.memberships?.membership_types?.name ?? 'Membresía'} · ${p.payment_date}`,
+          amount: p.amount,
+          expected_amount: typePrice != null ? Number(typePrice) : null,
+          date: p.payment_date,
+          method: p.method,
+          status: p.status,
+        }
+      }),
       count: count ?? 0,
     }
   },
 
-  getRevenueSummary: async (): Promise<RevenueSummary> => {
+  getRevenueSummary: async (dateFrom?: string, dateTo?: string): Promise<RevenueSummary> => {
     const today = new Date().toISOString().split('T')[0]
 
-    const [collected, pending, cancelled, todayCollected] = await Promise.all([
-      supabase
+    const buildQuery = (status: string) => {
+      let q = supabase
         .from('payments')
         .select('amount')
-        .eq('status', 'paid'),
+        .eq('status', status)
+      if (dateFrom) q = q.gte('payment_date', dateFrom)
+      if (dateTo) q = q.lte('payment_date', dateTo)
+      return q
+    }
 
-      supabase
-        .from('payments')
-        .select('amount')
-        .eq('status', 'pending'),
-
-      supabase
-        .from('payments')
-        .select('amount')
-        .eq('status', 'cancelled'),
+    const promises = await Promise.allSettled([
+      buildQuery('paid'),
+      buildQuery('pending'),
+      buildQuery('cancelled'),
 
       supabase
         .from('payments')
@@ -109,6 +123,16 @@ export const paymentsService = {
         .eq('status', 'paid')
         .eq('payment_date', today),
     ])
+
+    const collected = promises[0].status === 'fulfilled' ? promises[0].value : { data: null, error: promises[0].reason }
+    const pending = promises[1].status === 'fulfilled' ? promises[1].value : { data: null, error: promises[1].reason }
+    const cancelled = promises[2].status === 'fulfilled' ? promises[2].value : { data: null, error: promises[2].reason }
+    const todayCollected = promises[3].status === 'fulfilled' ? promises[3].value : { data: null, error: promises[3].reason }
+
+    if (collected.error) console.error('Revenue collected query failed:', collected.error)
+    if (pending.error) console.error('Revenue pending query failed:', pending.error)
+    if (cancelled.error) console.error('Revenue cancelled query failed:', cancelled.error)
+    if (todayCollected.error) console.error('Revenue todayCollected query failed:', todayCollected.error)
 
     const sum = (arr: any[] | null) =>
       (arr || []).reduce((acc: number, p: any) => acc + Number(p.amount), 0)
@@ -159,6 +183,15 @@ export const paymentsService = {
 
     if (error) throw error
     return data as Payment
+  },
+
+  updateAmountByMembership: async (membershipId: string, amount: number): Promise<void> => {
+    const { error } = await supabase
+      .from('payments')
+      .update({ amount })
+      .eq('membership_id', membershipId);
+
+    if (error) throw error
   },
 
   getPendingCount: async (): Promise<number> => {

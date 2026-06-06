@@ -270,17 +270,17 @@ export default function FingerprintPage() {
                         <><circle cx="40" cy="40" r="28" stroke="#f87171" strokeWidth="3"/><line x1="30" y1="30" x2="50" y2="50" stroke="#f87171" strokeWidth="3" strokeLinecap="round"/><line x1="50" y1="30" x2="30" y2="50" stroke="#f87171" strokeWidth="3" strokeLinecap="round"/></>
                       ) : (
                         <>
-                          <path d="M40 10C23.4 10 10 23.4 10 40" stroke={sensorState === 'scanning' ? '#e8ff47' : 'var(--text-3)'} strokeWidth="3" strokeLinecap="round"/>
-                          <path d="M40 10C56.6 10 70 23.4 70 40" stroke={sensorState === 'scanning' ? '#e8ff47' : 'var(--text-3)'} strokeWidth="3" strokeLinecap="round"/>
-                          <path d="M40 20C28.9 20 20 28.9 20 40" stroke={sensorState === 'scanning' ? '#e8ff47' : 'var(--text-3)'} strokeWidth="3" strokeLinecap="round"/>
-                          <path d="M40 20C51.1 20 60 28.9 60 40" stroke={sensorState === 'scanning' ? '#e8ff47' : 'var(--text-3)'} strokeWidth="3" strokeLinecap="round"/>
-                          <path d="M40 30C34.5 30 30 34.5 30 40" stroke={sensorState === 'scanning' ? '#e8ff47' : 'var(--text-3)'} strokeWidth="3" strokeLinecap="round"/>
-                          <path d="M40 30C45.5 30 50 34.5 50 40" stroke={sensorState === 'scanning' ? '#e8ff47' : 'var(--text-3)'} strokeWidth="3" strokeLinecap="round"/>
-                          <path d="M40 30 L40 70" stroke={sensorState === 'scanning' ? '#e8ff47' : 'var(--text-3)'} strokeWidth="3" strokeLinecap="round"/>
-                          <path d="M20 40 C20 55 28 65 40 70" stroke={sensorState === 'scanning' ? '#e8ff47' : 'var(--text-3)'} strokeWidth="3" strokeLinecap="round"/>
-                          <path d="M60 40 C60 55 52 65 40 70" stroke={sensorState === 'scanning' ? '#e8ff47' : 'var(--text-3)'} strokeWidth="3" strokeLinecap="round"/>
-                          <path d="M30 40 C30 51 34 60 40 65" stroke={sensorState === 'scanning' ? '#e8ff47' : 'var(--text-3)'} strokeWidth="3" strokeLinecap="round"/>
-                          <path d="M50 40 C50 51 46 60 40 65" stroke={sensorState === 'scanning' ? '#e8ff47' : 'var(--text-3)'} strokeWidth="3" strokeLinecap="round"/>
+                          <path d="M40 10C23.4 10 10 23.4 10 40" stroke={sensorState === 'scanning' ? 'var(--accent)' : 'var(--text-3)'} strokeWidth="3" strokeLinecap="round"/>
+                          <path d="M40 10C56.6 10 70 23.4 70 40" stroke={sensorState === 'scanning' ? 'var(--accent)' : 'var(--text-3)'} strokeWidth="3" strokeLinecap="round"/>
+                          <path d="M40 20C28.9 20 20 28.9 20 40" stroke={sensorState === 'scanning' ? 'var(--accent)' : 'var(--text-3)'} strokeWidth="3" strokeLinecap="round"/>
+                          <path d="M40 20C51.1 20 60 28.9 60 40" stroke={sensorState === 'scanning' ? 'var(--accent)' : 'var(--text-3)'} strokeWidth="3" strokeLinecap="round"/>
+                          <path d="M40 30C34.5 30 30 34.5 30 40" stroke={sensorState === 'scanning' ? 'var(--accent)' : 'var(--text-3)'} strokeWidth="3" strokeLinecap="round"/>
+                          <path d="M40 30C45.5 30 50 34.5 50 40" stroke={sensorState === 'scanning' ? 'var(--accent)' : 'var(--text-3)'} strokeWidth="3" strokeLinecap="round"/>
+                          <path d="M40 30 L40 70" stroke={sensorState === 'scanning' ? 'var(--accent)' : 'var(--text-3)'} strokeWidth="3" strokeLinecap="round"/>
+                          <path d="M20 40 C20 55 28 65 40 70" stroke={sensorState === 'scanning' ? 'var(--accent)' : 'var(--text-3)'} strokeWidth="3" strokeLinecap="round"/>
+                          <path d="M60 40 C60 55 52 65 40 70" stroke={sensorState === 'scanning' ? 'var(--accent)' : 'var(--text-3)'} strokeWidth="3" strokeLinecap="round"/>
+                          <path d="M30 40 C30 51 34 60 40 65" stroke={sensorState === 'scanning' ? 'var(--accent)' : 'var(--text-3)'} strokeWidth="3" strokeLinecap="round"/>
+                          <path d="M50 40 C50 51 46 60 40 65" stroke={sensorState === 'scanning' ? 'var(--accent)' : 'var(--text-3)'} strokeWidth="3" strokeLinecap="round"/>
                         </>
                       )}
                     </svg>

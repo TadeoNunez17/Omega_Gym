@@ -70,7 +70,8 @@ export default function TrainerPanelPage() {
   const [nText, setNText] = useState('');
 
   useEffect(() => {
-    (async () => {
+    const ctrl = { ignore: false }
+    ;(async () => {
       try {
         const [membersData, plansData, expiring] = await Promise.all([
           membersService.getAll({ role: 'member', pageSize: 200 }),
@@ -78,6 +79,7 @@ export default function TrainerPanelPage() {
           membershipsService.getExpiring(7),
         ])
 
+        if (ctrl.ignore) return
         setMembers(membersData.data.map((m: MemberListItem) => ({
           id: m.id,
           name: m.full_name,
@@ -85,7 +87,15 @@ export default function TrainerPanelPage() {
           av: initials(m.full_name),
           avC: m.full_name.split('').reduce((a, c) => a + c.charCodeAt(0), 0) % AV_COLORS.length,
           membresia: m.membership_type || '—',
-          memDays: m.membership_end ? Math.max(0, Math.round((new Date(m.membership_end).getTime() - Date.now()) / 86400000)) : 0,
+          memDays: m.membership_end
+            ? (() => {
+                const [y, mo, d] = m.membership_end.split('-').map(Number)
+                const endLocal = new Date(y, mo - 1, d)
+                const now = new Date()
+                const todayLocal = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+                return Math.max(0, Math.round((endLocal.getTime() - todayLocal.getTime()) / 86400000))
+              })()
+            : 0,
           plan: m.plan_name || null,
           status: m.is_active ? 'active' : 'inactive',
         })))
@@ -99,11 +109,12 @@ export default function TrainerPanelPage() {
 
         setExpiringCount(expiring.length)
       } catch (err) {
-        console.error('Error loading panel data:', err)
+        if (!ctrl.ignore) console.error('Error loading panel data:', err)
       } finally {
-        setLoading(false)
+        if (!ctrl.ignore) setLoading(false)
       }
     })()
+    return () => { ctrl.ignore = true }
   }, [])
 
   const m = selectedIdx !== null ? members[selectedIdx] : null;

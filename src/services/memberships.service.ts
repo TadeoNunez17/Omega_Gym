@@ -81,9 +81,11 @@ export const membershipsService = {
     if (error) throw error
 
     const now = new Date()
+    const todayLocal = new Date(now.getFullYear(), now.getMonth(), now.getDate())
     const items: MembershipListItem[] = (data || []).map((m: any) => {
-      const end = new Date(m.end_date)
-      const daysRemaining = Math.round((end.getTime() - now.getTime()) / 86400000)
+      const [y, mo, d] = m.end_date.split('-').map(Number)
+      const endLocal = new Date(y, mo - 1, d)
+      const daysRemaining = Math.round((endLocal.getTime() - todayLocal.getTime()) / 86400000)
       return {
         id: m.id,
         member_id: m.member_id,
@@ -170,62 +172,33 @@ export const membershipsService = {
     status?: 'active' | 'expired' | 'cancelled'
     payment_method?: 'cash' | 'card' | 'transfer' | 'pending'
   }): Promise<Membership> => {
-    const { data: type } = await supabase
-      .from('membership_types')
-      .select('duration_days')
-      .eq('id', input.type_id)
-      .single()
-
-    const endDate = input.end_date ?? (() => {
-      const d = new Date(input.start_date)
-      d.setDate(d.getDate() + (type?.duration_days ?? 30))
-      return d.toISOString().split('T')[0]
-    })()
-
-    const { data, error } = await supabase
-      .from('memberships')
-      .insert({
-        member_id: input.member_id,
-        type_id: input.type_id,
-        start_date: input.start_date,
-        end_date: endDate,
-        status: input.status || 'active',
-      })
-      .select()
-      .single()
+    const { data, error } = await supabase.rpc('create_membership_with_payment', {
+      p_member_id: input.member_id,
+      p_type_id: input.type_id,
+      p_start_date: input.start_date,
+      p_end_date: input.end_date || null,
+      p_status: input.status || 'active',
+      p_payment_method: input.payment_method || null,
+    })
 
     if (error) throw error
-
-    if (input.payment_method) {
-      const { data: typePrice } = await supabase
-        .from('membership_types')
-        .select('price')
-        .eq('id', input.type_id)
-        .single()
-
-      const payMethod = input.payment_method === 'pending' ? 'cash' : input.payment_method
-      const payStatus = input.payment_method === 'pending' ? 'pending' : 'paid'
-
-      const { error: payError } = await supabase
-        .from('payments')
-        .insert({
-          membership_id: data.id,
-          amount: typePrice?.price ?? 0,
-          payment_date: input.start_date,
-          method: payMethod,
-          status: payStatus,
-        })
-
-      if (payError) throw payError
-    }
-
     return data as Membership
+  },
+
+  delete: async (id: string): Promise<void> => {
+    const { error } = await supabase
+      .from('memberships')
+      .delete()
+      .eq('id', id)
+
+    if (error) throw error
   },
 
   getExpiring: async (days: number = 7): Promise<MembershipListItem[]> => {
     await syncExpired()
     const now = new Date()
-    const future = new Date(now)
+    const todayLocal = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+    const future = new Date(todayLocal)
     future.setDate(future.getDate() + days)
 
     const today = now.toISOString().split('T')[0]
@@ -245,19 +218,21 @@ export const membershipsService = {
 
     if (error) throw error
 
-    return (data || []).map((m: any) => ({
-      id: m.id,
-      member_id: m.member_id,
-      member_name: m.profiles?.full_name ?? '—',
-      member_email: m.profiles?.email ?? null,
-      type_name: m.membership_types?.name ?? '—',
-      start_date: m.start_date,
-      end_date: m.end_date,
-      status: m.status,
-      days_remaining: Math.round(
-        (new Date(m.end_date).getTime() - now.getTime()) / 86400000
-      ),
-      payment_status: null,
-    }))
+    return (data || []).map((m: any) => {
+      const [y, mo, d] = m.end_date.split('-').map(Number)
+      const endLocal = new Date(y, mo - 1, d)
+      return {
+        id: m.id,
+        member_id: m.member_id,
+        member_name: m.profiles?.full_name ?? '—',
+        member_email: m.profiles?.email ?? null,
+        type_name: m.membership_types?.name ?? '—',
+        start_date: m.start_date,
+        end_date: m.end_date,
+        status: m.status,
+        days_remaining: Math.round((endLocal.getTime() - todayLocal.getTime()) / 86400000),
+        payment_status: null,
+      }
+    })
   },
 }

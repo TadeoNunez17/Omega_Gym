@@ -13,7 +13,7 @@ export default function AuthCallbackPage() {
     if (mounted.current) return
     mounted.current = true
 
-    supabase.auth.onAuthStateChange(async (_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       if (session?.user) {
         const profile = await authService.getProfile(session.user.id)
         if (profile?.role === 'admin') navigate('/dashboard', { replace: true })
@@ -28,6 +28,8 @@ export default function AuthCallbackPage() {
         navigate('/login', { replace: true })
       }
     })
+
+    return () => { subscription.unsubscribe() }
   }, [navigate])
 
   return (

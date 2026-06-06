@@ -8,14 +8,13 @@ import { PageHeader } from '@/components/ui/molecules/PageHeader';
 import { SearchInput } from '@/components/ui/molecules/SearchInput';
 import { TabBar } from '@/components/ui/molecules/TabBar';
 import { Pagination } from '@/components/ui/molecules/Pagination';
-import { IconPlus, IconEye, IconEdit } from '@/lib/icons';
-import { initials, fmtDate, fmtMoney, avatarIndex, AVATAR_COLORS } from '@/lib/helpers';
+import { IconEye, IconEdit } from '@/lib/icons';
+import { initials, fmtDate, fmtMoney, fmtPhone, avatarIndex, AVATAR_COLORS } from '@/lib/helpers';
 import { paymentsService, type PaymentListItem } from '@/services/payments.service';
 import { Modal } from '@/components/ui/molecules/Modal';
 import { ResponsiveTable, type Column } from '@/components/ui/molecules/ResponsiveTable';
 import { toast } from 'sonner';
 import { membersService, type MemberListItem } from '@/services/members.service';
-import { membershipsService, type Membership } from '@/services/memberships.service';
 
 const ROWS_PER_PAGE = 8;
 
@@ -44,24 +43,13 @@ type FilterKey = 'all' | PaymentStatus;
 
 export default function PaymentsPage() {
   const [payments, setPayments] = useState<Payment[]>([]);
-  const [revenue, setRevenue] = useState({ total_collected: 0, total_pending: 0, total_cancelled: 0, today_collected: 0 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentFilter, setCurrentFilter] = useState<FilterKey>('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [search, setSearch] = useState('');
 
-  const [modalOpen, setModalOpen] = useState(false);
   const [memberList, setMemberList] = useState<MemberListItem[]>([]);
-  const [selMember, setSelMember] = useState('');
-  const [memberMemberships, setMemberMemberships] = useState<Membership[]>([]);
-  const [selMembership, setSelMembership] = useState('');
-  const [amount, setAmount] = useState('');
-  const [paymentDate, setPaymentDate] = useState(new Date().toISOString().split('T')[0]);
-  const [method, setMethod] = useState<'cash' | 'card' | 'transfer'>('cash');
-  const [payStatus, setPayStatus] = useState<'paid' | 'pending'>('paid');
-  const [notes, setNotes] = useState('');
-  const [saving, setSaving] = useState(false);
   const [receiptTarget, setReceiptTarget] = useState<Payment | null>(null);
   const [previewTarget, setPreviewTarget] = useState<Payment | null>(null);
   const [previewMember, setPreviewMember] = useState<MemberListItem | null>(null);
@@ -69,6 +57,21 @@ export default function PaymentsPage() {
   const [editTarget, setEditTarget] = useState<Payment | null>(null);
   const [editStatus, setEditStatus] = useState<PaymentStatus>('paid');
   const [editSaving, setEditSaving] = useState(false);
+
+  const today = new Date();
+  const [viewYear, setViewYear] = useState(today.getFullYear());
+  const [viewMonth, setViewMonth] = useState(today.getMonth());
+
+  const monthRange = useMemo(() => {
+    const start = `${viewYear}-${String(viewMonth + 1).padStart(2, '0')}-01`;
+    const endDate = new Date(viewYear, viewMonth + 1, 0);
+    const end = `${viewYear}-${String(viewMonth + 1).padStart(2, '0')}-${String(endDate.getDate()).padStart(2, '0')}`;
+    return { monthStart: start, monthEnd: end };
+  }, [viewYear, viewMonth]);
+
+  const monthLabel = useMemo(() =>
+    new Date(viewYear, viewMonth).toLocaleDateString('es-MX', { month: 'long', year: 'numeric' }),
+  [viewYear, viewMonth]);
 
   const navigate = useNavigate();
 
@@ -78,10 +81,7 @@ export default function PaymentsPage() {
     try {
       await paymentsService.update(editTarget.id, { status: editStatus });
       setEditTarget(null);
-      const [result, rev] = await Promise.all([
-        paymentsService.getAll({ pageSize: 200 }),
-        paymentsService.getRevenueSummary(),
-      ]);
+      const result = await paymentsService.getAll({ pageSize: 200, dateFrom: monthRange.monthStart, dateTo: monthRange.monthEnd });
       setPayments(result.data.map((p): Payment => ({
         id: p.id,
         member_id: p.member_id,
@@ -96,14 +96,13 @@ export default function PaymentsPage() {
         membership_id: '',
         av: avatarIndex(p.id),
       })));
-      setRevenue(rev);
       toast.success('Estado actualizado correctamente');
     } catch (e: any) {
       toast.error('Error al actualizar: ' + e.message);
     } finally {
       setEditSaving(false);
     }
-  }, [editTarget, editStatus]);
+  }, [editTarget, editStatus, monthRange]);
 
   useEffect(() => {
     if (!previewTarget) { setPreviewMember(null); return; }
@@ -119,9 +118,8 @@ export default function PaymentsPage() {
       setLoading(true);
       setError(null);
       try {
-        const [result, rev, mList] = await Promise.all([
-          paymentsService.getAll({ pageSize: 200 }),
-          paymentsService.getRevenueSummary(),
+        const [result, mList] = await Promise.all([
+          paymentsService.getAll({ pageSize: 200, dateFrom: monthRange.monthStart, dateTo: monthRange.monthEnd }),
           membersService.getAll({ pageSize: 200 }),
         ]);
         setPayments(result.data.map((p): Payment => ({
@@ -138,7 +136,6 @@ export default function PaymentsPage() {
           membership_id: '',
           av: avatarIndex(p.id),
         })));
-        setRevenue(rev);
         setMemberList(mList.data);
       } catch (e: any) {
         setError(e.message);
@@ -147,7 +144,7 @@ export default function PaymentsPage() {
       }
     }
     load();
-  }, []);
+  }, [monthRange]);
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
@@ -163,75 +160,15 @@ export default function PaymentsPage() {
   const start = (safePage - 1) * ROWS_PER_PAGE;
   const rows = filtered.slice(start, start + ROWS_PER_PAGE);
 
-  const resetForm = useCallback(() => {
-    setSelMember('');
-    setSelMembership('');
-    setAmount('');
-    setPaymentDate(new Date().toISOString().split('T')[0]);
-    setMethod('cash');
-    setPayStatus('paid');
-    setNotes('');
-    setMemberMemberships([]);
-  }, []);
-
-  const handleMemberChange = useCallback(async (memberId: string) => {
-    setSelMember(memberId);
-    setSelMembership('');
-    if (!memberId) {
-      setMemberMemberships([]);
-      return;
-    }
-    try {
-      const memberships = await membershipsService.getByMember(memberId);
-      setMemberMemberships(memberships);
-      if (memberships.length === 1) {
-        setSelMembership(memberships[0].id);
-      }
-    } catch {
-      setMemberMemberships([]);
-    }
-  }, []);
-
-  const guardarPago = useCallback(async () => {
-    if (!selMembership || !amount || !paymentDate) return;
-    setSaving(true);
-    try {
-      await paymentsService.create({
-        membership_id: selMembership,
-        amount: parseFloat(amount),
-        payment_date: paymentDate,
-        method,
-        status: payStatus,
-        notes: notes || undefined,
-      });
-      setModalOpen(false);
-      resetForm();
-      const [result, rev] = await Promise.all([
-        paymentsService.getAll({ pageSize: 200 }),
-        paymentsService.getRevenueSummary(),
-      ]);
-      setPayments(result.data.map((p): Payment => ({
-        id: p.id,
-        member_id: p.member_id,
-        member: p.member_name,
-        email: p.member_email ?? '',
-        concept: p.concept,
-        amount: p.amount,
-        date: p.date,
-        method: p.method as PaymentMethod,
-        status: p.status as PaymentStatus,
-        notes: null,
-        membership_id: '',
-        av: avatarIndex(p.id),
-      })));
-      setRevenue(rev);
-      toast.success('Pago registrado correctamente');
-    } catch (e: any) {
-      toast.error('Error al registrar pago: ' + e.message);
-    } finally {
-      setSaving(false);
-    }
-  }, [selMembership, amount, paymentDate, method, payStatus, notes, resetForm]);
+  const revenue = useMemo(() => {
+    const todayStr = new Date().toISOString().split('T')[0];
+    return {
+      total_collected: payments.reduce((s, p) => p.status === 'paid' ? s + p.amount : s, 0),
+      total_pending: payments.reduce((s, p) => p.status === 'pending' ? s + p.amount : s, 0),
+      total_cancelled: payments.reduce((s, p) => p.status === 'cancelled' ? s + p.amount : s, 0),
+      today_collected: payments.reduce((s, p) => p.status === 'paid' && p.date === todayStr ? s + p.amount : s, 0),
+    };
+  }, [payments]);
 
   const filters = [
     { key: 'all' as FilterKey, label: 'Todos' },
@@ -267,7 +204,11 @@ export default function PaymentsPage() {
       key: 'amount',
       label: 'Monto',
       align: 'right',
-      render: (p) => <span className="font-mono text-[13px] font-medium">{fmtMoney(p.amount)}</span>,
+      render: (p) => (
+        <div className="flex items-center gap-2 justify-end">
+          <span className="font-mono text-[13px] font-medium">{fmtMoney(p.amount)}</span>
+        </div>
+      ),
     },
     {
       key: 'date',
@@ -299,7 +240,8 @@ export default function PaymentsPage() {
       key: 'actions',
       label: '',
       render: (p) => (
-        <div className="flex gap-1.5 justify-end">
+        <div className="flex justify-end">
+          <div className="flex gap-1.5">
           <IconButton title="Ver recibo" onClick={() => setReceiptTarget(p)}>
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /><polyline points="10 9 9 9 8 9" /></svg>
           </IconButton>
@@ -309,6 +251,7 @@ export default function PaymentsPage() {
           <IconButton title="Editar estado" onClick={() => { setEditTarget(p); setEditStatus(p.status); }}>
             <IconEdit width="13" height="13" />
           </IconButton>
+          </div>
         </div>
       ),
     },
@@ -321,20 +264,17 @@ export default function PaymentsPage() {
           Panel <span className="text-[10px]">›</span>
           <span className="text-text-2">Pagos</span>
         </div>
-        <div className="flex items-center gap-2 sm:gap-2.5">
-
-          <Button variant="primary" size="sm" icon={<IconPlus />} onClick={() => { resetForm(); setModalOpen(true); }}>Registrar pago</Button>
-        </div>
+        <div />
       </header>
 
       <div className="p-4 sm:p-7 flex-1">
-        <PageHeader title="Pagos" description="Registro de pagos, membresías y transacciones del gimnasio" />
+        <PageHeader title="Pagos" description={`Pagos y transacciones de ${monthLabel}`} />
 
         <div className="flex overflow-x-auto gap-3 mb-6 sm:grid sm:grid-cols-2 lg:grid-cols-4">
           {[
-            { label: 'Recaudado', value: fmtMoney(revenue.total_collected), color: 'green', sub: 'Total histórico' },
-            { label: 'Pendiente', value: fmtMoney(revenue.total_pending), color: 'amber', sub: 'Por cobrar' },
-            { label: 'Cancelado', value: fmtMoney(revenue.total_cancelled), color: 'red', sub: 'Transacciones canceladas' },
+            { label: 'Recaudado', value: fmtMoney(revenue.total_collected), color: 'green', sub: `Recaudado en ${monthLabel}` },
+            { label: 'Pendiente', value: fmtMoney(revenue.total_pending), color: 'amber', sub: `Pendiente en ${monthLabel}` },
+            { label: 'Cancelado', value: fmtMoney(revenue.total_cancelled), color: 'red', sub: `Cancelado en ${monthLabel}` },
             { label: 'Hoy', value: fmtMoney(revenue.today_collected), color: 'accent', sub: 'Hoy' },
           ].map((m) => (
             <div key={m.label} className="relative bg-surface border border-border rounded overflow-hidden p-[18px] shrink-0 min-w-[140px] sm:min-w-0">
@@ -344,6 +284,25 @@ export default function PaymentsPage() {
               <div className="text-[11px] text-text-3 mt-1.5">{m.sub}</div>
             </div>
           ))}
+        </div>
+
+        {/* MONTH NAV */}
+        <div className="flex items-center gap-3 mb-4">
+          <button onClick={() => {
+            if (viewMonth === 0) { setViewYear(viewYear - 1); setViewMonth(11); }
+            else setViewMonth(viewMonth - 1);
+            setCurrentPage(1);
+          }} className="w-7 h-7 flex items-center justify-center rounded hover:bg-surface2 transition-colors text-text-3 hover:text-text-1" title="Mes anterior">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4"><polyline points="15 18 9 12 15 6" /></svg>
+          </button>
+          <span className="text-[13px] font-medium text-text-1 capitalize min-w-[140px] text-center">{monthLabel}</span>
+          <button onClick={() => {
+            if (viewMonth === 11) { setViewYear(viewYear + 1); setViewMonth(0); }
+            else setViewMonth(viewMonth + 1);
+            setCurrentPage(1);
+          }} className="w-7 h-7 flex items-center justify-center rounded hover:bg-surface2 transition-colors text-text-3 hover:text-text-1" title="Mes siguiente">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4"><polyline points="9 18 15 12 9 6" /></svg>
+          </button>
         </div>
 
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 mb-4">
@@ -375,7 +334,14 @@ export default function PaymentsPage() {
                 );
               }}
               cardFields={[
-                { label: 'Monto', value: (p: Payment) => <span className="font-mono font-semibold">{fmtMoney(p.amount)}</span> },
+                {
+                  label: 'Monto',
+                  value: (p: Payment) => (
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-mono font-semibold">{fmtMoney(p.amount)}</span>
+                    </div>
+                  ),
+                },
                 { label: 'Estado', value: (p: Payment) => (
                   p.status === 'paid' ? <Badge variant="green" dot>Pagado</Badge> : p.status === 'pending' ? <Badge variant="amber" dot>Pendiente</Badge> : <Badge variant="red" dot>Cancelado</Badge>
                 )},
@@ -386,16 +352,18 @@ export default function PaymentsPage() {
                 { label: 'Fecha', value: (p: Payment) => fmtDate(p.date) },
               ]}
               cardActions={(p: Payment) => (
-                <div className="flex gap-1.5 justify-end">
-                  <IconButton title="Ver recibo" onClick={() => setReceiptTarget(p)}>
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /><polyline points="10 9 9 9 8 9" /></svg>
-                  </IconButton>
-                  <IconButton title="Ver detalle" onClick={() => setPreviewTarget(p)}>
-                    <IconEye width="13" height="13" />
-                  </IconButton>
-                  <IconButton title="Editar estado" onClick={() => { setEditTarget(p); setEditStatus(p.status); }}>
-                    <IconEdit width="13" height="13" />
-                  </IconButton>
+                <div className="flex">
+                  <div className="ml-auto flex gap-1.5">
+                    <IconButton title="Ver recibo" onClick={() => setReceiptTarget(p)}>
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /><polyline points="10 9 9 9 8 9" /></svg>
+                    </IconButton>
+                    <IconButton title="Ver detalle" onClick={() => setPreviewTarget(p)}>
+                      <IconEye width="13" height="13" />
+                    </IconButton>
+                    <IconButton title="Editar estado" onClick={() => { setEditTarget(p); setEditStatus(p.status); }}>
+                      <IconEdit width="13" height="13" />
+                    </IconButton>
+                  </div>
                 </div>
               )}
               emptyMessage="No se encontraron pagos con ese criterio."
@@ -413,113 +381,6 @@ export default function PaymentsPage() {
           </div>
         )}
       </div>
-
-      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="Registrar pago" className="max-w-[400px]" icon={<IconPlus width="16" height="16" />}>
-        <div className="flex flex-col gap-4">
-          <div className="flex flex-col gap-1.5">
-            <label className="text-[12px] text-text-2 font-medium">Miembro *</label>
-            <select
-              value={selMember}
-              onChange={(e) => handleMemberChange(e.target.value)}
-              className="bg-surface2 border border-border2 text-text text-[13px] px-3 py-[9px] rounded-sm outline-none w-full font-sans"
-            >
-              <option value="">Seleccionar miembro</option>
-              {memberList.filter((m) => m.role === 'member').map((m) => (
-                <option key={m.id} value={m.id}>{m.full_name}</option>
-              ))}
-            </select>
-          </div>
-
-          {selMember && (
-            <div className="flex flex-col gap-1.5">
-              <label className="text-[12px] text-text-2 font-medium">Membresía *</label>
-              <select
-                value={selMembership}
-                onChange={(e) => setSelMembership(e.target.value)}
-                className="bg-surface2 border border-border2 text-text text-[13px] px-3 py-[9px] rounded-sm outline-none w-full font-sans"
-              >
-                <option value="">Seleccionar membresía</option>
-                {memberMemberships.map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {m.start_date} → {m.end_date} ({m.status})
-                  </option>
-                ))}
-              </select>
-              {memberMemberships.length === 0 && (
-                <div className="text-[11px] text-amber-text">Este miembro no tiene membresías registradas.</div>
-              )}
-            </div>
-          )}
-
-          <div className="flex flex-col gap-1.5">
-            <label className="text-[12px] text-text-2 font-medium">Monto *</label>
-            <input
-              type="number"
-              step="0.01"
-              min="0"
-              placeholder="0.00"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              className="bg-surface2 border border-border2 text-text text-[13px] px-3 py-[9px] rounded-sm outline-none w-full font-sans"
-            />
-          </div>
-
-          <div className="flex flex-col gap-1.5">
-            <label className="text-[12px] text-text-2 font-medium">Fecha de pago *</label>
-            <input
-              type="date"
-              value={paymentDate}
-              onChange={(e) => setPaymentDate(e.target.value)}
-              className="bg-surface2 border border-border2 text-text text-[13px] px-3 py-[9px] rounded-sm outline-none w-full font-sans"
-            />
-          </div>
-
-          <div className="flex flex-col gap-1.5">
-            <label className="text-[12px] text-text-2 font-medium">Método *</label>
-            <select
-              value={method}
-              onChange={(e) => setMethod(e.target.value as 'cash' | 'card' | 'transfer')}
-              className="bg-surface2 border border-border2 text-text text-[13px] px-3 py-[9px] rounded-sm outline-none w-full font-sans"
-            >
-              <option value="cash">Efectivo</option>
-              <option value="card">Tarjeta</option>
-              <option value="transfer">Transferencia</option>
-            </select>
-          </div>
-
-          <div className="flex flex-col gap-1.5">
-            <label className="text-[12px] text-text-2 font-medium">Estado</label>
-            <select
-              value={payStatus}
-              onChange={(e) => setPayStatus(e.target.value as 'paid' | 'pending')}
-              className="bg-surface2 border border-border2 text-text text-[13px] px-3 py-[9px] rounded-sm outline-none w-full font-sans"
-            >
-              <option value="paid">Pagado</option>
-              <option value="pending">Pendiente</option>
-            </select>
-          </div>
-
-          <div className="flex flex-col gap-1.5">
-            <label className="text-[12px] text-text-2 font-medium">Notas</label>
-            <textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="Notas opcionales..."
-              rows={2}
-              className="bg-surface2 border border-border2 text-text text-[13px] px-3 py-[9px] rounded-sm outline-none w-full font-sans resize-none"
-            />
-          </div>
-        </div>
-
-        <div className="flex justify-end gap-2.5 mt-2">
-          <Button variant="ghost" onClick={() => setModalOpen(false)} disabled={saving}>
-            Cancelar
-          </Button>
-          <Button variant="primary" onClick={guardarPago} disabled={!selMembership || !amount || !paymentDate || saving}>
-            {saving ? 'Guardando…' : 'Guardar pago'}
-          </Button>
-        </div>
-      </Modal>
 
       <Modal compact icon={
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-accent">
@@ -569,7 +430,7 @@ export default function PaymentsPage() {
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-text-3 shrink-0">
                     <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
                   </svg>
-                  <span className="text-[12px] text-text-2">{previewMember.phone}</span>
+                  <span className="text-[12px] text-text-2">{fmtPhone(previewMember.phone)}</span>
                 </div>
               )}
             </div>
@@ -628,7 +489,7 @@ export default function PaymentsPage() {
                 </svg>
               </div>
               <div className="text-[28px] font-semibold font-mono leading-none -tracking-[0.03em]" style={{ color: receiptTarget.status === 'paid' ? 'var(--green-text)' : 'var(--amber-text)' }}>
-                {fmtMoney(receiptTarget.amount)}
+                <span>{fmtMoney(receiptTarget.amount)}</span>
               </div>
               <div className="mt-2">
                 {receiptTarget.status === 'paid' ? <Badge variant="green" dot>Pagado</Badge> : receiptTarget.status === 'pending' ? <Badge variant="amber" dot>Pendiente</Badge> : <Badge variant="red" dot>Cancelado</Badge>}

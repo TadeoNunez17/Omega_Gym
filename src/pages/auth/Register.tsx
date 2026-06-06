@@ -12,6 +12,13 @@ export default function RegisterPage() {
   const [password, setPassword] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
+  function formatPhone(v: string) {
+    const d = v.replace(/\D/g, '').slice(0, 10)
+    if (d.length <= 3) return d
+    if (d.length <= 6) return `${d.slice(0, 3)}-${d.slice(3)}`
+    return `${d.slice(0, 3)}-${d.slice(3, 6)}-${d.slice(6)}`
+  }
+
   function isValidPhone(v: string) {
     return /^\d{10}$/.test(v.replace(/[\s\-()]/g, ''))
   }
@@ -74,7 +81,7 @@ export default function RegisterPage() {
         </div>
         <div>
           <label className="block text-[12px] font-medium text-text-2 mb-1.5">Teléfono <span className="text-text-3 font-normal">(opcional si tienes correo)</span></label>
-          <input type="tel" placeholder="311 234 5678" value={phone} onChange={(e) => setPhone(e.target.value)}
+          <input type="tel" placeholder="311-234-5678" value={phone} onChange={(e) => setPhone(formatPhone(e.target.value))}
             className="w-full bg-bg border border-border text-text text-[13px] px-3.5 py-2.5 rounded-sm outline-none font-sans" />
         </div>
         <div>

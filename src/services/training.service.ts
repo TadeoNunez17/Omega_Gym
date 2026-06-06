@@ -1,5 +1,9 @@
 import { supabase } from '@/lib/supabase'
 
+function escapeSearch(s: string): string {
+  return s.replace(/[%_\\]/g, '\\$&')
+}
+
 export interface TrainingPlan {
   id: string
   name: string
@@ -56,7 +60,8 @@ export const trainingService = {
       `, { count: 'exact' })
 
     if (filters?.search) {
-      query = query.or(`name.ilike.%${filters.search}%,description.ilike.%${filters.search}%`)
+      const escaped = escapeSearch(filters.search)
+      query = query.or(`name.ilike.%${escaped}%,description.ilike.%${escaped}%`)
     }
 
     const from = ((filters?.page ?? 1) - 1) * (filters?.pageSize ?? 20)

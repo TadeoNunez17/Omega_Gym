@@ -1,5 +1,9 @@
 import { supabase } from '@/lib/supabase'
 
+function escapeSearch(s: string): string {
+  return s.replace(/[%_\\]/g, '\\$&')
+}
+
 export interface Member {
   id: string
   email: string | null
@@ -69,8 +73,9 @@ export const membersService = {
       `, { count: 'exact' })
 
     if (filters?.search) {
+      const escaped = escapeSearch(filters.search)
       query = query.or(
-        `full_name.ilike.%${filters.search}%,email.ilike.%${filters.search}%,phone.ilike.%${filters.search}%`
+        `full_name.ilike.%${escaped}%,email.ilike.%${escaped}%,phone.ilike.%${escaped}%`
       )
     }
 
@@ -137,28 +142,32 @@ export const membersService = {
   },
 
   linkPendingProfile: async (pendingId: string, registeredId: string) => {
-    const { data: pending, error: err1 } = await supabase
+    const { data: registered, error: err1 } = await supabase
       .from('profiles')
-      .select('full_name')
-      .eq('id', pendingId)
+      .select('auth_user_id, email, phone, full_name')
+      .eq('id', registeredId)
       .single()
 
-    if (err1 || !pending) throw new Error('Perfil pendiente no encontrado')
+    if (err1 || !registered) throw new Error('Perfil registrado no encontrado')
+    if (!registered.auth_user_id) throw new Error('El perfil registrado no tiene auth_user_id')
 
     const { error: err2 } = await supabase
       .from('profiles')
       .update({
-        alias: pending.full_name,
-        registration_status: 'claimed',
+        auth_user_id: registered.auth_user_id,
+        email: registered.email,
+        phone: registered.phone,
+        full_name: registered.full_name,
+        registration_status: 'registered',
       })
-      .eq('id', registeredId)
+      .eq('id', pendingId)
 
     if (err2) throw err2
 
     const { error: err3 } = await supabase
       .from('profiles')
       .delete()
-      .eq('id', pendingId)
+      .eq('id', registeredId)
 
     if (err3) throw err3
   },
@@ -178,8 +187,9 @@ export const membersService = {
       .eq('registration_status', 'registered')
 
     if (search) {
+      const escaped = escapeSearch(search)
       query = query.or(
-        `full_name.ilike.%${search}%,email.ilike.%${search}%,phone.ilike.%${search}%`
+        `full_name.ilike.%${escaped}%,email.ilike.%${escaped}%,phone.ilike.%${escaped}%`
       )
     }
 

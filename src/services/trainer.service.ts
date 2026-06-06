@@ -72,6 +72,7 @@ export const trainerService = {
 
     return profiles.map((profile): TrainerMember => {
       const now = new Date()
+      const todayLocal = new Date(now.getFullYear(), now.getMonth(), now.getDate())
       const m = membershipByMember[profile.id]
       const plan = planByMember[profile.id]
       return {
@@ -83,9 +84,13 @@ export const trainerService = {
         membership: m
           ? {
               type: m.membership_types?.name ?? 'Membresía',
-              days_remaining: Math.round(
-                (new Date(m.end_date).getTime() - now.getTime()) / 86400000
-              ),
+              days_remaining: m.end_date
+                ? (() => {
+                    const [y, mo, d] = m.end_date.split('-').map(Number)
+                    const endLocal = new Date(y, mo - 1, d)
+                    return Math.round((endLocal.getTime() - todayLocal.getTime()) / 86400000)
+                  })()
+                : 0,
             }
           : null,
         plan: plan

@@ -19,7 +19,8 @@ export default function MyPlanPage() {
 
   useEffect(() => {
     if (!user) return;
-    (async () => {
+    const ctrl = { ignore: false }
+    ;(async () => {
       try {
         const [membershipData, planData, paymentsData] = await Promise.all([
           membershipsService.getActiveWithType(user.id),
@@ -27,23 +28,25 @@ export default function MyPlanPage() {
           paymentsService.getByMember(user.id),
         ])
 
+        if (ctrl.ignore) return
         setMembership(membershipData)
         setPayments(paymentsData)
 
         if (planData) {
           setPlan(planData)
           const exs = await trainingService.getExercises(planData.id)
-          setExercises(exs)
+          if (!ctrl.ignore) setExercises(exs)
           if (planData.creator) {
             setTrainer(planData.creator)
           }
         }
       } catch (err) {
-        console.error('Error loading MyPlan:', err)
+        if (!ctrl.ignore) console.error('Error loading MyPlan:', err)
       } finally {
-        setLoading(false)
+        if (!ctrl.ignore) setLoading(false)
       }
     })()
+    return () => { ctrl.ignore = true }
   }, [user])
 
   if (loading || !user) {
@@ -66,8 +69,13 @@ export default function MyPlanPage() {
   const hasExercises = exercises.length > 0
 
   const now = new Date()
+  const todayLocal = new Date(now.getFullYear(), now.getMonth(), now.getDate())
   const daysRemaining = membership
-    ? Math.max(0, Math.round((new Date(membership.end_date).getTime() - now.getTime()) / 86400000))
+    ? (() => {
+        const [y, mo, d] = membership.end_date.split('-').map(Number)
+        const endLocal = new Date(y, mo - 1, d)
+        return Math.max(0, Math.round((endLocal.getTime() - todayLocal.getTime()) / 86400000))
+      })()
     : 0
 
   const totalDays = membership

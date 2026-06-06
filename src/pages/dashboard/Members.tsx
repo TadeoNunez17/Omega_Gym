@@ -11,7 +11,7 @@ import { TabBar } from '@/components/ui/molecules/TabBar';
 import { Pagination } from '@/components/ui/molecules/Pagination';
 import { IconDownload, IconPlus, IconEye, IconEdit, IconClose, IconTrash, IconAlert } from '@/lib/icons';
 import { checkInsService } from '@/services/checkIns.service';
-import { initials, avatarIndex, fmtDate, daysDiff, AVATAR_COLORS } from '@/lib/helpers';
+import { initials, avatarIndex, fmtDate, fmtPhone, daysDiff, AVATAR_COLORS } from '@/lib/helpers';
 import { membersService, type MemberListItem } from '@/services/members.service';
 import { supabase } from '@/lib/supabase';
 import { ResponsiveTable, type Column } from '@/components/ui/molecules/ResponsiveTable';
@@ -165,13 +165,9 @@ export default function MembersPage() {
 
   const guardarDetail = useCallback(async () => {
     if (!detailTarget) return;
-    if (!dForm.full_name.trim()) { toast.error('El nombre es obligatorio'); return; }
     setDetailSaving(true);
     try {
       await membersService.update(detailTarget.id, {
-        full_name: dForm.full_name.trim(),
-        email: dForm.email.trim() || undefined,
-        phone: dForm.phone.trim() || undefined,
         role: dForm.role as Role,
         alias: dForm.alias.trim() || undefined,
       });
@@ -196,18 +192,7 @@ export default function MembersPage() {
       role: member.role,
       alias: member.alias ?? '',
     });
-    membersService.getById(member.id)
-      .then((m) => {
-        setDForm({
-          full_name: m.full_name,
-          email: m.email ?? '',
-          phone: m.phone ?? '',
-          role: m.role,
-          alias: m.alias ?? '',
-        });
-      })
-      .catch(() => {})
-      .finally(() => setDetailLoading(false));
+    setDetailLoading(false);
   }, []);
 
   const openLinkModal = useCallback(async (member: Member) => {
@@ -277,7 +262,8 @@ export default function MembersPage() {
   ];
 
   function renderMembership(m: Member) {
-    const diff = daysDiff(m.vence);
+    const diffVal = daysDiff(m.vence);
+    const diff = diffVal !== null ? -diffVal : null;
     if (!m.membresia) return <span className="text-[12px] text-text-3">Sin membresía</span>;
     return (
       <div className="flex flex-col gap-0.5">
@@ -327,7 +313,7 @@ export default function MembersPage() {
       key: 'phone',
       label: 'Teléfono',
       hide: 'lg',
-      render: (m) => <span className="text-[12px] text-text-2">{m.phone || <span className="text-text-3">—</span>}</span>,
+      render: (m) => <span className="text-[12px] text-text-2">{fmtPhone(m.phone)}</span>,
     },
     {
       key: 'membership',
@@ -353,7 +339,7 @@ export default function MembersPage() {
     },
     {
       key: 'alias',
-      label: 'Sobrenombre',
+      label: 'Ref. interna',
       hide: 'lg',
       render: (m) => (
         m.alias
@@ -458,12 +444,12 @@ export default function MembersPage() {
                   <>{m.role === 'admin' ? <Badge variant="accent" dot>Admin</Badge> : m.role === 'trainer' ? <Badge variant="blue" dot>Entrenador</Badge> : <Badge variant="gray" dot>Miembro</Badge>}</>
                 )},
                 { label: 'Estado', value: (m: Member) => renderStatusBadge(m) },
-                { label: 'Sobrenombre', value: (m: Member) => (
+                { label: 'Ref. interna', value: (m: Member) => (
                   m.alias
                     ? <span className="inline-flex items-center gap-1.5 px-[9px] py-[3px] rounded-sm text-[11px] bg-surface2 text-accent-text border border-border">{m.alias}</span>
                     : <span className="text-text-3">—</span>
                 )},
-                { label: 'Teléfono', value: (m: Member) => m.phone || <span className="text-text-3">—</span> },
+                { label: 'Teléfono', value: (m: Member) => fmtPhone(m.phone) },
                 { label: 'Membresía', value: (m: Member) => renderMembership(m) },
                 { label: 'Plan', value: (m: Member) => (
                   m.plan ? (
@@ -624,7 +610,7 @@ export default function MembersPage() {
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-text-3 shrink-0">
                     <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
                   </svg>
-                  <span className="text-[12px] text-text-2">{m.phone || <span className="text-text-3">—</span>}</span>
+                  <span className="text-[12px] text-text-2">{fmtPhone(m.phone)}</span>
                 </div>
               </div>
 
@@ -729,7 +715,7 @@ export default function MembersPage() {
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-text-3 shrink-0">
                     <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
                   </svg>
-                  <span>{detailTarget.phone || <span className="text-text-3">—</span>}</span>
+                  <span>{fmtPhone(detailTarget.phone)}</span>
                 </div>
               </div>
 
@@ -751,7 +737,7 @@ export default function MembersPage() {
 
               {detailMode === 'edit' && (
                 <div className="border-t border-border pt-5">
-                  {/* Read-only info zone */}
+                  {/* Read-only info */}
                   <div className="mb-5">
                     <h3 className="text-[11px] text-text-3 uppercase tracking-[0.08em] mb-3 flex items-center gap-2">
                       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -763,8 +749,7 @@ export default function MembersPage() {
                       {[
                         { label: 'Nombre completo', value: dForm.full_name, span: true },
                         { label: 'Correo electrónico', value: dForm.email || '—' },
-                        { label: 'Teléfono', value: dForm.phone || '—' },
-                        { label: 'Rol', value: dForm.role === 'admin' ? 'Admin' : dForm.role === 'trainer' ? 'Entrenador' : 'Miembro' },
+                        { label: 'Teléfono', value: fmtPhone(dForm.phone) },
                       ].map((f) => (
                         <div key={f.label} className={`flex flex-col gap-1 px-3 py-2.5 rounded-sm bg-surface2/50 border border-border ${f.span ? 'sm:col-span-2' : ''}`}>
                           <div className="flex items-center justify-between">
@@ -776,6 +761,16 @@ export default function MembersPage() {
                           <span className="text-[13px] text-text-2">{f.value}</span>
                         </div>
                       ))}
+                      <div className="flex flex-col gap-1.5 sm:col-span-2">
+                        <label className="text-[10px] text-text-3 uppercase tracking-[0.06em] font-medium">Rol</label>
+                        <select value={dForm.role}
+                          onChange={(e) => setDForm((f) => ({ ...f, role: e.target.value }))}
+                          className="bg-surface border border-border text-text text-[14px] px-3 py-[9px] rounded-sm outline-none w-full font-sans focus:border-accent focus:ring-1 focus:ring-accent/40 transition-all">
+                          <option value="member">Miembro</option>
+                          <option value="trainer">Entrenador</option>
+                          <option value="admin">Admin</option>
+                        </select>
+                      </div>
                     </div>
                   </div>
 
@@ -786,17 +781,17 @@ export default function MembersPage() {
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
                           <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
                         </svg>
-                        Sobrenombre
+                        Ref. interna
                       </h3>
-                      <Badge variant="accent" dot>Editable</Badge>
+                      <Badge variant="accent" dot>Admin</Badge>
                     </div>
                     <input type="text" value={dForm.alias}
                       onChange={(e) => setDForm((f) => ({ ...f, alias: e.target.value }))}
-                      placeholder="Apodo o nombre corto"
+                      placeholder="Referencia para identificar al miembro"
                       className="w-full bg-surface border border-accent/30 text-text text-[14px] px-3 py-[10px] rounded-sm outline-none font-sans
                         placeholder:text-text-3/40 transition-all duration-150
                         focus:border-accent focus:ring-1 focus:ring-accent/40" />
-                    <p className="text-[10px] text-text-3/60 mt-2">Este nombre es visible en listados y reportes internos.</p>
+                    <p className="text-[10px] text-text-3/60 mt-2">Solo visible para el admin. Identifica al miembro en pre-registro.</p>
                   </div>
                 </div>
               )}
@@ -878,7 +873,7 @@ export default function MembersPage() {
                     <div className="flex items-center gap-2 mt-0.5">
                       {c.email && <span className="text-[11px] text-text-3">{c.email}</span>}
                       {c.email && c.phone && <span className="text-[8px] text-text-3/40">·</span>}
-                      {c.phone && <span className="text-[11px] text-text-3">{c.phone}</span>}
+                      {c.phone && <span className="text-[11px] text-text-3">{fmtPhone(c.phone)}</span>}
                     </div>
                   </div>
                   <Button variant="primary" size="sm" onClick={() => confirmLink(c.id)}

@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { membershipsService, type MembershipListItem, type MembershipType } from '@/services/memberships.service';
 import { membersService, type MemberListItem } from '@/services/members.service';
+import { paymentsService } from '@/services/payments.service';
 import { Modal } from '@/components/ui/molecules/Modal';
 import { Button } from '@/components/ui/atoms/Button';
 import { Badge } from '@/components/ui/atoms/Badge';
@@ -12,8 +13,8 @@ import { SearchInput } from '@/components/ui/molecules/SearchInput';
 import { TabBar } from '@/components/ui/molecules/TabBar';
 import { Pagination } from '@/components/ui/molecules/Pagination';
 import { ResponsiveTable, type Column } from '@/components/ui/molecules/ResponsiveTable';
-import { IconEye, IconEdit, IconPlus, IconCalendar } from '@/lib/icons';
-import { initials, fmtDate, daysDiff, avatarIndex, AVATAR_COLORS } from '@/lib/helpers';
+import { IconEye, IconEdit, IconPlus, IconCalendar, IconTrash, IconAlert } from '@/lib/icons';
+import { initials, fmtDate, fmtPhone, daysDiff, avatarIndex, AVATAR_COLORS } from '@/lib/helpers';
 import { toast } from 'sonner';
 
 const ROWS_PER_PAGE = 7;
@@ -34,9 +35,11 @@ interface Member {
 
 function getStatus(m: Member): MembershipStatus {
   if (m.isVisita) return 'active';
-  const d = daysDiff(m.vence);
-  if (d === null || d < 0) return 'expired';
-  if (d <= 7) return 'warning';
+  const diffVal = daysDiff(m.vence);
+  if (diffVal === null) return 'active';
+  const diff = -diffVal;
+  if (diff < 0) return 'expired';
+  if (diff <= 7) return 'warning';
   return 'active';
 }
 
@@ -80,21 +83,26 @@ export default function MembershipsPage() {
   const [editMemberName, setEditMemberName] = useState('');
   const [editMemberEmail, setEditMemberEmail] = useState('');
   const [editMemberPlan, setEditMemberPlan] = useState('');
+  const [deleteTarget, setDeleteTarget] = useState<Member | null>(null);
 
   const [previewTarget, setPreviewTarget] = useState<Member | null>(null);
   const [previewMember, setPreviewMember] = useState<MemberListItem | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
 
-  const today = new Date().toISOString().split('T')[0];
+  const now = new Date();
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  const localDate = (str: string) => { const [y, m, d] = str.split('-').map(Number); return new Date(y, m - 1, d); };
   const navigate = useNavigate();
 
   useEffect(() => {
     if (!previewTarget) { setPreviewMember(null); return; }
+    const ctrl = { cancelled: false }
     setPreviewLoading(true);
     membersService.getById(previewTarget.member_id)
-      .then(setPreviewMember)
-      .catch(() => setPreviewMember(null))
-      .finally(() => setPreviewLoading(false));
+      .then((data) => { if (!ctrl.cancelled) setPreviewMember(data) })
+      .catch(() => { if (!ctrl.cancelled) setPreviewMember(null) })
+      .finally(() => { if (!ctrl.cancelled) setPreviewLoading(false) })
+    return () => { ctrl.cancelled = true }
   }, [previewTarget]);
 
   useEffect(() => {
@@ -152,9 +160,9 @@ export default function MembershipsPage() {
     ? isVisita
       ? startDate
       : (() => {
-          const d = new Date(startDate);
-          d.setDate(d.getDate() + selTypeData.duration_days);
-          return d.toISOString().split('T')[0];
+          const [y, mo, d] = startDate.split('-').map(Number)
+          const end = new Date(y, mo - 1, d + selTypeData.duration_days)
+          return `${end.getFullYear()}-${String(end.getMonth() + 1).padStart(2, '0')}-${String(end.getDate()).padStart(2, '0')}`
         })()
     : '';
 
@@ -210,6 +218,9 @@ export default function MembershipsPage() {
         end_date: editEnd,
         status: editStatus as 'active' | 'expired' | 'cancelled',
       });
+      if (selectedType) {
+        await paymentsService.updateAmountByMembership(editId, selectedType.price);
+      }
       setEditId(null);
       const result = await membershipsService.getAll({ pageSize: 200 });
       setMembers(result.data.map(toMember));
@@ -220,6 +231,25 @@ export default function MembershipsPage() {
       setEditSaving(false);
     }
   }, [editId, editTypeId, editStart, editEnd, editStatus, membershipTypes]);
+
+  const handleDelete = useCallback((m: Member) => {
+    setDeleteTarget(m);
+  }, []);
+
+  const confirmDeleteMembership = useCallback(async () => {
+    const target = deleteTarget;
+    if (!target) return;
+    try {
+      await membershipsService.delete(target.id);
+      const result = await membershipsService.getAll({ pageSize: 200 });
+      setMembers(result.data.map(toMember));
+      setDeleteTarget(null);
+      toast.success('Membresía eliminada correctamente');
+    } catch (e: any) {
+      toast.error('Error al eliminar: ' + e.message);
+      setDeleteTarget(null);
+    }
+  }, [deleteTarget]);
 
   const columns: Column<Member>[] = [
     {
@@ -259,13 +289,14 @@ export default function MembershipsPage() {
       label: 'Vencimiento',
       render: (m) => {
         if (m.isVisita) return <div className="text-[12px] text-text-3">—</div>;
-        const diff = daysDiff(m.vence);
+        const diffVal = daysDiff(m.vence);
+        const diff = diffVal !== null ? -diffVal : null;
         return (
           <div>
             <div className="text-[12px]">{fmtDate(m.vence)}</div>
-            {diff !== null && m.status === 'active' && <div className="text-[11px] text-text-3 mt-0.5">{diff} días restantes</div>}
-            {diff !== null && m.status === 'warning' && <div className="text-[11px] text-amber-text mt-0.5">Vence en {diff} día{diff === 1 ? '' : 's'}</div>}
-            {diff !== null && m.status === 'expired' && <div className="text-[11px] text-red-text mt-0.5">Venció hace {Math.abs(diff)} días</div>}
+            {diff !== null && diff >= 7 && <div className="text-[11px] text-text-3 mt-0.5">{diff} días restantes</div>}
+            {diff !== null && diff >= 0 && diff < 7 && <div className="text-[11px] text-amber-text mt-0.5">Vence en {diff} día{diff === 1 ? '' : 's'}</div>}
+            {diff !== null && diff < 0 && <div className="text-[11px] text-red-text mt-0.5">Venció hace {Math.abs(diff)} días</div>}
           </div>
         );
       },
@@ -274,9 +305,13 @@ export default function MembershipsPage() {
       key: 'status',
       label: 'Estado',
       render: (m) => {
-        if (m.status === 'active') return <Badge variant="green" dot>Activa</Badge>;
-        if (m.status === 'warning') return <Badge variant="amber" dot>Por vencer</Badge>;
-        return <Badge variant="red" dot>Vencida</Badge>;
+        if (m.isVisita) return <Badge variant="gray" dot>Visita</Badge>;
+        const diffVal = daysDiff(m.vence);
+        const diff = diffVal !== null ? -diffVal : null;
+        if (diff === null) return <Badge variant="gray" dot>—</Badge>;
+        if (diff < 0) return <Badge variant="red" dot>Vencida</Badge>;
+        if (diff <= 7) return <Badge variant="amber" dot>Por vencer</Badge>;
+        return <Badge variant="green" dot>Activa</Badge>;
       },
     },
     {
@@ -289,6 +324,9 @@ export default function MembershipsPage() {
           </IconButton>
           <IconButton title="Editar" onClick={() => openEditModal(m)}>
             <IconEdit width="13" height="13" />
+          </IconButton>
+          <IconButton title="Eliminar" onClick={() => handleDelete(m)}>
+            <IconTrash width="13" height="13" />
           </IconButton>
         </div>
       ),
@@ -400,12 +438,13 @@ export default function MembershipsPage() {
                   label: 'Vencimiento',
                   value: (m) => {
                     if (m.isVisita) return <span className="text-[12px] text-text-3">—</span>;
-                    const diff = daysDiff(m.vence);
+        const diffVal = daysDiff(m.vence);
+        const diff = diffVal !== null ? -diffVal : null;
                     return (
                       <div>
-                        {m.status === 'active' && diff !== null && <span className="text-[12px]">{fmtDate(m.vence)} ({diff}d)</span>}
-                        {m.status === 'warning' && diff !== null && <span className="text-[12px] text-amber-text">{fmtDate(m.vence)} ({diff}d)</span>}
-                        {m.status === 'expired' && diff !== null && <span className="text-[12px] text-red-text">{fmtDate(m.vence)} ({Math.abs(diff)}d)</span>}
+                        {diff !== null && diff >= 7 && <span className="text-[12px]">{fmtDate(m.vence)} ({diff}d)</span>}
+                        {diff !== null && diff >= 0 && diff < 7 && <span className="text-[12px] text-amber-text">{fmtDate(m.vence)} ({diff}d)</span>}
+                        {diff !== null && diff < 0 && <span className="text-[12px] text-red-text">{fmtDate(m.vence)} ({Math.abs(diff)}d)</span>}
                         {diff === null && <span className="text-[12px]">{fmtDate(m.vence)}</span>}
                       </div>
                     );
@@ -414,25 +453,31 @@ export default function MembershipsPage() {
                 {
                   label: 'Estado',
                   value: (m) => {
-                    if (m.status === 'active') return <Badge variant="green" dot>Activa</Badge>;
-                    if (m.status === 'warning') return <Badge variant="amber" dot>Por vencer</Badge>;
-                    return <Badge variant="red" dot>Vencida</Badge>;
+                    if (m.isVisita) return <Badge variant="gray" dot>Visita</Badge>;
+                    const diffVal = daysDiff(m.vence);
+                    const diff = diffVal !== null ? -diffVal : null;
+                    if (diff === null) return <Badge variant="gray" dot>—</Badge>;
+                    if (diff < 0) return <Badge variant="red" dot>Vencida</Badge>;
+                    if (diff <= 7) return <Badge variant="amber" dot>Por vencer</Badge>;
+                    return <Badge variant="green" dot>Activa</Badge>;
                   },
                 },
-                {
-                  label: '',
-                  value: (m) => (
-                    <div className="flex gap-1.5">
-                      <IconButton title="Ver detalle" onClick={() => setPreviewTarget(m)}>
-                        <IconEye width="13" height="13" />
-                      </IconButton>
-                      <IconButton title="Editar" onClick={() => openEditModal(m)}>
-                        <IconEdit width="13" height="13" />
-                      </IconButton>
-                    </div>
-                  ),
-                },
               ]}
+              cardActions={(m: Member) => (
+                <div className="flex">
+                  <div className="ml-auto flex gap-1.5">
+                    <IconButton title="Ver detalle" onClick={() => setPreviewTarget(m)}>
+                      <IconEye width="13" height="13" />
+                    </IconButton>
+                    <IconButton title="Editar" onClick={() => openEditModal(m)}>
+                      <IconEdit width="13" height="13" />
+                    </IconButton>
+                    <IconButton title="Eliminar" onClick={() => handleDelete(m)}>
+                      <IconTrash width="13" height="13" />
+                    </IconButton>
+                  </div>
+                </div>
+              )}
               emptyMessage="No se encontraron membresías con ese criterio."
             />
 
@@ -497,7 +542,7 @@ export default function MembershipsPage() {
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-text-3 shrink-0">
                     <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
                   </svg>
-                  <span className="text-[12px] text-text-2">{previewMember.phone}</span>
+                  <span className="text-[12px] text-text-2">{fmtPhone(previewMember.phone)}</span>
                 </div>
               )}
             </div>
@@ -549,7 +594,8 @@ export default function MembershipsPage() {
                   <button key={type.id} type="button"
                     onClick={() => {
                       setSelType(type.id);
-                      if (isVisitaType) setStartDate(today);
+                      if (isVisitaType && paymentMethod === 'pending') setPaymentMethod('');
+                      setStartDate(today);
                     }}
                     className={`relative flex flex-col items-start p-3 rounded-sm border text-left transition-all duration-150 cursor-pointer font-sans
                       ${selected
@@ -603,7 +649,7 @@ export default function MembershipsPage() {
                   </div>
                   <div className="flex items-center gap-2 text-[13px] text-text">
                     <IconCalendar width="14" height="14" className="text-text-3 shrink-0" />
-                    {new Date(startDate || today).toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+                    {localDate(startDate || today).toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
                   </div>
                   <div className="mt-2 text-[11px] text-text-3 leading-relaxed">
                     Membresía válida únicamente el día de hoy. No requiere renovación.
@@ -625,7 +671,7 @@ export default function MembershipsPage() {
                       <label className="text-[12px] text-text-2 font-medium">Fecha de vencimiento</label>
                       <div className="flex items-center gap-2 text-[13px] text-text px-3 py-[9px] bg-surface2 border border-border2 rounded-sm opacity-80">
                         <IconCalendar width="13" height="13" className="text-text-3 shrink-0" />
-                        {new Date(computedEnd).toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' })}
+                        {localDate(computedEnd).toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' })}
                       </div>
                     </div>
                   )}
@@ -646,20 +692,24 @@ export default function MembershipsPage() {
                   {[
                     { value: 'cash' as const, label: 'Efectivo' },
                     { value: 'transfer' as const, label: 'Transferencia' },
-                    { value: 'pending' as const, label: 'Pendiente', center: true },
+                    { value: 'pending' as const, label: isVisita ? 'No disponible para Visita' : 'Pendiente', center: true, disabled: isVisita },
                   ].map((opt) => {
                     const selected = paymentMethod === opt.value;
+                    const disabled = (opt as any).disabled;
                     return (
                       <button key={opt.value} type="button"
-                        onClick={() => setPaymentMethod(selected ? '' : opt.value)}
-                        className={`flex items-center gap-2 px-3 py-[9px] rounded-sm border text-[12px] font-medium transition-all duration-150 cursor-pointer font-sans
+                        onClick={() => {
+                          if (!disabled) setPaymentMethod(selected ? '' : opt.value);
+                        }}
+                        className={`flex items-center gap-2 px-3 py-[9px] rounded-sm border text-[12px] font-medium transition-all duration-150 font-sans
                           ${(opt as any).center ? 'col-span-2 justify-center' : 'text-left'}
-                          ${selected
-                            ? 'border-accent bg-accent/8 ring-1 ring-accent/40 text-accent'
-                            : 'border-border2 bg-surface2 hover:border-text-3 text-text-2'
+                          ${disabled ? 'cursor-not-allowed opacity-40 border-border2 bg-surface2 text-text-3' :
+                          selected
+                            ? 'border-accent bg-accent/8 ring-1 ring-accent/40 text-accent cursor-pointer'
+                            : 'border-border2 bg-surface2 hover:border-text-3 text-text-2 cursor-pointer'
                           }`}
                       >
-                        {selected && (
+                        {selected && !disabled && (
                           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="shrink-0">
                             <polyline points="20 6 9 17 4 12" />
                           </svg>
@@ -674,7 +724,7 @@ export default function MembershipsPage() {
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-text-3 shrink-0">
                       <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
                     </svg>
-                    <span><strong className="text-text">${selTypeData.price.toLocaleString()}</strong> — {paymentMethod === 'pending' ? 'Pendiente' : 'Pagado'} · {new Date(startDate || today).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                    <span><strong className="text-text">${selTypeData.price.toLocaleString()}</strong> — {paymentMethod === 'pending' ? 'Pendiente' : 'Pagado'} · {localDate(startDate || today).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
                   </div>
                 )}
               </div>
@@ -718,10 +768,10 @@ export default function MembershipsPage() {
                     <button key={type.id} type="button"
                       onClick={() => {
                         setEditTypeId(type.id);
-                        if (editStart) {
-                          const d = new Date(editStart);
-                          d.setDate(d.getDate() + type.duration_days);
-                          setEditEnd(d.toISOString().split('T')[0]);
+                      if (editStart) {
+                          const [y, mo, d] = editStart.split('-').map(Number)
+                          const ed = new Date(y, mo - 1, d + type.duration_days)
+                          setEditEnd(`${ed.getFullYear()}-${String(ed.getMonth() + 1).padStart(2, '0')}-${String(ed.getDate()).padStart(2, '0')}`)
                         }
                       }}
                       className={`relative flex flex-col items-start p-3 rounded-sm border text-left transition-all duration-150 cursor-pointer font-sans
@@ -760,9 +810,9 @@ export default function MembershipsPage() {
                   setEditStart(e.target.value);
                   const t = membershipTypes.find((mt) => mt.id === editTypeId);
                   if (t && e.target.value) {
-                    const d = new Date(e.target.value);
-                    d.setDate(d.getDate() + t.duration_days);
-                    setEditEnd(d.toISOString().split('T')[0]);
+                    const [y, mo, d] = e.target.value.split('-').map(Number)
+                    const ed = new Date(y, mo - 1, d + t.duration_days)
+                    setEditEnd(`${ed.getFullYear()}-${String(ed.getMonth() + 1).padStart(2, '0')}-${String(ed.getDate()).padStart(2, '0')}`)
                   }
                 }}
                   className="bg-surface2 border border-border2 text-text text-[13px] px-3 py-2 rounded-sm outline-none w-full font-sans [color-scheme:dark]" />
@@ -864,6 +914,22 @@ export default function MembershipsPage() {
             </div>
           </div>
         )}
+      </Modal>
+
+      <Modal open={deleteTarget !== null} onClose={() => setDeleteTarget(null)} title="Eliminar membresía" className="max-w-[400px]" icon={<IconAlert width="16" height="16" />}>
+        <div className="flex flex-col gap-4">
+          <div className="text-[13px] text-text-1 leading-relaxed">
+            ¿Estás seguro de eliminar la membresía <strong>{deleteTarget?.plan}</strong> de <strong>{deleteTarget?.name}</strong>?
+          </div>
+          <div className="text-[12px] text-text-3 bg-red-bg/10 border border-red/20 rounded-sm p-3 leading-relaxed">
+            Se eliminarán los pagos asociados a esta membresía.
+            Esta acción no se puede deshacer.
+          </div>
+        </div>
+        <div className="flex justify-end gap-2.5 mt-2">
+          <Button variant="ghost" onClick={() => setDeleteTarget(null)}>Cancelar</Button>
+          <Button variant="danger" onClick={confirmDeleteMembership}>Eliminar</Button>
+        </div>
       </Modal>
     </>
   );

@@ -20,14 +20,17 @@ function IconPlusMember() { return <svg viewBox="0 0 24 24" fill="none" stroke="
 function IconCreditCard() { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-full h-full"><rect x="2" y="5" width="20" height="14" rx="2" /><line x1="2" y1="10" x2="22" y2="10" /></svg>; }
 function IconAlert() { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-full h-full"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></svg>; }
 
+const MONTHS = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+
 function fmtDateShort(s: string) {
   const [y, mo, d] = s.split('-');
-  const m = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
-  return `${parseInt(d)} ${m[parseInt(mo) - 1]} ${y}`;
+  return `${parseInt(d)} ${MONTHS[parseInt(mo) - 1]} ${y}`;
 }
 
-const NOW = new Date();
-const TODAY_STR = `${NOW.getDate()} ${['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'][NOW.getMonth()]} ${NOW.getFullYear()}`;
+function todayStr() {
+  const n = new Date();
+  return `${n.getDate()} ${MONTHS[n.getMonth()]} ${n.getFullYear()}`;
+}
 
 function timeAgo(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime();
@@ -91,7 +94,7 @@ export default function DashboardPage() {
           <span className="text-text-2">Dashboard</span>
         </div>
         <div className="flex items-center gap-2 sm:gap-3">
-          <span className="text-[11px] sm:text-[12px] text-text-3 font-mono bg-surface border border-border px-2.5 sm:px-3 py-1.5 rounded-sm hidden sm:inline">{TODAY_STR}</span>
+          <span className="text-[11px] sm:text-[12px] text-text-3 font-mono bg-surface border border-border px-2.5 sm:px-3 py-1.5 rounded-sm hidden sm:inline">{todayStr()}</span>
 
         </div>
       </header>
@@ -101,7 +104,7 @@ export default function DashboardPage() {
           <div>
             <h1 className="text-[20px] sm:text-[22px] font-semibold -tracking-[0.02em]">Buenos días 👋</h1>
             <p className="text-[12px] sm:text-[13px] text-text-2 mt-1">
-              Aquí está el resumen de Omega Gym hoy, {TODAY_STR}.
+              Aquí está el resumen de Omega Gym hoy, {todayStr()}.
             </p>
           </div>
         </div>

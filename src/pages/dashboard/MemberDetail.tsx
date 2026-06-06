@@ -6,7 +6,7 @@ import { IconButton } from '@/components/ui/atoms/IconButton';
 import { LoadingSpinner } from '@/components/ui/atoms/LoadingSpinner';
 import { Modal } from '@/components/ui/molecules/Modal';
 import { ResponsiveTable, type Column } from '@/components/ui/molecules/ResponsiveTable';
-import { initials, fmtDate, fmtMoney, daysDiff, avatarIndex, AVATAR_COLORS } from '@/lib/helpers';
+import { initials, fmtDate, fmtMoney, fmtPhone, daysDiff, avatarIndex, AVATAR_COLORS } from '@/lib/helpers';
 import { IconEdit, IconEye, IconCalendar } from '@/lib/icons';
 import { membersService, type MemberListItem } from '@/services/members.service';
 import { membershipsService, type Membership, type MembershipType } from '@/services/memberships.service';
@@ -56,12 +56,14 @@ export default function MemberDetailPage() {
 
   useEffect(() => {
     if (!id) { navigate('/members'); return; }
+    const ctrl = { cancelled: false }
     setLoading(true);
     Promise.all([
       membersService.getById(id),
       membershipsService.getTypes(),
     ])
       .then(([data, types]) => {
+        if (ctrl.cancelled) return
         setMember(data);
         setMembershipTypes(types);
         setForm({
@@ -73,71 +75,79 @@ export default function MemberDetailPage() {
         });
       })
       .catch((e) => {
+        if (ctrl.cancelled) return
         toast.error('Error al cargar miembro: ' + e.message);
         navigate('/members');
       })
-      .finally(() => setLoading(false));
+      .finally(() => { if (!ctrl.cancelled) setLoading(false) })
+    return () => { ctrl.cancelled = true }
   }, [id, navigate]);
 
   useEffect(() => {
     if (!member || activeTab !== 'memberships') return;
+    const ctrl = { cancelled: false }
     setMembershipsLoading(true);
     membershipsService.getByMember(member.id)
       .then((data) => {
+        if (ctrl.cancelled) return
         const enriched = data.map((m) => ({
           ...m,
           type_name: membershipTypes.find((t) => t.id === m.type_id)?.name ?? '—',
         }));
         setMemberships(enriched);
       })
-      .catch(() => toast.error('Error al cargar membresías'))
-      .finally(() => setMembershipsLoading(false));
+      .catch(() => { if (!ctrl.cancelled) toast.error('Error al cargar membresías') })
+      .finally(() => { if (!ctrl.cancelled) setMembershipsLoading(false) })
+    return () => { ctrl.cancelled = true }
   }, [activeTab, member]);
 
   useEffect(() => {
     if (!member || activeTab !== 'payments') return;
+    const ctrl = { cancelled: false }
     setPaymentsLoading(true);
     paymentsService.getByMember(member.id)
-      .then(setPayments)
-      .catch(() => toast.error('Error al cargar pagos'))
-      .finally(() => setPaymentsLoading(false));
+      .then((data) => { if (!ctrl.cancelled) setPayments(data) })
+      .catch(() => { if (!ctrl.cancelled) toast.error('Error al cargar pagos') })
+      .finally(() => { if (!ctrl.cancelled) setPaymentsLoading(false) })
+    return () => { ctrl.cancelled = true }
   }, [activeTab, member]);
 
   useEffect(() => {
     if (!member || activeTab !== 'plan') return;
+    const ctrl = { cancelled: false }
     setPlanLoading(true);
     trainingService.getByMember(member.id)
       .then(async (p) => {
+        if (ctrl.cancelled) return
         setPlan(p);
         if (p) {
           const ex = await trainingService.getExercises(p.id);
-          setExercises(ex);
+          if (!ctrl.cancelled) setExercises(ex);
         } else {
           setExercises([]);
         }
       })
-      .catch(() => toast.error('Error al cargar plan'))
-      .finally(() => setPlanLoading(false));
+      .catch(() => { if (!ctrl.cancelled) toast.error('Error al cargar plan') })
+      .finally(() => { if (!ctrl.cancelled) setPlanLoading(false) })
+    return () => { ctrl.cancelled = true }
   }, [activeTab, member]);
 
   useEffect(() => {
     if (!member || activeTab !== 'checkins') return;
+    const ctrl = { cancelled: false }
     setCheckInsLoading(true);
     checkInsService.getByMember(member.id)
-      .then(setCheckIns)
-      .catch(() => toast.error('Error al cargar check-ins'))
-      .finally(() => setCheckInsLoading(false));
+      .then((data) => { if (!ctrl.cancelled) setCheckIns(data) })
+      .catch(() => { if (!ctrl.cancelled) toast.error('Error al cargar check-ins') })
+      .finally(() => { if (!ctrl.cancelled) setCheckInsLoading(false) })
+    return () => { ctrl.cancelled = true }
   }, [activeTab, member]);
 
   const handleSave = useCallback(async () => {
     if (!member || !id) return;
-    if (!form.full_name.trim()) { toast.error('El nombre es obligatorio'); return; }
     setSaving(true);
     try {
       await membersService.update(id, {
-        full_name: form.full_name.trim(),
-        email: form.email.trim() || undefined,
-        phone: form.phone.trim() || undefined,
         role: form.role as 'admin' | 'trainer' | 'member',
         alias: form.alias.trim() || undefined,
       });
@@ -168,7 +178,8 @@ export default function MemberDetailPage() {
     (ms) => ms.status === 'active'
   );
 
-  const daysRemaining = activeMembership ? daysDiff(activeMembership.end_date) : null;
+  const _rem = activeMembership ? daysDiff(activeMembership.end_date) : null;
+  const daysRemaining = _rem !== null ? -_rem : null;
 
   const activeMembershipType = activeMembership
     ? membershipTypes.find((t) => t.id === activeMembership.type_id)
@@ -320,7 +331,7 @@ export default function MemberDetailPage() {
                     </svg>
                     <div>
                       <div className="text-[10px] text-text-3 uppercase tracking-[0.06em]">Teléfono</div>
-                      <div className="text-[13px]">{m.phone || <span className="text-text-3">—</span>}</div>
+                      <div className="text-[13px]">{fmtPhone(m.phone)}</div>
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
@@ -328,7 +339,7 @@ export default function MemberDetailPage() {
                       <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
                     </svg>
                     <div>
-                      <div className="text-[10px] text-text-3 uppercase tracking-[0.06em]">Sobrenombre</div>
+                      <div className="text-[10px] text-text-3 uppercase tracking-[0.06em]">Ref. interna</div>
                       <div className="text-[13px]">{m.alias || <span className="text-text-3">—</span>}</div>
                     </div>
                   </div>
@@ -677,25 +688,20 @@ export default function MemberDetailPage() {
 
       <Modal open={editModal} onClose={() => setEditModal(false)} title="Editar miembro" className="max-w-[400px]" icon={<IconEdit width="16" height="16" />}>
         <div className="flex flex-col gap-4">
+          {[
+            { label: 'Nombre completo', value: form.full_name, span: true },
+            { label: 'Correo electrónico', value: form.email || '—' },
+            { label: 'Teléfono', value: fmtPhone(form.phone) },
+          ].map((f) => (
+            <div key={f.label} className={`flex flex-col gap-1 px-3 py-2.5 rounded-sm bg-surface2/50 border border-border ${f.span ? 'sm:col-span-2' : ''}`}>
+              <span className="text-[10px] text-text-3 uppercase tracking-[0.06em] font-medium">{f.label}</span>
+              <span className="text-[13px] text-text-2">{f.value}</span>
+            </div>
+          ))}
           <div className="flex flex-col gap-1.5">
-            <label className="text-[12px] text-text-2 font-medium">Nombre completo *</label>
-            <input type="text" value={form.full_name} onChange={(e) => setForm((f) => ({ ...f, full_name: e.target.value }))}
-              className="bg-surface2 border border-border2 text-text text-[13px] px-3 py-[9px] rounded-sm outline-none w-full font-sans" />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <label className="text-[12px] text-text-2 font-medium">Correo electrónico</label>
-            <input type="text" value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
-              className="bg-surface2 border border-border2 text-text text-[13px] px-3 py-[9px] rounded-sm outline-none w-full font-sans" />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <label className="text-[12px] text-text-2 font-medium">Teléfono</label>
-            <input type="text" value={form.phone} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
-              className="bg-surface2 border border-border2 text-text text-[13px] px-3 py-[9px] rounded-sm outline-none w-full font-sans" />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <label className="text-[12px] text-text-2 font-medium">Sobrenombre</label>
+            <label className="text-[12px] text-text-2 font-medium">Ref. interna</label>
             <input type="text" value={form.alias} onChange={(e) => setForm((f) => ({ ...f, alias: e.target.value }))}
-              placeholder="Apodo o nombre corto"
+              placeholder="Referencia para identificar al miembro"
               className="bg-surface2 border border-border2 text-text text-[13px] px-3 py-[9px] rounded-sm outline-none w-full font-sans" />
           </div>
           <div className="flex flex-col gap-1.5">

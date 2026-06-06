@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { fmtPhone } from '@/lib/helpers';
 import { trainerService, type TrainerMember } from '@/services/trainer.service';
 
 const AVATAR_COLORS = [
@@ -261,7 +262,7 @@ function MemberDetail({ member }: { member: TrainerMember }) {
         <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-3)', marginBottom: 10 }}>Información</div>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
           <span style={{ fontSize: 12, color: 'var(--text-3)' }}>Teléfono</span>
-          <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-2)' }}>{member.phone || '—'}</span>
+          <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-2)' }}>{fmtPhone(member.phone)}</span>
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-between' }}>
           <span style={{ fontSize: 12, color: 'var(--text-3)' }}>Registrado</span>

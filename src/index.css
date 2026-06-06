@@ -9,9 +9,9 @@
   --color-text: #f0f0f0;
   --color-text-2: #a0a0a0;
   --color-text-3: #606060;
-  --color-accent: #e8ff47;
-  --color-accent-dim: rgba(232, 255, 71, 0.12);
-  --color-accent-text: #b8cc1a;
+  --color-accent: #e85d5d;
+  --color-accent-dim: rgba(232, 93, 93, 0.12);
+  --color-accent-text: #f08989;
   --color-green: #22c55e;
   --color-green-bg: rgba(34, 197, 94, 0.1);
   --color-green-text: #4ade80;
@@ -58,8 +58,10 @@ body {
   --text: #f0f0f0;
   --text-2: #a0a0a0;
   --text-3: #606060;
-  --accent: #e8ff47;
-  --accent-dim: rgba(232, 255, 71, 0.12);
+  --accent: #e85d5d;
+  --accent-dim: rgba(232, 93, 93, 0.12);
+  --accent-rgb: 232, 93, 93;
+  --accent-text: #f08989;
   --bg: #0f0f0f;
   --green: #22c55e;
   --green-bg: rgba(34, 197, 94, 0.1);
@@ -82,6 +84,61 @@ body {
   --gray-bg: rgba(255, 255, 255, 0.05);
   --gray-text: #707070;
   --sidebar-w: 220px;
+}
+
+[data-theme="light"] {
+  --color-bg: #f4f4f4;
+  --color-surface: #ffffff;
+  --color-surface2: #e8e8e8;
+  --color-border: rgba(0, 0, 0, 0.07);
+  --color-border2: rgba(0, 0, 0, 0.12);
+  --color-text: #111111;
+  --color-text-2: #555555;
+  --color-text-3: #888888;
+  --color-accent: #d94444;
+  --color-accent-dim: rgba(217, 68, 68, 0.1);
+  --color-accent-text: #b83333;
+  --color-green-bg: rgba(34, 197, 94, 0.08);
+  --color-green-text: #16a34a;
+  --color-amber-bg: rgba(245, 158, 11, 0.08);
+  --color-amber-text: #ca8a04;
+  --color-red-bg: rgba(239, 68, 68, 0.08);
+  --color-red-text: #dc2626;
+  --color-blue-bg: rgba(59, 130, 246, 0.08);
+  --color-blue-text: #2563eb;
+  --color-purple-bg: rgba(168, 85, 247, 0.08);
+  --color-purple-text: #9333ea;
+  --color-pink-bg: rgba(236, 72, 153, 0.08);
+  --color-pink-text: #db2777;
+  --color-gray-bg: rgba(0, 0, 0, 0.04);
+  --color-gray-text: #888888;
+
+  --bg: #f4f4f4;
+  --surface: #ffffff;
+  --surface2: #e8e8e8;
+  --border: rgba(0, 0, 0, 0.07);
+  --border2: rgba(0, 0, 0, 0.12);
+  --text: #111111;
+  --text-2: #555555;
+  --text-3: #888888;
+  --accent: #d94444;
+  --accent-dim: rgba(217, 68, 68, 0.1);
+  --accent-rgb: 217, 68, 68;
+  --accent-text: #b83333;
+  --green-bg: rgba(34, 197, 94, 0.08);
+  --green-text: #16a34a;
+  --amber-bg: rgba(245, 158, 11, 0.08);
+  --amber-text: #ca8a04;
+  --red-bg: rgba(239, 68, 68, 0.08);
+  --red-text: #dc2626;
+  --blue-bg: rgba(59, 130, 246, 0.08);
+  --blue-text: #2563eb;
+  --purple-bg: rgba(168, 85, 247, 0.08);
+  --purple-text: #9333ea;
+  --pink-bg: rgba(236, 72, 153, 0.08);
+  --pink-text: #db2777;
+  --gray-bg: rgba(0, 0, 0, 0.04);
+  --gray-text: #888888;
 }
 
 ::-webkit-scrollbar { width: 4px; height: 4px; }

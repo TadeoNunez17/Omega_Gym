@@ -5,10 +5,17 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 BEGIN
+  -- Mark expired memberships where end_date has passed
   UPDATE memberships
   SET status = 'expired'
   WHERE status = 'active'
     AND end_date < CURRENT_DATE;
+
+  -- Revert memberships incorrectly marked as expired
+  UPDATE memberships
+  SET status = 'active'
+  WHERE status = 'expired'
+    AND end_date >= CURRENT_DATE;
 END;
 $$;
 

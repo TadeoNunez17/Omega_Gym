@@ -263,17 +263,17 @@ export default function CheckInKioskPage() {
                 </svg>
               ) : (
                 <svg viewBox="0 0 90 90" fill="none" width="90" height="90" className="transition-all duration-[400ms]">
-                  <path d="M45 12C27.3 12 13 26.3 13 44" stroke={sensorState === 'scanning' ? '#e8ff47' : 'var(--text-3)'} strokeWidth="2.5" strokeLinecap="round"/>
-                  <path d="M45 12C62.7 12 77 26.3 77 44" stroke={sensorState === 'scanning' ? '#e8ff47' : 'var(--text-3)'} strokeWidth="2.5" strokeLinecap="round"/>
-                  <path d="M45 22C32 22 22 32 22 44" stroke={sensorState === 'scanning' ? '#e8ff47' : 'var(--text-3)'} strokeWidth="2.5" strokeLinecap="round"/>
-                  <path d="M45 22C58 22 68 32 68 44" stroke={sensorState === 'scanning' ? '#e8ff47' : 'var(--text-3)'} strokeWidth="2.5" strokeLinecap="round"/>
-                  <path d="M45 32C38 32 32 38 32 44" stroke={sensorState === 'scanning' ? '#e8ff47' : 'var(--text-3)'} strokeWidth="2.5" strokeLinecap="round"/>
-                  <path d="M45 32C52 32 58 38 58 44" stroke={sensorState === 'scanning' ? '#e8ff47' : 'var(--text-3)'} strokeWidth="2.5" strokeLinecap="round"/>
-                  <path d="M45 32 L45 78" stroke={sensorState === 'scanning' ? '#e8ff47' : 'var(--text-3)'} strokeWidth="2.5" strokeLinecap="round"/>
-                  <path d="M22 44 C22 62 30 74 45 78" stroke={sensorState === 'scanning' ? '#e8ff47' : 'var(--text-3)'} strokeWidth="2.5" strokeLinecap="round"/>
-                  <path d="M68 44 C68 62 60 74 45 78" stroke={sensorState === 'scanning' ? '#e8ff47' : 'var(--text-3)'} strokeWidth="2.5" strokeLinecap="round"/>
-                  <path d="M32 44 C32 58 37 68 45 74" stroke={sensorState === 'scanning' ? '#e8ff47' : 'var(--text-3)'} strokeWidth="2.5" strokeLinecap="round"/>
-                  <path d="M58 44 C58 58 53 68 45 74" stroke={sensorState === 'scanning' ? '#e8ff47' : 'var(--text-3)'} strokeWidth="2.5" strokeLinecap="round"/>
+                  <path d="M45 12C27.3 12 13 26.3 13 44" stroke={sensorState === 'scanning' ? 'var(--accent)' : 'var(--text-3)'} strokeWidth="2.5" strokeLinecap="round"/>
+                  <path d="M45 12C62.7 12 77 26.3 77 44" stroke={sensorState === 'scanning' ? 'var(--accent)' : 'var(--text-3)'} strokeWidth="2.5" strokeLinecap="round"/>
+                  <path d="M45 22C32 22 22 32 22 44" stroke={sensorState === 'scanning' ? 'var(--accent)' : 'var(--text-3)'} strokeWidth="2.5" strokeLinecap="round"/>
+                  <path d="M45 22C58 22 68 32 68 44" stroke={sensorState === 'scanning' ? 'var(--accent)' : 'var(--text-3)'} strokeWidth="2.5" strokeLinecap="round"/>
+                  <path d="M45 32C38 32 32 38 32 44" stroke={sensorState === 'scanning' ? 'var(--accent)' : 'var(--text-3)'} strokeWidth="2.5" strokeLinecap="round"/>
+                  <path d="M45 32C52 32 58 38 58 44" stroke={sensorState === 'scanning' ? 'var(--accent)' : 'var(--text-3)'} strokeWidth="2.5" strokeLinecap="round"/>
+                  <path d="M45 32 L45 78" stroke={sensorState === 'scanning' ? 'var(--accent)' : 'var(--text-3)'} strokeWidth="2.5" strokeLinecap="round"/>
+                  <path d="M22 44 C22 62 30 74 45 78" stroke={sensorState === 'scanning' ? 'var(--accent)' : 'var(--text-3)'} strokeWidth="2.5" strokeLinecap="round"/>
+                  <path d="M68 44 C68 62 60 74 45 78" stroke={sensorState === 'scanning' ? 'var(--accent)' : 'var(--text-3)'} strokeWidth="2.5" strokeLinecap="round"/>
+                  <path d="M32 44 C32 58 37 68 45 74" stroke={sensorState === 'scanning' ? 'var(--accent)' : 'var(--text-3)'} strokeWidth="2.5" strokeLinecap="round"/>
+                  <path d="M58 44 C58 58 53 68 45 74" stroke={sensorState === 'scanning' ? 'var(--accent)' : 'var(--text-3)'} strokeWidth="2.5" strokeLinecap="round"/>
                 </svg>
               )}
 

@@ -11,7 +11,11 @@ export function fmtDate(s: string | null) {
 
 export function daysDiff(d: string | null) {
   if (!d) return null
-  return Math.round((new Date(d).getTime() - Date.now()) / 86400000)
+  const [y, mo, day] = d.split('-')
+  const joined = new Date(parseInt(y), parseInt(mo) - 1, parseInt(day))
+  const now = new Date()
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  return Math.round((today.getTime() - joined.getTime()) / 86400000)
 }
 
 const AVATAR_COLORS = [
@@ -37,6 +41,14 @@ export function avatarColor(idOrName: string) {
 
 export function fmtMoney(amount: number) {
   return `$${amount.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+}
+
+export function fmtPhone(p: string | null) {
+  if (!p) return '—'
+  const d = p.replace(/\D/g, '').slice(0, 10)
+  if (d.length <= 3) return d
+  if (d.length <= 6) return `${d.slice(0, 3)}-${d.slice(3)}`
+  return `${d.slice(0, 3)}-${d.slice(3, 6)}-${d.slice(6)}`
 }
 
 export { AVATAR_COLORS }
