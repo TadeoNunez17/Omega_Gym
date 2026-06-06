@@ -152,16 +152,14 @@ export const membershipsService = {
     start_date: string
     end_date: string
     status: 'active' | 'expired' | 'cancelled'
-  }>): Promise<Membership> => {
-    const { data, error } = await supabase
+  }>): Promise<void> => {
+    const { error } = await supabase
       .from('memberships')
       .update(input)
       .eq('id', id)
       .select()
-      .single()
 
     if (error) throw error
-    return data as Membership
   },
 
   create: async (input: {

@@ -21,7 +21,7 @@ import ReportsPage from '@/pages/dashboard/Reports'
 import CheckInPage from '@/pages/kiosk/CheckIn'
 import MyPlanPage from '@/pages/member/MyPlan'
 import TrainerPanel from '@/pages/trainer/Panel'
-import TrainerMembers from '@/pages/trainer/Members'
+import TrainerMemberships from '@/pages/trainer/Memberships'
 import TrainerPlans from '@/pages/trainer/Plans'
 import TrainerTemplates from '@/pages/trainer/Templates'
 
@@ -59,7 +59,7 @@ export default function App() {
 
         <Route element={<ProtectedRoute roles={['trainer', 'admin']}><TrainerLayout /></ProtectedRoute>}>
           <Route path="/trainer/panel" element={<TrainerPanel />} />
-          <Route path="/trainer/members" element={<TrainerMembers />} />
+          <Route path="/trainer/memberships" element={<TrainerMemberships />} />
           <Route path="/trainer/plans" element={<TrainerPlans />} />
           <Route path="/trainer/templates" element={<TrainerTemplates />} />
         </Route>
