@@ -45,9 +45,9 @@ export function Sidebar({ pendingPaymentsCount = 0, onOpenSettings }: SidebarPro
         <div className="px-5 py-[18px] border-b border-border flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
-              style={{ background: '#0f0f0f', border: '1px solid rgba(255,45,45,0.35)' }}>
+              style={{ background: 'var(--logo-bg)', border: '1px solid var(--logo-border)' }}>
               <svg viewBox="0 0 24 24" fill="none" width="16" height="16">
-                <text x="12" y="18" fontFamily="serif" fontSize="18" fontWeight="bold" fill="#ff2d2d" textAnchor="middle">Ω</text>
+                <text x="12" y="18" fontFamily="serif" fontSize="18" fontWeight="bold" style={{ fill: 'var(--logo-omega)' }} textAnchor="middle">Ω</text>
               </svg>
             </div>
             <div>

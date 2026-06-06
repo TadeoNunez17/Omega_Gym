@@ -8,13 +8,16 @@ function getInitialTheme(): Theme {
   return 'dark'
 }
 
+const initialTheme = getInitialTheme()
+document.documentElement.dataset.theme = initialTheme
+
 interface ThemeState {
   theme: Theme
   toggle: () => void
 }
 
 export const useThemeStore = create<ThemeState>((set, get) => ({
-  theme: getInitialTheme(),
+  theme: initialTheme,
   toggle: () => {
     const next = get().theme === 'dark' ? 'light' : 'dark'
     localStorage.setItem('omega-gym-theme', next)

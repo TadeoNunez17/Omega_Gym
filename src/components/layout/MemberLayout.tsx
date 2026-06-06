@@ -1,11 +1,13 @@
 import { useState } from 'react'
 import { Outlet } from 'react-router-dom'
 import { useAuthStore } from '@/store/auth.store'
+import { useThemeStore } from '@/store/theme.store'
 import { SettingsModal } from '@/pages/settings/SettingsModal'
 
 export function MemberLayout() {
   const user = useAuthStore((s) => s.user)
   const initials = user?.full_name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() || 'MB'
+  const { theme, toggle: toggleTheme } = useThemeStore()
   const [showSettings, setShowSettings] = useState(false)
 
   return (
@@ -13,14 +15,23 @@ export function MemberLayout() {
       <header className="sticky top-0 z-20 bg-bg/92 backdrop-blur-[10px] border-b border-border px-6 h-14 flex items-center justify-between">
         <div className="flex items-center gap-2.5">
           <div className="w-[30px] h-[30px] rounded-[7px] flex items-center justify-center"
-            style={{ background: '#0f0f0f', border: '1px solid rgba(255,45,45,0.35)' }}>
+            style={{ background: 'var(--logo-bg)', border: '1px solid var(--logo-border)' }}>
             <svg viewBox="0 0 24 24" fill="none" width="14" height="14">
-              <text x="12" y="18" fontFamily="serif" fontSize="18" fontWeight="bold" fill="#ff2d2d" textAnchor="middle">Ω</text>
+              <text x="12" y="18" fontFamily="serif" fontSize="18" fontWeight="bold" style={{ fill: 'var(--logo-omega)' }} textAnchor="middle">Ω</text>
             </svg>
           </div>
           <span className="text-[15px] font-semibold -tracking-[0.01em]">Omega Gym</span>
         </div>
         <div className="flex items-center gap-2">
+          <button onClick={toggleTheme}
+            className="w-9 h-9 rounded-sm border border-border bg-surface flex items-center justify-center text-text hover:bg-surface2 transition-colors cursor-pointer"
+            title={theme === 'dark' ? 'Modo claro' : 'Modo oscuro'}>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"
+              dangerouslySetInnerHTML={{ __html: theme === 'dark'
+                ? '<path d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />'
+                : '<path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" />'
+              }} />
+          </button>
           <button onClick={() => setShowSettings(true)}
             className="flex items-center gap-2 bg-surface border border-border py-1.5 pl-1.5 pr-3 rounded-full cursor-pointer font-sans hover:bg-surface2 transition-colors">
             <div className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-semibold"

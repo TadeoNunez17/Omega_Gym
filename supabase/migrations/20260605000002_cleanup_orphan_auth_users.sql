@@ -6,7 +6,7 @@
 
 -- 1. Función para limpiar cuentas auth sin perfil asociado
 CREATE OR REPLACE FUNCTION public.cleanup_orphan_auth_users()
-RETURNS TABLE(deleted_id uuid, deleted_email text)
+RETURNS TABLE(deleted_id uuid, deleted_email varchar(255))
 SECURITY DEFINER
 SET search_path = ''
 AS $$

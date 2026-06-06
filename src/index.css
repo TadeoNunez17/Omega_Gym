@@ -84,6 +84,9 @@ body {
   --gray-bg: rgba(255, 255, 255, 0.05);
   --gray-text: #707070;
   --sidebar-w: 220px;
+  --logo-bg: #0f0f0f;
+  --logo-omega: #ff2d2d;
+  --logo-border: rgba(255,45,45,0.35);
 }
 
 [data-theme="light"] {
@@ -139,6 +142,9 @@ body {
   --pink-text: #db2777;
   --gray-bg: rgba(0, 0, 0, 0.04);
   --gray-text: #888888;
+  --logo-bg: #ffffff;
+  --logo-omega: #d94444;
+  --logo-border: rgba(217,68,68,0.25);
 }
 
 ::-webkit-scrollbar { width: 4px; height: 4px; }

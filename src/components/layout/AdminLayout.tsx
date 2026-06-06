@@ -5,6 +5,7 @@ import { baseNavItems, icons } from './sidebar-config'
 import { paymentsService } from '@/services/payments.service'
 import { useSidebarStore } from '@/store/sidebar.store'
 import { useAuthStore } from '@/store/auth.store'
+import { useThemeStore } from '@/store/theme.store'
 import { SettingsModal } from '@/pages/settings/SettingsModal'
 
 export function AdminLayout() {
@@ -13,6 +14,7 @@ export function AdminLayout() {
   const { toggle } = useSidebarStore()
   const pathname = useLocation().pathname
   const user = useAuthStore((s) => s.user)
+  const { theme, toggle: toggleTheme } = useThemeStore()
   const initials = user ? user.full_name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() : 'AD'
 
   useEffect(() => {
@@ -50,13 +52,14 @@ export function AdminLayout() {
             title={user?.full_name || 'Administrador'}>
             {initials}
           </button>
-          <button onClick={() => setShowSettings(true)}
-            className="p-2.5 rounded-sm text-text-3 hover:bg-surface2 hover:text-text transition-colors"
-            title="Configuración">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
-              <circle cx="12" cy="12" r="3" />
-              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
-            </svg>
+          <button onClick={toggleTheme}
+            className="p-2.5 rounded-sm text-text hover:bg-surface2 transition-colors"
+            title={theme === 'dark' ? 'Modo claro' : 'Modo oscuro'}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"
+              dangerouslySetInnerHTML={{ __html: theme === 'dark'
+                ? '<path d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />'
+                : '<path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" />'
+              }} />
           </button>
         </div>
       </div>

@@ -10,7 +10,7 @@ export function AuthLayout() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-bg relative overflow-hidden">
       <button onClick={toggle}
-        className="fixed top-4 right-4 z-50 w-9 h-9 rounded-sm border border-border bg-surface flex items-center justify-center cursor-pointer text-text-3 hover:text-text hover:bg-surface2 transition-colors"
+        className="fixed top-4 right-4 z-50 w-9 h-9 rounded-sm border border-border bg-surface flex items-center justify-center cursor-pointer text-text hover:bg-surface2 transition-colors"
         aria-label="Cambiar tema"
       >
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
@@ -25,9 +25,9 @@ export function AuthLayout() {
         <div className="text-center mb-8">
           <div className="flex flex-col items-center gap-3">
             <div className="w-[52px] h-[52px] rounded-xl flex items-center justify-center"
-              style={{ background: '#0f0f0f', border: '1.5px solid rgba(255,45,45,0.4)' }}>
+              style={{ background: 'var(--logo-bg)', border: '1.5px solid var(--logo-border)' }}>
               <svg viewBox="0 0 24 24" fill="none" width="28" height="28">
-                <text x="12" y="19" fontFamily="serif" fontSize="20" fontWeight="bold" fill="#ff2d2d" textAnchor="middle">Ω</text>
+                <text x="12" y="19" fontFamily="serif" fontSize="20" fontWeight="bold" style={{ fill: 'var(--logo-omega)' }} textAnchor="middle">Ω</text>
               </svg>
             </div>
             <div className="text-[28px] font-bold -tracking-[0.03em]">Omega Gym</div>

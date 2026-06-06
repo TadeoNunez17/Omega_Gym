@@ -1,5 +1,15 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48">
-  <rect width="48" height="48" rx="10" fill="#0f0f0f"/>
-  <rect x="4" y="4" width="40" height="40" rx="8" stroke="#ff2d2d" stroke-width="2" fill="none"/>
-  <text x="24" y="30" font-family="serif" font-size="22" font-weight="bold" fill="#ff2d2d" text-anchor="middle">Ω</text>
+  <style>
+    .bg { fill: #0f0f0f; }
+    .stroke { stroke: #ff2d2d; }
+    .omega { fill: #ff2d2d; }
+    @media (prefers-color-scheme: light) {
+      .bg { fill: #f4f4f4; }
+      .stroke { stroke: #d94444; }
+      .omega { fill: #d94444; }
+    }
+  </style>
+  <rect class="bg" width="48" height="48" rx="10"/>
+  <rect class="stroke" x="4" y="4" width="40" height="40" rx="8" fill="none" stroke-width="2"/>
+  <text class="omega" x="24" y="30" font-family="serif" font-size="22" font-weight="bold" text-anchor="middle">Ω</text>
 </svg>

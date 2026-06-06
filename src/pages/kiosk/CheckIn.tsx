@@ -198,9 +198,9 @@ export default function CheckInKioskPage() {
       <div className="flex items-center justify-between px-8 py-[18px] border-b border-border bg-surface">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-lg flex items-center justify-center"
-            style={{ background: '#0f0f0f', border: '1px solid rgba(255,45,45,0.35)' }}>
+            style={{ background: 'var(--logo-bg)', border: '1px solid var(--logo-border)' }}>
             <svg viewBox="0 0 24 24" fill="none" width="18" height="18">
-              <text x="12" y="18" fontFamily="serif" fontSize="18" fontWeight="bold" fill="#ff2d2d" textAnchor="middle">Ω</text>
+              <text x="12" y="18" fontFamily="serif" fontSize="18" fontWeight="bold" style={{ fill: 'var(--logo-omega)' }} textAnchor="middle">Ω</text>
             </svg>
           </div>
           <div>

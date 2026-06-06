@@ -74,7 +74,7 @@ export function SettingsModal({ open, onClose }: Props) {
         <div className="px-6 py-5 flex flex-col gap-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="text-text-3">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="text-text">
                 <path d={theme === 'dark' ? moonPath : sunPath} />
               </svg>
               <div>
@@ -88,7 +88,7 @@ export function SettingsModal({ open, onClose }: Props) {
               aria-label="Cambiar tema"
             >
               <span className={`absolute top-[3px] w-[18px] h-[18px] rounded-full bg-white shadow-sm transition-transform duration-200
-                ${theme === 'dark' ? 'translate-x-[3px]' : 'translate-x-[23px]'}`} />
+                ${theme === 'light' ? 'translate-x-[3px]' : 'translate-x-[23px]'}`} />
             </button>
           </div>
         </div>
