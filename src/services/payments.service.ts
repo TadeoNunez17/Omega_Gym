@@ -87,7 +87,7 @@ export const paymentsService = {
           member_id: p.memberships?.member_id ?? '',
           member_name: p.memberships?.profiles?.full_name ?? '—',
           member_email: p.memberships?.profiles?.email ?? null,
-          concept: `${p.memberships?.membership_types?.name ?? 'Membresía'} · ${p.payment_date}`,
+          concept: `${p.memberships?.membership_types?.name ?? 'Membresía'}`,
           amount: p.amount,
           expected_amount: typePrice != null ? Number(typePrice) : null,
           date: p.payment_date,

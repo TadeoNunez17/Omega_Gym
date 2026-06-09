@@ -44,7 +44,8 @@ export interface MemberFilters {
 }
 
 function toMemberListItem(raw: any): MemberListItem {
-  const membership = raw.memberships?.length > 0 ? raw.memberships[0] : null
+  const valid = (raw.memberships ?? []).filter((m: any) => m.membership_types?.name !== 'Visita')
+  const membership = valid.length > 0 ? valid[0] : null
   const plan = raw.training_plans?.length > 0 ? raw.training_plans[0] : null
   return {
     id: raw.id,
@@ -71,6 +72,7 @@ export const membersService = {
         memberships(status, end_date, membership_types(name)),
         training_plans!assigned_to(name)
       `, { count: 'exact' })
+      .neq('registration_status', 'claimed')
 
     if (filters?.search) {
       const escaped = escapeSearch(filters.search)
@@ -142,34 +144,56 @@ export const membersService = {
   },
 
   linkPendingProfile: async (pendingId: string, registeredId: string) => {
-    const { data: registered, error: err1 } = await supabase
+    const { data: registered, error: errR } = await supabase
       .from('profiles')
       .select('auth_user_id, email, phone, full_name')
       .eq('id', registeredId)
       .single()
-
-    if (err1 || !registered) throw new Error('Perfil registrado no encontrado')
+    if (errR || !registered) throw new Error('Perfil registrado no encontrado')
     if (!registered.auth_user_id) throw new Error('El perfil registrado no tiene auth_user_id')
 
-    const { error: err2 } = await supabase
+    const { data: pending } = await supabase
       .from('profiles')
-      .update({
-        auth_user_id: registered.auth_user_id,
-        email: registered.email,
-        phone: registered.phone,
-        full_name: registered.full_name,
-        registration_status: 'registered',
-      })
+      .select('full_name')
       .eq('id', pendingId)
+      .single()
 
+    const { error: err1 } = await supabase.from('profiles').update({
+      auth_user_id: registered.auth_user_id,
+      full_name: registered.full_name,
+      email: registered.email,
+      phone: registered.phone,
+      alias: pending?.full_name ?? null,
+      registration_status: 'registered',
+    }).eq('id', pendingId)
+    if (err1) throw err1
+
+    const { error: err2 } = await supabase.from('profiles').update({
+      auth_user_id: null,
+      registration_status: 'claimed',
+    }).eq('id', registeredId)
     if (err2) throw err2
 
-    const { error: err3 } = await supabase
-      .from('profiles')
-      .delete()
-      .eq('id', registeredId)
+    await Promise.all([
+      supabase.from('memberships').update({ member_id: pendingId }).eq('member_id', registeredId),
+      supabase.from('training_plans').update({ assigned_to: pendingId }).eq('assigned_to', registeredId),
+      supabase.from('check_ins').update({ member_id: pendingId }).eq('member_id', registeredId),
+    ])
 
-    if (err3) throw err3
+    const { error: errLink } = await supabase.from('auth_links').insert({
+      profile_id: pendingId,
+      auth_user_id: registered.auth_user_id,
+      registered_profile_id: registeredId,
+      status: 'linked',
+    })
+    if (errLink) throw errLink
+  },
+
+  unlink: async (id: string) => {
+    const { error } = await supabase.rpc('unlink_profile_auth', {
+      p_profile_id: id,
+    })
+    if (error) throw new Error(error.message)
   },
 
   getUnlinkedCandidates: async (search?: string): Promise<{
@@ -180,11 +204,21 @@ export const membersService = {
     phone: string | null
     created_at: string
   }[]> => {
+    const { data: links } = await supabase
+      .from('auth_links')
+      .select('profile_id')
+      .eq('status', 'linked')
+    const linkedIds = (links || []).map(l => l.profile_id)
+
     let query = supabase
       .from('profiles')
       .select('id, full_name, alias, email, phone, created_at')
       .not('auth_user_id', 'is', null)
       .eq('registration_status', 'registered')
+
+    if (linkedIds.length > 0) {
+      query = query.filter('id', 'not.in', `(${linkedIds.join(',')})`)
+    }
 
     if (search) {
       const escaped = escapeSearch(search)
@@ -240,6 +274,15 @@ export const membersService = {
   },
 
   remove: async (id: string) => {
+    const { data: link } = await supabase
+      .from('auth_links')
+      .select('id')
+      .eq('profile_id', id)
+      .eq('status', 'linked')
+      .maybeSingle()
+
+    if (link) throw new Error('Desvincula la cuenta de auth antes de eliminar el perfil')
+
     const { error } = await supabase
       .from('profiles')
       .delete()
@@ -268,6 +311,7 @@ export const membersService = {
       .from('profiles')
       .select('created_at')
       .eq('role', 'member')
+      .neq('registration_status', 'claimed')
       .gte('created_at', startDate)
       .lte('created_at', `${endDate}T23:59:59.999Z`)
 
@@ -287,11 +331,13 @@ export const membersService = {
       .from('profiles')
       .select('id', { count: 'exact', head: true })
       .eq('role', 'member')
+      .neq('registration_status', 'claimed')
 
     const { count: active, error: err2 } = await supabase
       .from('profiles')
       .select('id', { count: 'exact', head: true })
       .eq('role', 'member')
+      .neq('registration_status', 'claimed')
       .eq('is_active', true)
 
     const { count: pending, error: err3 } = await supabase

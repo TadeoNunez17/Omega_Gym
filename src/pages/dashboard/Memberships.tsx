@@ -94,6 +94,20 @@ export default function MembershipsPage() {
   const localDate = (str: string) => { const [y, m, d] = str.split('-').map(Number); return new Date(y, m - 1, d); };
   const navigate = useNavigate();
 
+  const [viewYear, setViewYear] = useState(now.getFullYear());
+  const [viewMonth, setViewMonth] = useState(now.getMonth());
+
+  const monthRange = useMemo(() => {
+    const start = `${viewYear}-${String(viewMonth + 1).padStart(2, '0')}-01`;
+    const endDate = new Date(viewYear, viewMonth + 1, 0);
+    const end = `${viewYear}-${String(viewMonth + 1).padStart(2, '0')}-${String(endDate.getDate()).padStart(2, '0')}`;
+    return { monthStart: start, monthEnd: end };
+  }, [viewYear, viewMonth]);
+
+  const monthLabel = useMemo(() =>
+    new Date(viewYear, viewMonth).toLocaleDateString('es-MX', { month: 'long', year: 'numeric' }),
+  [viewYear, viewMonth]);
+
   useEffect(() => {
     if (!previewTarget) { setPreviewMember(null); return; }
     const ctrl = { cancelled: false }
@@ -111,7 +125,7 @@ export default function MembershipsPage() {
       setError(null);
       try {
         const [result, mList, types] = await Promise.all([
-          membershipsService.getAll({ pageSize: 200 }),
+          membershipsService.getAll({ pageSize: 200, dateFrom: monthRange.monthStart, dateTo: monthRange.monthEnd }),
           membersService.getAll({ pageSize: 200 }),
           membershipsService.getTypes(),
         ]);
@@ -125,7 +139,7 @@ export default function MembershipsPage() {
       }
     }
     load();
-  }, []);
+  }, [monthRange]);
 
   const allWithStatus = useMemo(
     () => members.map((m) => ({ ...m, status: getStatus(m) })),
@@ -186,7 +200,7 @@ export default function MembershipsPage() {
       });
       setModalOpen(false);
       resetForm();
-      const result = await membershipsService.getAll({ pageSize: 200 });
+      const result = await membershipsService.getAll({ pageSize: 200, dateFrom: monthRange.monthStart, dateTo: monthRange.monthEnd });
       setMembers(result.data.map(toMember));
       toast.success('Membresía creada correctamente');
     } catch (e: any) {
@@ -222,7 +236,7 @@ export default function MembershipsPage() {
         await paymentsService.updateAmountByMembership(editId, selectedType.price);
       }
       setEditId(null);
-      const result = await membershipsService.getAll({ pageSize: 200 });
+      const result = await membershipsService.getAll({ pageSize: 200, dateFrom: monthRange.monthStart, dateTo: monthRange.monthEnd });
       setMembers(result.data.map(toMember));
       toast.success('Membresía actualizada correctamente');
     } catch (e: any) {
@@ -230,7 +244,7 @@ export default function MembershipsPage() {
     } finally {
       setEditSaving(false);
     }
-  }, [editId, editTypeId, editStart, editEnd, editStatus, membershipTypes]);
+  }, [editId, editTypeId, editStart, editEnd, editStatus, membershipTypes, monthRange]);
 
   const handleDelete = useCallback((m: Member) => {
     setDeleteTarget(m);
@@ -241,7 +255,7 @@ export default function MembershipsPage() {
     if (!target) return;
     try {
       await membershipsService.delete(target.id);
-      const result = await membershipsService.getAll({ pageSize: 200 });
+      const result = await membershipsService.getAll({ pageSize: 200, dateFrom: monthRange.monthStart, dateTo: monthRange.monthEnd });
       setMembers(result.data.map(toMember));
       setDeleteTarget(null);
       toast.success('Membresía eliminada correctamente');
@@ -249,7 +263,7 @@ export default function MembershipsPage() {
       toast.error('Error al eliminar: ' + e.message);
       setDeleteTarget(null);
     }
-  }, [deleteTarget]);
+  }, [deleteTarget, monthRange]);
 
   const columns: Column<Member>[] = [
     {
@@ -348,7 +362,7 @@ export default function MembershipsPage() {
       </header>
 
       <div className="p-4 sm:p-7 flex-1">
-        <PageHeader title="Membresías" description="Control de membresías activas, vencidas y próximas a vencer" />
+        <PageHeader title="Membresías" description={`Membresías iniciadas en ${monthLabel}`} />
 
         {/* METRICS */}
         <div className="flex overflow-x-auto gap-3 mb-6 sm:grid sm:grid-cols-2 lg:grid-cols-3">
@@ -389,6 +403,25 @@ export default function MembershipsPage() {
             </span>
           </div>
         )}
+
+        {/* MONTH NAV */}
+        <div className="flex items-center gap-3 mb-4">
+          <button onClick={() => {
+            if (viewMonth === 0) { setViewYear(viewYear - 1); setViewMonth(11); }
+            else setViewMonth(viewMonth - 1);
+            setCurrentPage(1);
+          }} className="w-7 h-7 flex items-center justify-center rounded hover:bg-surface2 transition-colors text-text-3 hover:text-text-1" title="Mes anterior">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4"><polyline points="15 18 9 12 15 6" /></svg>
+          </button>
+          <span className="text-[13px] font-medium text-text-1 capitalize min-w-[140px] text-center">{monthLabel}</span>
+          <button onClick={() => {
+            if (viewMonth === 11) { setViewYear(viewYear + 1); setViewMonth(0); }
+            else setViewMonth(viewMonth + 1);
+            setCurrentPage(1);
+          }} className="w-7 h-7 flex items-center justify-center rounded hover:bg-surface2 transition-colors text-text-3 hover:text-text-1" title="Mes siguiente">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4"><polyline points="9 18 15 12 9 6" /></svg>
+          </button>
+        </div>
 
         {/* CONTROLS */}
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 mb-4">

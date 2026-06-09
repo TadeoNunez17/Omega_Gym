@@ -66,6 +66,7 @@ export default function MembersPage() {
   const [search, setSearch] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Member | null>(null);
+  const [unlinkTarget, setUnlinkTarget] = useState<Member | null>(null);
 
   const [fName, setFName] = useState('');
   const [fRole, setFRole] = useState<Role>('member');
@@ -234,6 +235,26 @@ export default function MembersPage() {
       toast.error('Error al vincular: ' + (e.message || ''));
     }
   }, [linkTarget, fetchMembers]);
+
+  const handleUnlink = useCallback(() => {
+    if (!detailTarget) return;
+    setUnlinkTarget(detailTarget);
+  }, [detailTarget]);
+
+  const confirmUnlink = useCallback(async () => {
+    const target = unlinkTarget;
+    if (!target) return;
+    try {
+      await membersService.unlink(target.id);
+      toast.success('Desvinculado correctamente');
+      setDetailTarget(null);
+      setUnlinkTarget(null);
+      fetchMembers();
+    } catch (e: any) {
+      toast.error('Error al desvincular: ' + (e.message || ''));
+      setUnlinkTarget(null);
+    }
+  }, [unlinkTarget, fetchMembers]);
 
   const deleteMember = useCallback((member: Member) => {
     setDeleteTarget(member);
@@ -801,6 +822,11 @@ export default function MembersPage() {
 
         {detailMode === 'edit' ? (
           <div className="flex justify-end gap-2.5 mt-5 pt-4 border-t border-border">
+            {detailTarget?.registration_status === 'registered' && (
+              <Button variant="danger" onClick={handleUnlink} disabled={detailSaving} size="sm">
+                Desvincular cuenta
+              </Button>
+            )}
             <Button variant="ghost" onClick={() => setDetailTarget(null)} disabled={detailSaving}>
               Cancelar
             </Button>
@@ -900,6 +926,21 @@ export default function MembersPage() {
         <div className="flex justify-end gap-2.5 mt-2">
           <Button variant="ghost" onClick={() => setDeleteTarget(null)}>Cancelar</Button>
           <Button variant="danger" onClick={confirmDelete}>Eliminar</Button>
+        </div>
+      </Modal>
+
+      <Modal open={unlinkTarget !== null} onClose={() => setUnlinkTarget(null)} title="Desvincular cuenta" className="max-w-[400px]" icon={<IconAlert width="16" height="16" />}>
+        <div className="flex flex-col gap-4">
+          <div className="text-[13px] text-text-1 leading-relaxed">
+            ¿Desvincular cuenta de <strong>{unlinkTarget?.name}</strong>?
+          </div>
+          <div className="text-[12px] text-text-3 bg-amber-50/10 border border-amber-400/30 rounded-sm p-3 leading-relaxed dark:text-amber-200">
+            El perfil volverá a estado pendiente sin perder membresías, pagos ni historial.
+          </div>
+        </div>
+        <div className="flex justify-end gap-2.5 mt-2">
+          <Button variant="ghost" onClick={() => setUnlinkTarget(null)}>Cancelar</Button>
+          <Button variant="danger" onClick={confirmUnlink}>Desvincular</Button>
         </div>
       </Modal>
     </>

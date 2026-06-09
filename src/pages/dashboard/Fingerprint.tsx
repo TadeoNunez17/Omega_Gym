@@ -127,7 +127,7 @@ export default function FingerprintPage() {
         <div>
           <div className="text-[22px] font-semibold tracking-tight">Registro de Huella Dactilar</div>
           <div className="text-[13px] text-text-2 mt-1">
-            Captura y guarda el template de huella de cada miembro en <code className="bg-surface2 px-[6px] py-[1px] rounded text-xs text-accent">profiles.huella_template</code>
+            Captura y guarda el template de huella de cada miembro (simulado)
           </div>
         </div>
 
@@ -338,7 +338,7 @@ export default function FingerprintPage() {
                       <div>
                         <strong>Huella registrada exitosamente.</strong><br />
                         <span className="text-[11px] opacity-80">
-                          Template guardado en <code className="bg-[rgba(0,0,0,0.2)] px-[4px] py-[1px] rounded">profiles.huella_template</code> (simulado)
+                          (Simulado — no se persiste en BD)
                         </span>
                       </div>
                     </div>

@@ -19,6 +19,7 @@ function IconCheck() { return <svg viewBox="0 0 24 24" fill="none" stroke="curre
 function IconPlusMember() { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-full h-full"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><line x1="19" y1="8" x2="19" y2="14" /><line x1="22" y1="11" x2="16" y2="11" /></svg>; }
 function IconCreditCard() { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-full h-full"><rect x="2" y="5" width="20" height="14" rx="2" /><line x1="2" y1="10" x2="22" y2="10" /></svg>; }
 function IconAlert() { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-full h-full"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></svg>; }
+function IconMoney() { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-full h-full"><line x1="12" y1="1" x2="12" y2="23" /><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" /></svg>; }
 
 const MONTHS = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
 
@@ -42,6 +43,7 @@ function timeAgo(iso: string): string {
   if (days === 1) return `ayer`;
   return `hace ${days} días`;
 }
+
 
 export default function DashboardPage() {
   const [kpis, setKpis] = useState<DashboardKPIs | null>(null);
@@ -113,9 +115,10 @@ export default function DashboardPage() {
           <div className="text-center py-[60px] text-text-3">Cargando dashboard…</div>
         ) : (
           <>
-            <div className="flex overflow-x-auto gap-3 mb-5 sm:grid sm:grid-cols-2 lg:grid-cols-3">
+            <div className="flex overflow-x-auto gap-3 mb-5 sm:grid sm:grid-cols-2 lg:grid-cols-4">
               <MetricCard icon={<IconPeople />} color="blue" value={kpis?.total_members ?? 0} label="Total de miembros" delta="Registrados" deltaType="up" />
               <MetricCard icon={<IconCard />} color="green" value={kpis?.active_memberships ?? 0} label="Membresías activas" delta="Vigentes" deltaType="up" />
+              <MetricCard icon={<IconMoney />} color="accent" value={`$${(kpis?.monthly_revenue ?? 0).toLocaleString()}`} label="Ingresos del mes" delta={kpis?.monthly_revenue ? `S/${(kpis.monthly_revenue / kpis.active_memberships || 1).toFixed(0)} promedio` : 'Sin datos'} deltaType="up" />
               <MetricCard icon={<IconClock />} color="amber" value={kpis?.expiring_soon ?? 0} label="Vencen en 7 días" delta="Atención" deltaType="down" />
             </div>
 
@@ -211,6 +214,8 @@ export default function DashboardPage() {
                 </div>
               </div>
             </div>
+
+
           </>
         )}
       </div>

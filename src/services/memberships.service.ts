@@ -57,6 +57,8 @@ export const membershipsService = {
     search?: string
     page?: number
     pageSize?: number
+    dateFrom?: string
+    dateTo?: string
   }): Promise<{ data: MembershipListItem[]; count: number }> => {
     await syncExpired()
     let query = supabase
@@ -69,6 +71,12 @@ export const membershipsService = {
 
     if (filters?.status) {
       query = query.eq('status', filters.status)
+    }
+    if (filters?.dateFrom) {
+      query = query.gte('start_date', filters.dateFrom)
+    }
+    if (filters?.dateTo) {
+      query = query.lte('start_date', filters.dateTo)
     }
 
     const from = ((filters?.page ?? 1) - 1) * (filters?.pageSize ?? 20)
