@@ -2,9 +2,6 @@ import { readFileSync } from 'fs';
 import pkg from 'pg';
 const { Pool } = pkg;
 
-const SUPABASE_URL = 'https://jaltwjcipyrnmvjkdqdp.supabase.co';
-const SERVICE_ROLE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImphbHR3amNpcHlybm12amtkcWRwIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0NzU1NzU0MCwiZXhwIjoyMDYzMTMzNTQwfQ.5zM6HxsXwZxCDR9BRnJqGZvj7NsfK3KIGstH3CJRcKY';
-const PROJECT_REF = 'jaltwjcipyrnmvjkdqdp';
 
 const sql = readFileSync('supabase/migrations/20260604000003_sync_membership_status.sql', 'utf8');
 console.log('SQL to execute:');
