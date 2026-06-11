@@ -86,6 +86,8 @@ export default function MembersPage() {
   }[]>([]);
   const [linkLoading, setLinkLoading] = useState(false);
 
+  const [stats, setStats] = useState({ total: 0, active: 0, pending: 0, inactive: 0 });
+
   const fetchMembers = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -96,17 +98,21 @@ export default function MembersPage() {
       const filterStatus = currentFilter === 'inactive' ? 'inactive' : undefined;
       const filterRegistration = currentFilter === 'pending' ? 'pending' : undefined;
 
-      const result = await membersService.getAll({
-        search: search || undefined,
-        role: filterRole,
-        status: filterStatus,
-        registration: filterRegistration,
-        page: currentPage,
-        pageSize: ROWS_PER_PAGE,
-      });
+      const [result, s] = await Promise.all([
+        membersService.getAll({
+          search: search || undefined,
+          role: filterRole,
+          status: filterStatus,
+          registration: filterRegistration,
+          page: currentPage,
+          pageSize: ROWS_PER_PAGE,
+        }),
+        membersService.getStats(),
+      ])
 
       setMembers(result.data.map(toMember));
       setTotal(result.count);
+      setStats(s);
     } catch (e: any) {
       setError(e.message);
     } finally {
@@ -124,15 +130,6 @@ export default function MembersPage() {
 
   const totalPages = Math.max(1, Math.ceil(total / ROWS_PER_PAGE));
   const safePage = Math.min(currentPage, totalPages);
-
-  const active = members.filter((m) => m.status === 'active' && m.role === 'member').length;
-  const trainers = members.filter((m) => m.role === 'trainer').length;
-  const pending = members.filter((m) => m.registration_status === 'pending').length;
-  const newThisMonth = members.filter((m) => {
-    const joined = new Date(m.joinedAt);
-    const now = new Date();
-    return joined.getMonth() === now.getMonth() && joined.getFullYear() === now.getFullYear();
-  }).length;
 
   const resetForm = useCallback(() => {
     setFName(''); setFRole('member');
@@ -414,10 +411,10 @@ export default function MembersPage() {
         {/* KPI Metrics */}
         <div className="flex overflow-x-auto gap-3 mb-6 sm:grid sm:grid-cols-2 lg:grid-cols-4">
           {[
-            { label: 'Total miembros', value: total, color: 'blue', sub: 'Registrados en el sistema' },
-            { label: 'Activos', value: active, color: 'green', sub: 'Con membresía vigente' },
-            { label: 'Pendientes', value: pending, color: 'amber', sub: 'Sin activar su cuenta' },
-            { label: 'Nuevos este mes', value: newThisMonth, color: 'accent', sub: 'Este mes' },
+            { label: 'Total miembros', value: stats.total, color: 'blue', sub: 'Registrados en el sistema' },
+            { label: 'Activos', value: stats.active, color: 'green', sub: 'Con membresía vigente' },
+            { label: 'Inactivos', value: stats.inactive, color: 'red', sub: 'Sin membresía vigente' },
+            { label: 'Pendientes', value: stats.pending, color: 'amber', sub: 'Sin activar su cuenta' },
           ].map((m) => (
             <div key={m.label} className="relative bg-surface border border-border rounded overflow-hidden p-[18px] shrink-0 min-w-[140px] sm:min-w-0">
               <div className="absolute top-0 left-0 right-0 h-0.5" style={{ background: `var(--${m.color})` }} />
@@ -903,7 +900,7 @@ export default function MembersPage() {
                     </div>
                   </div>
                   <Button variant="primary" size="sm" onClick={() => confirmLink(c.id)}
-                    className="opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                    className="shrink-0">
                     Vincular
                   </Button>
                 </div>

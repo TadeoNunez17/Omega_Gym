@@ -45,7 +45,7 @@ export interface MemberFilters {
 
 function toMemberListItem(raw: any): MemberListItem {
   const valid = (raw.memberships ?? []).filter((m: any) => m.membership_types?.name !== 'Visita')
-  const membership = valid.length > 0 ? valid[0] : null
+  const membership = valid.find((m: any) => m.status === 'active') ?? null
   const plan = raw.training_plans?.length > 0 ? raw.training_plans[0] : null
   return {
     id: raw.id,
@@ -63,8 +63,29 @@ function toMemberListItem(raw: any): MemberListItem {
   }
 }
 
+const ROLE_PRIORITY: Record<string, number> = { member: 1, trainer: 2, admin: 3 }
+
+function deduplicateProfiles(rows: any[]): any[] {
+  const seen = new Map<string, any>()
+  for (const row of rows) {
+    if (!row.email) {
+      seen.set(row.id, row)
+      continue
+    }
+    const key = `${row.full_name}|${row.email}`.toLowerCase()
+    const existing = seen.get(key)
+    if (!existing) {
+      seen.set(key, row)
+    } else if (row.alias && !existing.alias) {
+      seen.set(key, row)
+    }
+  }
+  return Array.from(seen.values())
+}
+
 export const membersService = {
   getAll: async (filters?: MemberFilters): Promise<{ data: MemberListItem[]; count: number }> => {
+    await supabase.rpc('sync_membership_status')
     let query = supabase
       .from('profiles')
       .select(`
@@ -72,8 +93,7 @@ export const membersService = {
         memberships(status, end_date, membership_types(name)),
         training_plans!assigned_to(name)
       `, { count: 'exact' })
-      .neq('registration_status', 'claimed')
-
+      
     if (filters?.search) {
       const escaped = escapeSearch(filters.search)
       query = query.or(
@@ -95,17 +115,26 @@ export const membersService = {
       query = query.eq('registration_status', filters.registration)
     }
 
-    const from = ((filters?.page ?? 1) - 1) * (filters?.pageSize ?? 20)
-    const to = from + (filters?.pageSize ?? 20) - 1
-
-    const { data, error, count } = await query
-      .order('created_at', { ascending: false })
-      .range(from, to)
+    const { data, error } = await query
+      .order('full_name', { ascending: true })
 
     if (error) throw error
+
+    const deduped = deduplicateProfiles(data || [])
+
+    const sorted = deduped
+      .map(toMemberListItem)
+      .sort((a, b) =>
+        (ROLE_PRIORITY[a.role] ?? 99) - (ROLE_PRIORITY[b.role] ?? 99) ||
+        a.full_name.localeCompare(b.full_name)
+      )
+
+    const from = ((filters?.page ?? 1) - 1) * (filters?.pageSize ?? 20)
+    const to = from + (filters?.pageSize ?? 20)
+
     return {
-      data: (data || []).map(toMemberListItem),
-      count: count ?? 0,
+      data: sorted.slice(from, to),
+      count: deduped.length,
     }
   },
 
@@ -327,30 +356,31 @@ export const membersService = {
   },
 
   getStats: async () => {
-    const { count: total, error: err1 } = await supabase
+    await supabase.rpc('sync_membership_status')
+
+    const { data: allProfiles, error: err1 } = await supabase
       .from('profiles')
-      .select('id', { count: 'exact', head: true })
+      .select('id, full_name, email, alias, registration_status')
       .eq('role', 'member')
-      .neq('registration_status', 'claimed')
 
-    const { count: active, error: err2 } = await supabase
-      .from('profiles')
-      .select('id', { count: 'exact', head: true })
-      .eq('role', 'member')
-      .neq('registration_status', 'claimed')
-      .eq('is_active', true)
+    if (err1) throw err1
 
-    const { count: pending, error: err3 } = await supabase
-      .from('profiles')
-      .select('id', { count: 'exact', head: true })
-      .eq('registration_status', 'pending')
+    const deduped = deduplicateProfiles(allProfiles || [])
+    const total = deduped.length
 
-    if (err1 || err2 || err3) throw err1 || err2 || err3
-    return {
-      total: total ?? 0,
-      active: active ?? 0,
-      inactive: (total ?? 0) - (active ?? 0),
-      pending: pending ?? 0,
-    }
+    const pending = deduped.filter(p => p.registration_status === 'pending').length
+
+    const { data: activeData, error: err2 } = await supabase
+      .from('memberships')
+      .select('member_id')
+      .eq('status', 'active')
+
+    if (err2) throw err2
+
+    const activeIds = new Set((activeData || []).map((m: any) => m.member_id))
+    const active = deduped.filter(p => activeIds.has(p.id)).length
+    const inactive = deduped.filter(p => !activeIds.has(p.id) && p.registration_status !== 'pending').length
+
+    return { total, active, pending, inactive }
   },
 }

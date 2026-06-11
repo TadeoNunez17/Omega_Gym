@@ -50,8 +50,7 @@ export const dashboardService = {
       supabase
         .from('profiles')
         .select('id', { count: 'exact', head: true })
-        .eq('role', 'member')
-        .eq('is_active', true),
+        .eq('role', 'member'),
 
       supabase
         .from('memberships')
