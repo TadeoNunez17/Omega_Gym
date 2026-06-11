@@ -87,7 +87,7 @@ export function SettingsModal({ open, onClose }: Props) {
                 ${theme === 'dark' ? 'bg-[#333]' : 'bg-[#ddd]'}`}
               aria-label="Cambiar tema"
             >
-              <span className={`absolute top-[3px] w-[18px] h-[18px] rounded-full bg-white shadow-sm transition-transform duration-200
+              <span className={`absolute left-0 top-[3px] w-[18px] h-[18px] rounded-full bg-white shadow-sm transition-transform duration-200
                 ${theme === 'light' ? 'translate-x-[3px]' : 'translate-x-[23px]'}`} />
             </button>
           </div>

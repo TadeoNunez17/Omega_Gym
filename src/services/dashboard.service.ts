@@ -1,9 +1,11 @@
 import { supabase } from '@/lib/supabase'
+import { deduplicateProfiles } from './members.service'
 
 export interface DashboardKPIs {
   total_members: number
   active_memberships: number
   expiring_soon: number
+  inactive_members: number
   monthly_revenue: number
 }
 
@@ -21,8 +23,9 @@ export interface MembershipDistributionItem {
 
 export interface RecentActivityItem {
   id: string
-  type: 'check_in' | 'new_member' | 'payment'
-  description: string
+  type: 'check_in' | 'new_member' | 'payment' | 'expired_membership' | 'membership_assigned'
+  userName: string
+  action: string
   timestamp: string
 }
 
@@ -49,12 +52,12 @@ export const dashboardService = {
     const promises = await Promise.allSettled([
       supabase
         .from('profiles')
-        .select('id', { count: 'exact', head: true })
+        .select('id, full_name, email, alias')
         .eq('role', 'member'),
 
       supabase
         .from('memberships')
-        .select('id', { count: 'exact', head: true })
+        .select('member_id')
         .eq('status', 'active')
         .lte('start_date', today)
         .gte('end_date', today),
@@ -73,15 +76,20 @@ export const dashboardService = {
         .gte('payment_date', monthStart),
     ])
 
-    const totalMembers = promises[0].status === 'fulfilled' ? promises[0].value : { count: null, error: promises[0].reason }
-    const activeMemberships = promises[1].status === 'fulfilled' ? promises[1].value : { count: null, error: promises[1].reason }
+    const totalMembersResult = promises[0].status === 'fulfilled' ? promises[0].value : { data: null, error: promises[0].reason }
+    const activeMembershipsResult = promises[1].status === 'fulfilled' ? promises[1].value : { data: null, error: promises[1].reason }
     const expiringMemberships = promises[2].status === 'fulfilled' ? promises[2].value : { count: null, error: promises[2].reason }
     const monthlyRevenue = promises[3].status === 'fulfilled' ? promises[3].value : { data: null, error: promises[3].reason }
 
-    if (totalMembers.error) console.error('KPIs totalMembers query failed:', totalMembers.error)
-    if (activeMemberships.error) console.error('KPIs activeMemberships query failed:', activeMemberships.error)
+    if (totalMembersResult.error) console.error('KPIs totalMembers query failed:', totalMembersResult.error)
+    if (activeMembershipsResult.error) console.error('KPIs activeMemberships query failed:', activeMembershipsResult.error)
     if (expiringMemberships.error) console.error('KPIs expiringMemberships query failed:', expiringMemberships.error)
     if (monthlyRevenue.error) console.error('KPIs monthlyRevenue query failed:', monthlyRevenue.error)
+
+    const dedupedProfiles = deduplicateProfiles(totalMembersResult.data || [])
+    const activeMemberIds = new Set((activeMembershipsResult.data || []).map((m: any) => m.member_id))
+    const activeMemberships = activeMemberIds.size
+    const inactiveMembers = dedupedProfiles.filter(p => !activeMemberIds.has(p.id)).length
 
     const revenue =
       (monthlyRevenue.data || []).reduce(
@@ -90,9 +98,10 @@ export const dashboardService = {
       )
 
     return {
-      total_members: totalMembers.count ?? 0,
-      active_memberships: activeMemberships.count ?? 0,
+      total_members: dedupedProfiles.length,
+      active_memberships: activeMemberships,
       expiring_soon: expiringMemberships.count ?? 0,
+      inactive_members: inactiveMembers,
       monthly_revenue: revenue,
     }
   },
@@ -152,7 +161,12 @@ export const dashboardService = {
   },
 
   getRecentActivity: async (limit: number = 10): Promise<RecentActivityItem[]> => {
-    const [checkIns, newMembers] = await Promise.all([
+    const thirtyDaysAgo = new Date()
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
+    const thirtyDaysAgoStr = thirtyDaysAgo.toISOString().split('T')[0]
+    const todayStr = new Date().toISOString().split('T')[0]
+
+    const [checkIns, newMembers, expiredMemberships, recentPayments, recentAssignments] = await Promise.all([
       supabase
         .from('check_ins')
         .select('id, check_in_time, profiles!member_id(full_name)')
@@ -165,25 +179,93 @@ export const dashboardService = {
         .eq('role', 'member')
         .order('created_at', { ascending: false })
         .limit(5),
+
+      supabase
+        .from('memberships')
+        .select(`
+          id, end_date,
+          profiles!member_id(full_name),
+          membership_types(name)
+        `)
+        .gte('end_date', thirtyDaysAgoStr)
+        .lt('end_date', todayStr)
+        .order('end_date', { ascending: false })
+        .limit(5),
+
+      supabase
+        .from('payments')
+        .select(`
+          id, amount, created_at,
+          memberships(
+            member_id,
+            profiles!member_id(full_name),
+            membership_types(name)
+          )
+        `)
+        .eq('status', 'paid')
+        .order('created_at', { ascending: false })
+        .limit(5),
+
+      supabase
+        .from('memberships')
+        .select(`
+          id, created_at,
+          profiles!member_id(full_name),
+          membership_types(name)
+        `)
+        .order('created_at', { ascending: false })
+        .limit(5),
     ])
 
     const activities: RecentActivityItem[] = []
 
     for (const ci of checkIns.data || []) {
       activities.push({
-        id: ci.id,
+        id: `check_in-${ci.id}`,
         type: 'check_in',
-        description: `${(ci as any).profiles?.full_name ?? 'Alguien'} registró entrada`,
+        userName: (ci as any).profiles?.full_name ?? 'Alguien',
+        action: 'registró entrada',
         timestamp: ci.check_in_time,
       })
     }
 
     for (const nm of newMembers.data || []) {
       activities.push({
-        id: nm.id,
+        id: `new_member-${nm.id}`,
         type: 'new_member',
-        description: `${nm.full_name} se unió al gimnasio`,
+        userName: nm.full_name,
+        action: 'se unió al gimnasio',
         timestamp: nm.created_at,
+      })
+    }
+
+    for (const em of (expiredMemberships.data || []) as any[]) {
+      activities.push({
+        id: `expired_membership-${em.id}`,
+        type: 'expired_membership',
+        userName: em.profiles?.full_name ?? 'Alguien',
+        action: `membresía ${em.membership_types?.name ?? ''} vencida`,
+        timestamp: em.end_date,
+      })
+    }
+
+    for (const rp of (recentPayments.data || []) as any[]) {
+      activities.push({
+        id: `payment-${rp.id}`,
+        type: 'payment',
+        userName: rp.memberships?.profiles?.full_name ?? 'Alguien',
+        action: `pagó ${rp.memberships?.membership_types?.name ?? 'membresía'} ($${Number(rp.amount).toLocaleString()})`,
+        timestamp: rp.created_at,
+      })
+    }
+
+    for (const ra of (recentAssignments.data || []) as any[]) {
+      activities.push({
+        id: `membership_assigned-${ra.id}`,
+        type: 'membership_assigned',
+        userName: ra.profiles?.full_name ?? 'Alguien',
+        action: `nueva membresía ${ra.membership_types?.name ?? ''}`,
+        timestamp: ra.created_at,
       })
     }
 

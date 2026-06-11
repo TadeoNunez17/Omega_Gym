@@ -48,7 +48,10 @@ export function ResponsiveTable<T>({
 }: ResponsiveTableProps<T>) {
   if (data.length === 0) {
     return (
-      <div className="text-center py-[60px] text-text-3">{emptyMessage}</div>
+      <div className="flex flex-col items-center justify-center py-14 sm:py-16 text-text-3">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2" className="text-text-4 mb-3"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>
+        <div className="text-[13px]">{emptyMessage}</div>
+      </div>
     );
   }
 
@@ -75,7 +78,7 @@ export function ResponsiveTable<T>({
               <tr
                 key={keyExtractor(item)}
                 onClick={() => onRowClick?.(item)}
-                className={`transition-colors duration-100 hover:bg-surface2/50 ${onRowClick ? 'cursor-pointer' : ''}`}
+                className={`border-l-2 border-transparent hover:border-accent transition-colors duration-100 hover:bg-surface2/50 ${onRowClick ? 'cursor-pointer' : ''}`}
               >
                 {columns.map((col) => (
                   <td
@@ -98,7 +101,7 @@ export function ResponsiveTable<T>({
           <div
             key={keyExtractor(item)}
             onClick={() => onRowClick?.(item)}
-            className={`bg-surface px-4 py-4 ${onRowClick ? 'cursor-pointer' : ''} ${onRowClick ? 'hover:bg-surface2/50' : ''}`}
+            className={`border-l-2 border-transparent hover:border-accent bg-surface px-4 py-4 ${onRowClick ? 'cursor-pointer' : ''} ${onRowClick ? 'hover:bg-surface2/50' : ''}`}
           >
             <div className="flex items-start gap-3 mb-3">
               {cardAvatar && (

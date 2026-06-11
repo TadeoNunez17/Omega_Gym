@@ -14,6 +14,7 @@ import { TabBar } from '@/components/ui/molecules/TabBar';
 import { Pagination } from '@/components/ui/molecules/Pagination';
 import { ResponsiveTable, type Column } from '@/components/ui/molecules/ResponsiveTable';
 import { IconEye, IconEdit, IconPlus, IconCalendar, IconTrash, IconAlert } from '@/lib/icons';
+import { MetricCard } from '@/components/ui/atoms/MetricCard';
 import { initials, fmtDate, fmtPhone, daysDiff, avatarIndex, AVATAR_COLORS } from '@/lib/helpers';
 import { toast } from 'sonner';
 
@@ -349,10 +350,11 @@ export default function MembershipsPage() {
 
   return (
     <>
-      <header className="px-4 sm:px-7 h-14 flex items-center justify-between border-b border-border bg-bg sticky top-0 z-9">
+      <header className="px-4 sm:px-7 h-14 flex items-center justify-between border-b border-border bg-surface2 sticky top-0 z-9">
         <div className="flex items-center gap-2 text-xs sm:text-[13px] text-text-3">
-          Panel <span className="text-[10px]">›</span>
-          <span className="text-text-2">Membresías</span>
+          <div className="w-4 h-4 shrink-0 flex items-center justify-center"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-full h-full" width="16" height="16"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></div>
+          <span className="text-text-4 mx-0.5">/</span>
+          <span className="font-medium text-text-1">Membresías</span>
         </div>
         <div className="flex items-center gap-2 sm:gap-2.5">
           <Button variant="primary" size="sm" icon={<IconPlus />} onClick={() => { resetForm(); setModalOpen(true); }}>
@@ -362,33 +364,44 @@ export default function MembershipsPage() {
       </header>
 
       <div className="p-4 sm:p-7 flex-1">
-        <PageHeader title="Membresías" description={`Membresías iniciadas en ${monthLabel}`} />
+        <div className="relative mb-7 overflow-hidden rounded-xl bg-gradient-to-br from-surface to-surface2 border border-border p-5 sm:p-7">
+          <div className="absolute inset-0 opacity-[0.04]"
+            style={{ background: 'radial-gradient(600px circle at 20% 30%, var(--accent), transparent)' }} />
+          <div className="relative">
+            <PageHeader title="Membresías" description={`Membresías iniciadas en ${monthLabel}`} />
+          </div>
+        </div>
 
         {/* METRICS */}
         <div className="flex overflow-x-auto gap-3 mb-6 sm:grid sm:grid-cols-2 lg:grid-cols-3">
-          {[
-            { label: 'Activas', value: activeCount, color: 'green', sub: 'Al corriente' },
-            { label: 'Por vencer', value: warnCount, color: 'amber', sub: 'En los próximos 7 días' },
-            { label: 'Vencidas', value: expiredCount, color: 'red', sub: 'Sin renovar' },
-          ].map((m) => (
-            <div key={m.label} className="relative bg-surface border border-border rounded overflow-hidden p-3 sm:p-[18px] shrink-0 min-w-[140px] sm:min-w-0">
-              <div className="absolute top-0 left-0 right-0 h-0.5" style={{ background: `var(--${m.color})` }} />
-              <div className="text-[11px] text-text-3 uppercase tracking-[0.06em] mb-2.5">{m.label}</div>
-              <div className="text-[32px] font-semibold leading-none -tracking-[0.03em]" style={{ color: `var(--${m.color}-text)` }}>{m.value}</div>
-              <div className="text-[11px] text-text-3 mt-1.5">{m.sub}</div>
-            </div>
-          ))}
+          <div className="animate-slide-up stagger-1">
+            <MetricCard icon={
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-full h-full"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12" /></svg>
+            } color="green" value={activeCount} label="Activas" delta="Al corriente" deltaType="up" />
+          </div>
+          <div className="animate-slide-up stagger-2">
+            <MetricCard icon={
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-full h-full"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>
+            } color="amber" value={warnCount} label="Por vencer" delta="Próximos 7 días" deltaType="down" />
+          </div>
+          <div className="animate-slide-up stagger-3">
+            <MetricCard icon={
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-full h-full"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></svg>
+            } color="red" value={expiredCount} label="Vencidas" delta="Sin renovar" deltaType="down" />
+          </div>
         </div>
 
         {/* ALERT BANNER */}
         {(warnCount > 0 || expiredCount > 0) && (
-          <div className="bg-amber-bg border border-amber/20 rounded-sm p-[10px_16px] flex items-center gap-2.5 text-xs text-amber-text mb-4">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4 shrink-0">
-              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
-              <line x1="12" y1="9" x2="12" y2="13" />
-              <line x1="12" y1="17" x2="12.01" y2="17" />
-            </svg>
-            <span>
+          <div className="bg-amber-bg border border-amber/20 rounded-sm p-3 flex items-start gap-3 text-xs text-amber-text mb-4">
+            <div className="w-7 h-7 rounded-lg bg-amber-bg flex items-center justify-center shrink-0">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4">
+                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                <line x1="12" y1="9" x2="12" y2="13" />
+                <line x1="12" y1="17" x2="12.01" y2="17" />
+              </svg>
+            </div>
+            <div className="flex-1">
               <span className="sm:hidden">
                 {warnCount > 0 && `${warnCount} por vencer`}
                 {warnCount > 0 && expiredCount > 0 && ' · '}
@@ -400,7 +413,12 @@ export default function MembershipsPage() {
                 {expiredCount > 0 && `${expiredCount} membresía${expiredCount > 1 ? 's' : ''} vencida${expiredCount > 1 ? 's' : ''} sin renovar`}
                 . Considera contactar a estos miembros.
               </span>
-            </span>
+            </div>
+            <button onClick={() => {/* dismiss */}} className="shrink-0 p-1 rounded hover:bg-amber-bg/50 text-amber-text/60 hover:text-amber-text transition-colors">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-3.5 h-3.5">
+                <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
           </div>
         )}
 
@@ -448,7 +466,18 @@ export default function MembershipsPage() {
 
         {/* Table / Cards */}
         {!loading && !error && (
-          <div className="bg-surface border border-border rounded overflow-hidden">
+          <div className="animate-slide-up stagger-5 bg-surface border border-border rounded overflow-hidden">
+            <div className="px-3 sm:px-5 py-3 sm:py-4 border-b border-border">
+              <div className="flex items-center gap-2.5">
+                <div className="w-7 h-7 rounded-lg bg-green-bg text-green-text flex items-center justify-center">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                </div>
+                <div>
+                  <div className="text-[13px] font-semibold">Membresías</div>
+                  <div className="text-[11px] text-text-3 mt-0.5 hidden sm:block">Control de planes activos y vencimientos</div>
+                </div>
+              </div>
+            </div>
             <ResponsiveTable
               columns={columns}
               data={rows}

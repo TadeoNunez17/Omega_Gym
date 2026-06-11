@@ -65,7 +65,7 @@ function toMemberListItem(raw: any): MemberListItem {
 
 const ROLE_PRIORITY: Record<string, number> = { member: 1, trainer: 2, admin: 3 }
 
-function deduplicateProfiles(rows: any[]): any[] {
+export function deduplicateProfiles(rows: any[]): any[] {
   const seen = new Map<string, any>()
   for (const row of rows) {
     if (!row.email) {

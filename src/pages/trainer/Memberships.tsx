@@ -339,10 +339,11 @@ export default function TrainerMembershipsPage() {
 
   return (
     <>
-      <header className="px-4 sm:px-7 h-14 flex items-center justify-between border-b border-border bg-bg sticky top-0 z-9">
+      <header className="px-4 sm:px-7 h-14 flex items-center justify-between border-b border-border bg-surface2 sticky top-0 z-9">
         <div className="flex items-center gap-2 text-xs sm:text-[13px] text-text-3">
-          Panel <span className="text-[10px]">›</span>
-          <span className="text-text-2">Membresías</span>
+          <div className="w-4 h-4 shrink-0 flex items-center justify-center"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-full h-full" width="16" height="16"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></div>
+          <span className="text-text-4 mx-0.5">/</span>
+          <span className="font-medium text-text-1">Membresías</span>
         </div>
         <div className="flex items-center gap-2 sm:gap-2.5">
           <Button variant="primary" size="sm" icon={<IconPlus />} onClick={() => { resetForm(); setModalOpen(true); }}>
@@ -419,7 +420,18 @@ export default function TrainerMembershipsPage() {
 
         {/* Table / Cards */}
         {!loading && !error && (
-          <div className="bg-surface border border-border rounded overflow-hidden">
+          <div className="animate-slide-up stagger-5 bg-surface border border-border rounded overflow-hidden">
+            <div className="px-3 sm:px-5 py-3 sm:py-4 border-b border-border">
+              <div className="flex items-center gap-2.5">
+                <div className="w-7 h-7 rounded-lg bg-green-bg text-green-text flex items-center justify-center">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                </div>
+                <div>
+                  <div className="text-[13px] font-semibold">Membresías</div>
+                  <div className="text-[11px] text-text-3 mt-0.5 hidden sm:block">Control de planes activos y vencimientos</div>
+                </div>
+              </div>
+            </div>
             <ResponsiveTable
               columns={columns}
               data={rows}

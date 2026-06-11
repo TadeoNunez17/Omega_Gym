@@ -232,10 +232,11 @@ export default function TrainerPanelPage() {
 
   return (
     <>
-      <header className="px-4 sm:px-7 h-14 flex items-center justify-between border-b border-border bg-bg sticky top-0 z-9">
+      <header className="px-4 sm:px-7 h-14 flex items-center justify-between border-b border-border bg-surface2 sticky top-0 z-9">
         <div className="flex items-center gap-2 text-xs sm:text-[13px] text-text-3">
-          Omega Gym <span className="text-[10px]">›</span>
-          <span className="text-text-2">Mi panel</span>
+          <div className="w-4 h-4 shrink-0 flex items-center justify-center"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-full h-full" width="16" height="16"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></div>
+          <span className="text-text-4 mx-0.5">/</span>
+          <span className="font-medium text-text-1">Mi panel</span>
         </div>
         <div className="flex items-center gap-2 sm:gap-2.5">
           <Button variant="ghost" size="sm" icon={<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>} onClick={() => setNoteModalOpen(true)}>
@@ -352,7 +353,10 @@ export default function TrainerPanelPage() {
                         <div className="w-[13px] h-[13px]">{act.icon}</div>
                       </div>
                       <div className="flex-1">
-                        <div className="text-[12px] text-text-2 leading-relaxed">{a.description}</div>
+                        <div className="text-[12px] text-text-2 leading-relaxed">
+                          <span className="font-semibold text-text-1">{a.userName}</span>
+                          {' '}{a.action}
+                        </div>
                         <div className="text-[10px] text-text-3 mt-[3px]">{timeAgo(a.timestamp)}</div>
                       </div>
                     </div>

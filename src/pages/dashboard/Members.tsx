@@ -9,6 +9,7 @@ import { PageHeader } from '@/components/ui/molecules/PageHeader';
 import { SearchInput } from '@/components/ui/molecules/SearchInput';
 import { TabBar } from '@/components/ui/molecules/TabBar';
 import { Pagination } from '@/components/ui/molecules/Pagination';
+import { MetricCard } from '@/components/ui/atoms/MetricCard';
 import { IconDownload, IconPlus, IconEye, IconEdit, IconClose, IconTrash, IconAlert } from '@/lib/icons';
 import { checkInsService } from '@/services/checkIns.service';
 import { initials, avatarIndex, fmtDate, fmtPhone, daysDiff, AVATAR_COLORS } from '@/lib/helpers';
@@ -394,10 +395,11 @@ export default function MembersPage() {
 
   return (
     <>
-      <header className="px-4 sm:px-7 h-14 flex items-center justify-between border-b border-border bg-bg sticky top-0 z-9">
+      <header className="px-4 sm:px-7 h-14 flex items-center justify-between border-b border-border bg-surface2 sticky top-0 z-9">
         <div className="flex items-center gap-2 text-xs sm:text-[13px] text-text-3">
-          Panel <span className="text-[10px]">›</span>
-          <span className="text-text-2">Miembros</span>
+          <div className="w-4 h-4 shrink-0 flex items-center justify-center"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-full h-full" width="16" height="16"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></div>
+          <span className="text-text-4 mx-0.5">/</span>
+          <span className="font-medium text-text-1">Miembros</span>
         </div>
         <div className="flex items-center gap-2 sm:gap-2.5">
 
@@ -406,23 +408,36 @@ export default function MembersPage() {
       </header>
 
       <div className="p-4 sm:p-7 flex-1">
-        <PageHeader title="Miembros" description="Registro completo de socios, roles y estado de membresía" />
+        <div className="relative mb-7 overflow-hidden rounded-xl bg-gradient-to-br from-surface to-surface2 border border-border p-5 sm:p-7">
+          <div className="absolute inset-0 opacity-[0.04]"
+            style={{ background: 'radial-gradient(600px circle at 20% 30%, var(--accent), transparent)' }} />
+          <div className="relative">
+            <PageHeader title="Miembros" description="Registro completo de socios, roles y estado de membresía" />
+          </div>
+        </div>
 
         {/* KPI Metrics */}
         <div className="flex overflow-x-auto gap-3 mb-6 sm:grid sm:grid-cols-2 lg:grid-cols-4">
-          {[
-            { label: 'Total miembros', value: stats.total, color: 'blue', sub: 'Registrados en el sistema' },
-            { label: 'Activos', value: stats.active, color: 'green', sub: 'Con membresía vigente' },
-            { label: 'Inactivos', value: stats.inactive, color: 'red', sub: 'Sin membresía vigente' },
-            { label: 'Pendientes', value: stats.pending, color: 'amber', sub: 'Sin activar su cuenta' },
-          ].map((m) => (
-            <div key={m.label} className="relative bg-surface border border-border rounded overflow-hidden p-[18px] shrink-0 min-w-[140px] sm:min-w-0">
-              <div className="absolute top-0 left-0 right-0 h-0.5" style={{ background: `var(--${m.color})` }} />
-              <div className="text-[11px] text-text-3 uppercase tracking-[0.06em] mb-2.5">{m.label}</div>
-              <div className="text-[32px] font-semibold leading-none -tracking-[0.03em]" style={{ color: `var(--${m.color}-text)` }}>{m.value}</div>
-              <div className="text-[11px] text-text-3 mt-1.5">{m.sub}</div>
-            </div>
-          ))}
+          <div className="animate-slide-up stagger-1">
+            <MetricCard icon={
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-full h-full"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>
+            } color="blue" value={stats.total} label="Total miembros" delta="Registrados en el sistema" deltaType="up" />
+          </div>
+          <div className="animate-slide-up stagger-2">
+            <MetricCard icon={
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-full h-full"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12" /></svg>
+            } color="green" value={stats.active} label="Activos" delta="Con membresía vigente" deltaType="up" />
+          </div>
+          <div className="animate-slide-up stagger-3">
+            <MetricCard icon={
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-full h-full"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></svg>
+            } color="red" value={stats.inactive} label="Inactivos" delta="Sin membresía vigente" deltaType="down" />
+          </div>
+          <div className="animate-slide-up stagger-4">
+            <MetricCard icon={
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-full h-full"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>
+            } color="amber" value={stats.pending} label="Pendientes" delta="Sin activar su cuenta" deltaType="down" />
+          </div>
         </div>
 
         {/* Controls */}

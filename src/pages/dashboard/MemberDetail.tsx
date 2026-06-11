@@ -241,12 +241,13 @@ export default function MemberDetailPage() {
 
   return (
     <>
-      <header className="px-4 sm:px-7 h-14 flex items-center justify-between border-b border-border bg-bg sticky top-0 z-9">
+      <header className="px-4 sm:px-7 h-14 flex items-center justify-between border-b border-border bg-surface2 sticky top-0 z-9">
         <div className="flex items-center gap-2 text-xs sm:text-[13px] text-text-3">
-          Panel <span className="text-[10px]">›</span>
-          <button onClick={() => navigate('/members')} className="hover:text-text-2 transition-colors">Miembros</button>
-          <span className="text-[10px]">›</span>
-          <span className="text-text-2">{m.full_name}</span>
+          <div className="w-4 h-4 shrink-0 flex items-center justify-center"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-full h-full" width="16" height="16"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></div>
+          <span className="text-text-4 mx-0.5">/</span>
+          <button onClick={() => navigate('/members')} className="text-text-3 hover:text-text-1 transition-colors">Miembros</button>
+          <span className="text-text-4 mx-0.5">/</span>
+          <span className="font-medium text-text-1">{m.full_name}</span>
         </div>
         <div className="flex items-center gap-2">
           <IconButton title="Ver en lista" onClick={() => navigate('/members')}>

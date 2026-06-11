@@ -112,15 +112,17 @@ export default function FingerprintPage() {
 
   return (
     <>
-      <header className="flex items-center justify-between px-7 h-[58px] border-b border-border bg-bg sticky top-0 z-[9]">
-        <div className="flex items-center gap-2 text-[13px] text-text-3">
-          Panel
-          <span className="text-[10px]">›</span>
-          <span className="text-text-2">Registro de Huella Dactilar</span>
+      <header className="px-4 sm:px-7 h-14 flex items-center justify-between border-b border-border bg-surface2 sticky top-0 z-9">
+        <div className="flex items-center gap-2 text-xs sm:text-[13px] text-text-3">
+          <div className="w-4 h-4 shrink-0 flex items-center justify-center"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-full h-full" width="16" height="16"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></div>
+          <span className="text-text-4 mx-0.5">/</span>
+          <span className="font-medium text-text-1">Registro de Huella Dactilar</span>
         </div>
-        <span className="text-xs text-text-3 bg-surface border border-border px-3 py-[6px] rounded-[var(--radius-sm)] font-mono">
-          Lector: <span className="text-green-text">● Conectado</span>
-        </span>
+        <div className="flex items-center gap-2">
+          <span className="text-[11px] text-text-3 bg-surface border border-border px-2.5 py-1.5 rounded-sm font-mono">
+            Lector: <span className="text-green-text">● Conectado</span>
+          </span>
+        </div>
       </header>
       <div className="p-7 flex-1 flex flex-col gap-5">
         <style>{`@keyframes scanDown { 0%{top:5%} 100%{top:95%} }`}</style>
