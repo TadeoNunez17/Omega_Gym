@@ -161,15 +161,10 @@ export default function PaymentsPage() {
   const start = (safePage - 1) * ROWS_PER_PAGE;
   const rows = filtered.slice(start, start + ROWS_PER_PAGE);
 
-  const revenue = useMemo(() => {
-    const todayStr = new Date().toISOString().split('T')[0];
-    return {
-      total_collected: payments.reduce((s, p) => p.status === 'paid' ? s + p.amount : s, 0),
-      total_pending: payments.reduce((s, p) => p.status === 'pending' ? s + p.amount : s, 0),
-      total_cancelled: payments.reduce((s, p) => p.status === 'cancelled' ? s + p.amount : s, 0),
-      today_collected: payments.reduce((s, p) => p.status === 'paid' && p.date === todayStr ? s + p.amount : s, 0),
-    };
-  }, [payments]);
+  const revenue = useMemo(() => ({
+    total_collected: payments.reduce((s, p) => p.status === 'paid' ? s + p.amount : s, 0),
+    total_pending: payments.reduce((s, p) => p.status === 'pending' ? s + p.amount : s, 0),
+  }), [payments]);
 
   const filters = [
     { key: 'all' as FilterKey, label: 'Todos' },
@@ -278,7 +273,7 @@ export default function PaymentsPage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-3 mb-6 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 mb-6 lg:grid-cols-2">
           <div className="animate-slide-up stagger-1">
             <MetricCard icon={
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-full h-full"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18" /><polyline points="17 6 23 6 23 12" /></svg>
@@ -288,16 +283,6 @@ export default function PaymentsPage() {
             <MetricCard icon={
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-full h-full"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></svg>
             } color="amber" value={fmtMoney(revenue.total_pending)} label="Pendiente" delta={`Pendiente en ${monthLabel}`} deltaType="down" />
-          </div>
-          <div className="animate-slide-up stagger-3">
-            <MetricCard icon={
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-full h-full"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
-            } color="red" value={fmtMoney(revenue.total_cancelled)} label="Cancelado" delta={`Cancelado en ${monthLabel}`} deltaType="down" />
-          </div>
-          <div className="animate-slide-up stagger-4">
-            <MetricCard icon={
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-full h-full"><line x1="12" y1="1" x2="12" y2="23" /><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" /></svg>
-            } color="accent" value={fmtMoney(revenue.today_collected)} label="Hoy" delta="Hoy" deltaType="up" />
           </div>
         </div>
 
@@ -586,10 +571,9 @@ export default function PaymentsPage() {
 
             <div className="border-t border-border pt-4">
               <div className="text-[11px] text-text-3 uppercase tracking-[0.08em] mb-3">Cambiar estado</div>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-2 gap-2">
                 {([['paid', 'Pagado', 'green', '✓'],
-                  ['pending', 'Pendiente', 'amber', '⋯'],
-                  ['cancelled', 'Cancelado', 'red', '✕']] as const).map(([val, label, color, symbol]) => (
+                  ['pending', 'Pendiente', 'amber', '⋯']] as const).map(([val, label, color, symbol]) => (
                   <button
                     key={val}
                     onClick={() => setEditStatus(val)}

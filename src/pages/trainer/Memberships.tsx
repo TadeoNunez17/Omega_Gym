@@ -126,6 +126,7 @@ export default function TrainerMembershipsPage() {
     return allWithStatus
       .filter((m) => m.status !== 'expired')
       .filter((m) => currentFilter === 'all' || m.status === currentFilter)
+      .filter((m) => !m.isVisita || m.inicio === today)
       .filter(
         (m) =>
           !q ||
