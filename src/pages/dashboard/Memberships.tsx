@@ -373,7 +373,7 @@ export default function MembershipsPage() {
         </div>
 
         {/* METRICS */}
-        <div className="flex overflow-x-auto gap-3 mb-6 sm:grid sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-2 gap-3 mb-6 lg:grid-cols-3">
           <div className="animate-slide-up stagger-1">
             <MetricCard icon={
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-full h-full"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12" /></svg>

@@ -278,7 +278,7 @@ export default function PaymentsPage() {
           </div>
         </div>
 
-        <div className="flex overflow-x-auto gap-3 mb-6 sm:grid sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 mb-6 lg:grid-cols-4">
           <div className="animate-slide-up stagger-1">
             <MetricCard icon={
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-full h-full"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18" /><polyline points="17 6 23 6 23 12" /></svg>

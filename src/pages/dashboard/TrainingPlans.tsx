@@ -196,7 +196,7 @@ export default function TrainingPlansPage() {
       {!loading && error && <div className="text-center py-[60px] text-red-text">Error: {error}</div>}
       {!loading && !error && (
         <>
-          <div className="flex overflow-x-auto gap-3 sm:grid sm:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <MetricCard color="accent" label="Total de planes" value={metrics.total} sub="Creados en el sistema" />
             <MetricCard color="green" label="Planes asignados" value={metrics.assigned} sub="Con miembro activo" />
             <MetricCard color="blue" label="Plantillas" value={metrics.templates} sub="Reutilizables" />

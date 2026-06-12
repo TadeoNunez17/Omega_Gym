@@ -417,7 +417,7 @@ export default function MembersPage() {
         </div>
 
         {/* KPI Metrics */}
-        <div className="flex overflow-x-auto gap-3 mb-6 sm:grid sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 mb-6 lg:grid-cols-4">
           <div className="animate-slide-up stagger-1">
             <MetricCard icon={
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-full h-full"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>
@@ -946,7 +946,7 @@ export default function MembersPage() {
           <div className="text-[13px] text-text-1 leading-relaxed">
             ¿Desvincular cuenta de <strong>{unlinkTarget?.name}</strong>?
           </div>
-          <div className="text-[12px] text-text-3 bg-amber-50/10 border border-amber-400/30 rounded-sm p-3 leading-relaxed dark:text-amber-200">
+          <div className="text-[12px] text-amber-text bg-amber-bg border border-amber/20 rounded-sm p-3 leading-relaxed">
             El perfil volverá a estado pendiente sin perder membresías, pagos ni historial.
           </div>
         </div>

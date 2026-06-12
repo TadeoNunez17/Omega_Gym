@@ -64,11 +64,11 @@ export function MetricCard({
       <div className={`absolute top-0 left-0 right-0 h-0.5 ${c.bar}`} />
       {icon && (
         <div className="flex items-start justify-between mb-2 sm:mb-3">
-          <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${c.bg} ${c.text}`}>
+           <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center ${c.bg} ${c.text}`}>
             <div className="w-[18px] h-[18px]">{icon}</div>
           </div>
           {delta && (
-            <span className={`flex items-center gap-1 text-[11px] font-medium px-2 py-[3px] rounded-full ${deltaColors[deltaType]}`}>
+            <span className={`hidden sm:flex items-center gap-1 text-[11px] font-medium px-2 py-[3px] rounded-full ${deltaColors[deltaType]}`}>
               {deltaType === 'up' ? <ArrowUp /> : deltaType === 'down' ? <ArrowDown /> : null}
               {delta}
             </span>

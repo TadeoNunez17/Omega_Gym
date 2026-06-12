@@ -260,7 +260,7 @@ export default function TrainerPanelPage() {
           </div>
         </div>
 
-        <div className="flex overflow-x-auto gap-3 mb-5 sm:grid sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 mb-5 lg:grid-cols-4">
           <MetricCard icon={<IconPeople />} color="blue" value={kpis?.total_members ?? 0} label="Total miembros" delta="Registrados" deltaType="up" />
           <MetricCard icon={<IconCard />} color="green" value={kpis?.active_memberships ?? 0} label="Membresías activas" delta="Vigentes" deltaType="up" />
           <MetricCard icon={<IconTemplate />} color="accent" value={planCount} label="Planes activos" delta={withPlanCount > 0 ? `${members.length - withPlanCount} sin plan` : 'Sin planes'} deltaType={withPlanCount > 0 ? 'neutral' : 'down'} />

@@ -130,7 +130,7 @@ export default function DashboardPage() {
           <div className="text-center py-[60px] text-text-3">Cargando dashboard…</div>
         ) : (
           <>
-            <div className="flex overflow-x-auto gap-3 mb-6 sm:grid sm:grid-cols-2 lg:grid-cols-4">
+            <div className="grid grid-cols-2 gap-3 mb-6 lg:grid-cols-4">
               <div className={`animate-slide-up ${staggerClass(0)}`}>
                 <MetricCard icon={<IconPeople />} color="blue" value={kpis?.total_members ?? 0} label="Total de miembros" delta="Registrados" deltaType="up" />
               </div>

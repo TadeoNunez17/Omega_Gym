@@ -356,7 +356,7 @@ export default function TrainerMembershipsPage() {
         <PageHeader title="Membresías" description="Control de membresías activas, vencidas y próximas a vencer" />
 
         {/* METRICS */}
-        <div className="flex overflow-x-auto gap-3 mb-6 sm:grid sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-2 gap-3 mb-6 lg:grid-cols-3">
           {[
             { label: 'Activas', value: activeCount, color: 'green', sub: 'Al corriente' },
             { label: 'Por vencer', value: warnCount, color: 'amber', sub: 'En los próximos 7 días' },
