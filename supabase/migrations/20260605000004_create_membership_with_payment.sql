@@ -38,7 +38,7 @@ BEGIN
   WHERE id = p_type_id;
 
   IF v_type_name IS NULL THEN
-    RAISE EXCEPTION 'Tipo de membresía no encontrado: %', p_type_id;
+    RAISE EXCEPTION 'El tipo de membresía seleccionado no existe o no está disponible.';
   END IF;
 
   -- === VALIDACIÓN 2: No duplicar membresías activas (excluye Visita) ===
@@ -52,7 +52,7 @@ BEGIN
   LIMIT 1;
 
   IF v_existing_id IS NOT NULL THEN
-    RAISE EXCEPTION 'El miembro ya tiene una membresía activa (%). Cancélala primero.', v_existing_id;
+    RAISE EXCEPTION 'El miembro ya tiene una membresía activa. Cancela la actual antes de asignar una nueva.';
   END IF;
 
   -- === VALIDACIÓN 3: Visita no permite pago pendiente ===

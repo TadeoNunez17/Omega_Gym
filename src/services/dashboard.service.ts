@@ -240,11 +240,13 @@ export const dashboardService = {
     }
 
     for (const em of (expiredMemberships.data || []) as any[]) {
+      const typeName = em.membership_types?.name ?? ''
+      if (typeName === 'Visita') continue
       activities.push({
         id: `expired_membership-${em.id}`,
         type: 'expired_membership',
         userName: em.profiles?.full_name ?? 'Alguien',
-        action: `membresía ${em.membership_types?.name ?? ''} vencida`,
+        action: `membresía ${typeName} vencida`,
         timestamp: em.end_date,
       })
     }

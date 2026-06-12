@@ -178,8 +178,8 @@ export const membersService = {
       .select('auth_user_id, email, phone, full_name')
       .eq('id', registeredId)
       .single()
-    if (errR || !registered) throw new Error('Perfil registrado no encontrado')
-    if (!registered.auth_user_id) throw new Error('El perfil registrado no tiene auth_user_id')
+    if (errR || !registered) throw new Error('No se encontró un usuario registrado con esos datos.')
+    if (!registered.auth_user_id) throw new Error('El perfil del usuario no tiene una cuenta de autenticación vinculada.')
 
     const { data: pending } = await supabase
       .from('profiles')
@@ -310,7 +310,7 @@ export const membersService = {
       .eq('status', 'linked')
       .maybeSingle()
 
-    if (link) throw new Error('Desvincula la cuenta de auth antes de eliminar el perfil')
+    if (link) throw new Error('Desvincula primero la cuenta del usuario antes de eliminar el perfil.')
 
     const { error } = await supabase
       .from('profiles')

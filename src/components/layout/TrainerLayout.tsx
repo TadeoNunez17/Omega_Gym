@@ -10,7 +10,7 @@ const icons: Record<string, string> = {
   members: '<circle cx="9" cy="7" r="4"/><path d="M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/><path d="M19 11l2 2 4-4"/>',
   plans: '<path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>',
   templates: '<rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>',
-  memberships: '<path d="M12 2l9 4.5v9L12 20l-9-4.5v-9L12 2z"/><path d="M12 12l9-4.5"/><path d="M12 12v8"/><path d="M3 7.5l9 4.5"/>',
+  memberships: '<rect x="3" y="7" width="18" height="14" rx="2"/><path d="M3 11h18"/><path d="M7 2v4"/><path d="M17 2v4"/>',
 }
 
 interface NavItem {
@@ -22,6 +22,7 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { label: 'Mi panel', href: '/trainer/panel', icon: 'dashboard' },
+  { label: 'Miembros', href: '/trainer/members', icon: 'members' },
   { label: 'Membresías', href: '/trainer/memberships', icon: 'memberships' },
   { label: 'Mis planes', href: '/trainer/plans', icon: 'plans' },
   { label: 'Plantillas', href: '/trainer/templates', icon: 'templates', badge: 2 },

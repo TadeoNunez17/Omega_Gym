@@ -238,14 +238,6 @@ export default function TrainerPanelPage() {
           <span className="text-text-4 mx-0.5">/</span>
           <span className="font-medium text-text-1">Mi panel</span>
         </div>
-        <div className="flex items-center gap-2 sm:gap-2.5">
-          <Button variant="ghost" size="sm" icon={<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>} onClick={() => setNoteModalOpen(true)}>
-            Nueva nota
-          </Button>
-          <Button variant="ghost" size="sm" icon={<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 5v14"/><path d="M5 12h14"/></svg>} onClick={() => setPlanModalOpen(true)}>
-            Nuevo plan
-          </Button>
-        </div>
       </header>
 
       <div className="p-2.5 sm:p-4 md:p-7 flex-1">

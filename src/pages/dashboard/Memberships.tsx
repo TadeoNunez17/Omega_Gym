@@ -95,20 +95,6 @@ export default function MembershipsPage() {
   const localDate = (str: string) => { const [y, m, d] = str.split('-').map(Number); return new Date(y, m - 1, d); };
   const navigate = useNavigate();
 
-  const [viewYear, setViewYear] = useState(now.getFullYear());
-  const [viewMonth, setViewMonth] = useState(now.getMonth());
-
-  const monthRange = useMemo(() => {
-    const start = `${viewYear}-${String(viewMonth + 1).padStart(2, '0')}-01`;
-    const endDate = new Date(viewYear, viewMonth + 1, 0);
-    const end = `${viewYear}-${String(viewMonth + 1).padStart(2, '0')}-${String(endDate.getDate()).padStart(2, '0')}`;
-    return { monthStart: start, monthEnd: end };
-  }, [viewYear, viewMonth]);
-
-  const monthLabel = useMemo(() =>
-    new Date(viewYear, viewMonth).toLocaleDateString('es-MX', { month: 'long', year: 'numeric' }),
-  [viewYear, viewMonth]);
-
   useEffect(() => {
     if (!previewTarget) { setPreviewMember(null); return; }
     const ctrl = { cancelled: false }
@@ -126,7 +112,7 @@ export default function MembershipsPage() {
       setError(null);
       try {
         const [result, mList, types] = await Promise.all([
-          membershipsService.getAll({ pageSize: 200, dateFrom: monthRange.monthStart, dateTo: monthRange.monthEnd }),
+          membershipsService.getAll({ pageSize: 300 }),
           membersService.getAll({ pageSize: 200 }),
           membershipsService.getTypes(),
         ]);
@@ -140,7 +126,7 @@ export default function MembershipsPage() {
       }
     }
     load();
-  }, [monthRange]);
+  }, []);
 
   const allWithStatus = useMemo(
     () => members.map((m) => ({ ...m, status: getStatus(m) })),
@@ -150,6 +136,7 @@ export default function MembershipsPage() {
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
     return allWithStatus
+      .filter((m) => m.status !== 'expired')
       .filter((m) => currentFilter === 'all' || m.status === currentFilter)
       .filter(
         (m) =>
@@ -167,7 +154,6 @@ export default function MembershipsPage() {
 
   const activeCount = allWithStatus.filter((m) => m.status === 'active').length;
   const warnCount = allWithStatus.filter((m) => m.status === 'warning').length;
-  const expiredCount = allWithStatus.filter((m) => m.status === 'expired').length;
 
   const selTypeData = membershipTypes.find((t) => t.id === selType);
   const isVisita = selTypeData?.name === 'Visita';
@@ -201,7 +187,7 @@ export default function MembershipsPage() {
       });
       setModalOpen(false);
       resetForm();
-      const result = await membershipsService.getAll({ pageSize: 200, dateFrom: monthRange.monthStart, dateTo: monthRange.monthEnd });
+      const result = await membershipsService.getAll({ pageSize: 300 });
       setMembers(result.data.map(toMember));
       toast.success('Membresía creada correctamente');
     } catch (e: any) {
@@ -237,7 +223,7 @@ export default function MembershipsPage() {
         await paymentsService.updateAmountByMembership(editId, selectedType.price);
       }
       setEditId(null);
-      const result = await membershipsService.getAll({ pageSize: 200, dateFrom: monthRange.monthStart, dateTo: monthRange.monthEnd });
+      const result = await membershipsService.getAll({ pageSize: 300 });
       setMembers(result.data.map(toMember));
       toast.success('Membresía actualizada correctamente');
     } catch (e: any) {
@@ -245,7 +231,7 @@ export default function MembershipsPage() {
     } finally {
       setEditSaving(false);
     }
-  }, [editId, editTypeId, editStart, editEnd, editStatus, membershipTypes, monthRange]);
+  }, [editId, editTypeId, editStart, editEnd, editStatus, membershipTypes]);
 
   const handleDelete = useCallback((m: Member) => {
     setDeleteTarget(m);
@@ -256,7 +242,7 @@ export default function MembershipsPage() {
     if (!target) return;
     try {
       await membershipsService.delete(target.id);
-      const result = await membershipsService.getAll({ pageSize: 200, dateFrom: monthRange.monthStart, dateTo: monthRange.monthEnd });
+      const result = await membershipsService.getAll({ pageSize: 300 });
       setMembers(result.data.map(toMember));
       setDeleteTarget(null);
       toast.success('Membresía eliminada correctamente');
@@ -264,7 +250,7 @@ export default function MembershipsPage() {
       toast.error('Error al eliminar: ' + e.message);
       setDeleteTarget(null);
     }
-  }, [deleteTarget, monthRange]);
+  }, [deleteTarget]);
 
   const columns: Column<Member>[] = [
     {
@@ -368,12 +354,12 @@ export default function MembershipsPage() {
           <div className="absolute inset-0 opacity-[0.04]"
             style={{ background: 'radial-gradient(600px circle at 20% 30%, var(--accent), transparent)' }} />
           <div className="relative">
-            <PageHeader title="Membresías" description={`Membresías iniciadas en ${monthLabel}`} />
+            <PageHeader title="Membresías" description="Control de planes y vencimientos" />
           </div>
         </div>
 
         {/* METRICS */}
-        <div className="grid grid-cols-2 gap-3 mb-6 lg:grid-cols-3">
+        <div className="grid grid-cols-2 gap-3 mb-6 lg:grid-cols-2">
           <div className="animate-slide-up stagger-1">
             <MetricCard icon={
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-full h-full"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12" /></svg>
@@ -384,15 +370,10 @@ export default function MembershipsPage() {
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-full h-full"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>
             } color="amber" value={warnCount} label="Por vencer" delta="Próximos 7 días" deltaType="down" />
           </div>
-          <div className="animate-slide-up stagger-3">
-            <MetricCard icon={
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-full h-full"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></svg>
-            } color="red" value={expiredCount} label="Vencidas" delta="Sin renovar" deltaType="down" />
-          </div>
         </div>
 
         {/* ALERT BANNER */}
-        {(warnCount > 0 || expiredCount > 0) && (
+        {warnCount > 0 && (
           <div className="bg-amber-bg border border-amber/20 rounded-sm p-3 flex items-start gap-3 text-xs text-amber-text mb-4">
             <div className="w-7 h-7 rounded-lg bg-amber-bg flex items-center justify-center shrink-0">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4">
@@ -402,44 +383,11 @@ export default function MembershipsPage() {
               </svg>
             </div>
             <div className="flex-1">
-              <span className="sm:hidden">
-                {warnCount > 0 && `${warnCount} por vencer`}
-                {warnCount > 0 && expiredCount > 0 && ' · '}
-                {expiredCount > 0 && `${expiredCount} vencidas`}
-              </span>
-              <span className="hidden sm:inline">
-                {warnCount > 0 && `${warnCount} membresía${warnCount > 1 ? 's' : ''} por vencer en los próximos 7 días`}
-                {warnCount > 0 && expiredCount > 0 && ' · '}
-                {expiredCount > 0 && `${expiredCount} membresía${expiredCount > 1 ? 's' : ''} vencida${expiredCount > 1 ? 's' : ''} sin renovar`}
-                . Considera contactar a estos miembros.
-              </span>
+              <span className="sm:hidden">{warnCount} por vencer</span>
+              <span className="hidden sm:inline">{warnCount} membresía{warnCount > 1 ? 's' : ''} por vencer en los próximos 7 días. Considera contactar a estos miembros.</span>
             </div>
-            <button onClick={() => {/* dismiss */}} className="shrink-0 p-1 rounded hover:bg-amber-bg/50 text-amber-text/60 hover:text-amber-text transition-colors">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-3.5 h-3.5">
-                <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-              </svg>
-            </button>
           </div>
         )}
-
-        {/* MONTH NAV */}
-        <div className="flex items-center gap-3 mb-4">
-          <button onClick={() => {
-            if (viewMonth === 0) { setViewYear(viewYear - 1); setViewMonth(11); }
-            else setViewMonth(viewMonth - 1);
-            setCurrentPage(1);
-          }} className="w-7 h-7 flex items-center justify-center rounded hover:bg-surface2 transition-colors text-text-3 hover:text-text-1" title="Mes anterior">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4"><polyline points="15 18 9 12 15 6" /></svg>
-          </button>
-          <span className="text-[13px] font-medium text-text-1 capitalize min-w-[140px] text-center">{monthLabel}</span>
-          <button onClick={() => {
-            if (viewMonth === 11) { setViewYear(viewYear + 1); setViewMonth(0); }
-            else setViewMonth(viewMonth + 1);
-            setCurrentPage(1);
-          }} className="w-7 h-7 flex items-center justify-center rounded hover:bg-surface2 transition-colors text-text-3 hover:text-text-1" title="Mes siguiente">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4"><polyline points="9 18 15 12 9 6" /></svg>
-          </button>
-        </div>
 
         {/* CONTROLS */}
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 mb-4">
@@ -451,7 +399,6 @@ export default function MembershipsPage() {
               { key: 'all', label: 'Todos' },
               { key: 'active', label: 'Activos' },
               { key: 'warning', label: 'Por vencer' },
-              { key: 'expired', label: 'Vencidos' },
             ]} active={currentFilter} onChange={(k) => { setCurrentFilter(k as MembershipStatus | 'all'); setCurrentPage(1); }} />
           </div>
         </div>
