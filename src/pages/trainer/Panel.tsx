@@ -1,14 +1,21 @@
-﻿import { useState, useEffect } from 'react';
+﻿import { useState, useEffect, useMemo, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/store/auth.store';
 import { membersService, type MemberListItem } from '@/services/members.service';
 import { trainingService, type PlanListItem } from '@/services/training.service';
 import { membershipsService } from '@/services/memberships.service';
+import { checkInsService, type CheckIn } from '@/services/checkIns.service';
 import { MetricCard } from '@/components/ui/atoms/MetricCard';
 import { Button } from '@/components/ui/atoms/Button';
+import { PageHeader } from '@/components/ui/molecules/PageHeader';
 import { Input, Select } from '@/components/ui/atoms/Input';
 import { Modal } from '@/components/ui/molecules/Modal';
-import { IconPlus, IconEdit } from '@/lib/icons';
-import { dashboardService, type RecentActivityItem, type DashboardKPIs } from '@/services/dashboard.service';
+import { SearchInput } from '@/components/ui/molecules/SearchInput';
+import { Pagination } from '@/components/ui/molecules/Pagination';
+import { TabBar } from '@/components/ui/molecules/TabBar';
+import { IconPlus } from '@/lib/icons';
+import { dashboardService, type DashboardKPIs } from '@/services/dashboard.service';
+import { fmtPhone } from '@/lib/helpers';
 
 const AV_COLORS = [
   { bg: 'rgba(59,130,246,0.15)', fg: '#60a5fa' },
@@ -26,10 +33,7 @@ function initials(name: string) {
 function IconPeople() { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-full h-full"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>; }
 function IconCard() { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-full h-full"><rect x="2" y="5" width="20" height="14" rx="2" /><path d="M2 10h20" /></svg>; }
 function IconClock() { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-full h-full"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>; }
-function IconCheck() { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-full h-full"><path d="M9 11l3 3L22 4" /><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" /></svg>; }
-function IconPlusMember() { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-full h-full"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><line x1="19" y1="8" x2="19" y2="14" /><line x1="22" y1="11" x2="16" y2="11" /></svg>; }
 function IconTemplate() { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-full h-full"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" /><polyline points="14 2 14 8 20 8" /></svg>; }
-function IconCreditCard() { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-full h-full"><rect x="2" y="5" width="20" height="14" rx="2" /><line x1="2" y1="10" x2="22" y2="10" /></svg>; }
 
 const MONTHS = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
 
@@ -43,29 +47,16 @@ function todayStr() {
   return `${n.getDate()} ${MONTHS[n.getMonth()]} ${n.getFullYear()}`;
 }
 
-function timeAgo(iso: string): string {
-  const diff = Date.now() - new Date(iso).getTime();
-  const mins = Math.floor(diff / 60000);
-  if (mins < 60) return `hace ${mins} min`;
-  const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `hace ${hrs} horas`;
-  const days = Math.floor(hrs / 24);
-  if (days === 1) return `ayer`;
-  return `hace ${days} días`;
-}
-
-interface NoteItem {
-  member: string;
-  avC: number;
-  av: string;
-  text: string;
-  time: string;
-}
+const staggerClass = (i: number) => {
+  const map = ['stagger-1', 'stagger-2', 'stagger-3', 'stagger-4', 'stagger-5', 'stagger-6', 'stagger-7'];
+  return map[i] || 'stagger-1';
+};
 
 interface PanelMember {
   id: string;
   name: string;
   email: string;
+  phone: string | null;
   av: string;
   avC: number;
   membresia: string;
@@ -83,32 +74,34 @@ interface PanelPlan {
 
 export default function TrainerPanelPage() {
   const user = useAuthStore(s => s.user);
+  const navigate = useNavigate();
   const [kpis, setKpis] = useState<DashboardKPIs | null>(null);
   const [expiring, setExpiring] = useState<any[]>([]);
-  const [activities, setActivities] = useState<RecentActivityItem[]>([]);
   const [members, setMembers] = useState<PanelMember[]>([]);
   const [plans, setPlans] = useState<PanelPlan[]>([]);
-  const [notes, setNotes] = useState<NoteItem[]>([]);
-  const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [planModalOpen, setPlanModalOpen] = useState(false);
-  const [noteModalOpen, setNoteModalOpen] = useState(false);
   const [pName, setPName] = useState('');
   const [pDesc, setPDesc] = useState('');
   const [pMemberId, setPMemberId] = useState('');
-  const [nMember, setNMember] = useState('');
-  const [nText, setNText] = useState('');
+
+  const [search, setSearch] = useState('');
+  const [memberFilter, setMemberFilter] = useState('all');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [checkinStatus, setCheckinStatus] = useState<CheckIn[] | null>(null);
+
+  const sidebarRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const ctrl = { ignore: false };
     (async () => {
       try {
-        const [kpiData, membersData, plansData, exp, acts] = await Promise.all([
+        const [kpiData, membersData, plansData, exp] = await Promise.all([
           dashboardService.getKPIs(),
           membersService.getAll({ role: 'member', pageSize: 200 }),
           trainingService.getAll({ pageSize: 200 }),
           membershipsService.getExpiring(7),
-          dashboardService.getRecentActivity(10),
         ]);
 
         if (ctrl.ignore) return;
@@ -117,6 +110,7 @@ export default function TrainerPanelPage() {
           id: m.id,
           name: m.full_name,
           email: m.email || '',
+          phone: m.phone || null,
           av: initials(m.full_name),
           avC: m.full_name.split('').reduce((a, c) => a + c.charCodeAt(0), 0) % AV_COLORS.length,
           membresia: m.membership_type || '—',
@@ -139,7 +133,6 @@ export default function TrainerPanelPage() {
           days: p.days || 5,
         })));
         setExpiring(exp);
-        setActivities(acts);
       } catch (err) {
         if (!ctrl.ignore) console.error('Error loading panel data:', err);
       } finally {
@@ -149,14 +142,71 @@ export default function TrainerPanelPage() {
     return () => { ctrl.ignore = true; };
   }, []);
 
-  const m = selectedIdx !== null ? members[selectedIdx] : null;
+  useEffect(() => {
+    if (!selectedId) { setCheckinStatus(null); return; }
+    let cancelled = false;
+    checkInsService.getByMember(selectedId).then(checks => {
+      if (!cancelled) setCheckinStatus(checks);
+    }).catch(() => { if (!cancelled) setCheckinStatus([]); });
+    return () => { cancelled = true; };
+  }, [selectedId]);
+
   const withPlanCount = members.filter(mem => mem.plan).length;
   const planCount = plans.length;
-  const membersWithoutPlan = members.filter(mem => !mem.plan);
 
-  function selectMember(i: number) {
-    setSelectedIdx(prev => prev === i ? null : i);
+  const filtered = useMemo(() => {
+    let list = members;
+    const q = search.toLowerCase().trim();
+    if (q) {
+      list = list.filter(m =>
+        m.name.toLowerCase().includes(q) ||
+        m.email.toLowerCase().includes(q) ||
+        (m.phone && m.phone.includes(q))
+      );
+    }
+    if (memberFilter === 'plan') list = list.filter(m => m.plan);
+    else if (memberFilter === 'noplan') list = list.filter(m => !m.plan);
+    else if (memberFilter === 'nomen') list = list.filter(m => m.memDays === 0);
+    return list;
+  }, [members, search, memberFilter]);
+
+  const PAGE_SIZE = 20;
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const safePage = Math.min(currentPage, totalPages);
+  const pageStart = (safePage - 1) * PAGE_SIZE;
+  const paginated = filtered.slice(pageStart, pageStart + PAGE_SIZE);
+
+  const m = selectedId ? members.find(mem => mem.id === selectedId) ?? null : null;
+
+  function selectMember(id: string) {
+    setSelectedId(prev => prev === id ? null : id);
   }
+
+  function handleSearch(next: string) {
+    setSearch(next);
+    setCurrentPage(1);
+  }
+
+  function handleFilterChange(key: string) {
+    setMemberFilter(key);
+    setCurrentPage(1);
+  }
+
+  function handleEyeClick(e: React.MouseEvent, id: string) {
+    e.stopPropagation();
+    setSelectedId(prev => {
+      const next = prev === id ? null : id;
+      if (next) requestAnimationFrame(() => sidebarRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }));
+      return next;
+    });
+  }
+
+  const checkedInToday = checkinStatus
+    ? checkinStatus.some(c => c.check_in_time.startsWith(new Date().toISOString().split('T')[0]))
+    : false;
+  const lastCheckin = checkinStatus && checkinStatus.length > 0
+    ? checkinStatus[0].check_in_time
+    : null;
 
   async function guardarPlan() {
     if (!pName.trim() || !user) return;
@@ -171,7 +221,7 @@ export default function TrainerPanelPage() {
         id: plan.id,
         name: plan.name,
         members: pMemberId
-          ? [members.find(m => m.id === pMemberId)?.name || 'Miembro']
+          ? [members.find(mem => mem.id === pMemberId)?.name || 'Miembro']
           : [],
         days: 5,
       }]);
@@ -182,126 +232,72 @@ export default function TrainerPanelPage() {
     }
   }
 
-  function guardarNota() {
-    if (!nText.trim()) return;
-    const member = members.find(x => x.name === nMember);
-    setNotes([{
-      member: nMember,
-      avC: member?.avC ?? 0,
-      av: member?.av ?? '??',
-      text: nText.trim(),
-      time: 'Ahora',
-    }, ...notes]);
-    setNoteModalOpen(false);
-    setNText('');
-  }
-
-  const activityIcons: Record<string, { icon: React.ReactNode; cls: string }> = {
-    check_in: { icon: <IconCheck />, cls: 'green' },
-    new_member: { icon: <IconPlusMember />, cls: 'purple' },
-    payment: { icon: <IconCreditCard />, cls: 'blue' },
-  };
-
-  const clsStyles: Record<string, string> = {
-    green: 'bg-green-bg text-green-text',
-    blue: 'bg-blue-bg text-blue-text',
-    purple: 'bg-purple-bg text-purple-text',
-    red: 'bg-red-bg text-red-text',
-  };
-
-  const planIcons = [
-    '<path d="M9 11l3 3L22 4"/>',
-    '<polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>',
-    '<circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/>',
-  ];
-
-  const iconColors: Record<string, {bg: string; fg: string}> = {
-    'pi-purple': { bg: 'rgba(168,85,247,0.1)', fg: '#c084fc' },
-    'pi-blue': { bg: 'rgba(59,130,246,0.1)', fg: '#60a5fa' },
-    'pi-green': { bg: 'rgba(34,197,94,0.1)', fg: '#4ade80' },
-    'pi-pink': { bg: 'rgba(236,72,153,0.1)', fg: '#f472b6' },
-  };
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh] text-text-3 text-sm">
-        Cargando panel…
-      </div>
-    );
-  }
-
   return (
     <>
+      <div className="noise-overlay" />
       <header className="px-4 sm:px-7 h-14 flex items-center justify-between border-b border-border bg-surface2 sticky top-0 z-9">
-        <div className="flex items-center gap-2 text-xs sm:text-[13px] text-text-3">
-          <div className="w-4 h-4 shrink-0 flex items-center justify-center"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-full h-full" width="16" height="16"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></div>
-          <span className="text-text-4 mx-0.5">/</span>
-          <span className="font-medium text-text-1">Mi panel</span>
+        <div />
+        <div className="flex items-center gap-2 sm:gap-3">
+          <span className="text-[11px] sm:text-[12px] text-text-3 font-mono bg-surface border border-border px-2.5 sm:px-3 py-1.5 rounded-sm hidden sm:inline">{todayStr()}</span>
         </div>
       </header>
 
-      <div className="p-2.5 sm:p-4 md:p-7 flex-1">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-          <div>
-            <h1 className="text-[20px] sm:text-[22px] font-semibold -tracking-[0.02em]">
-              Buenos días, {user?.full_name?.split(' ')[0] || 'Entrenador'} 👋
-            </h1>
-            <p className="text-[12px] sm:text-[13px] text-text-2 mt-1">
-              Resumen de tus miembros y membresías — {todayStr()}.
-            </p>
+      <div className="p-2.5 sm:p-4 md:p-7 flex-1 animate-slide-up stagger-1">
+        <div className="relative mb-7 overflow-hidden rounded-xl bg-gradient-to-br from-surface to-surface2 border border-border p-5 sm:p-7">
+          <div className="absolute inset-0 opacity-[0.04]"
+            style={{ background: 'radial-gradient(600px circle at 20% 30%, var(--accent), transparent)' }} />
+          <div className="relative">
+            <PageHeader
+              breadcrumbs={[
+                { label: 'Inicio', href: '/trainer/panel' },
+                { label: 'Mi panel' },
+              ]}
+              title={`Buenos días, ${user?.full_name?.split(' ')[0] || 'Entrenador'} 👋`}
+              description={`Resumen de tus miembros y membresías — ${todayStr()}`}
+            />
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-3 mb-5 lg:grid-cols-4">
-          <MetricCard icon={<IconPeople />} color="blue" value={kpis?.total_members ?? 0} label="Total miembros" delta="Registrados" deltaType="up" />
-          <MetricCard icon={<IconCard />} color="green" value={kpis?.active_memberships ?? 0} label="Membresías activas" delta="Vigentes" deltaType="up" />
-          <MetricCard icon={<IconTemplate />} color="accent" value={planCount} label="Planes activos" delta={withPlanCount > 0 ? `${members.length - withPlanCount} sin plan` : 'Sin planes'} deltaType={withPlanCount > 0 ? 'neutral' : 'down'} />
-          <MetricCard icon={<IconClock />} color="amber" value={kpis?.expiring_soon ?? 0} label="Vencen en 7 días" delta="Atención" deltaType="down" />
+        {loading ? (
+          <div className="text-center py-[60px] text-text-3">Cargando panel…</div>
+        ) : (<>
+        <div className="grid grid-cols-2 gap-3 mb-6 lg:grid-cols-4">
+          <div className={`animate-slide-up ${staggerClass(0)}`}>
+            <MetricCard icon={<IconPeople />} color="blue" value={kpis?.total_members ?? 0} label="Total miembros" delta="Registrados" deltaType="up" />
+          </div>
+          <div className={`animate-slide-up ${staggerClass(1)}`}>
+            <MetricCard icon={<IconCard />} color="green" value={kpis?.active_memberships ?? 0} label="Membresías activas" delta="Vigentes" deltaType="up" />
+          </div>
+          <div className={`animate-slide-up ${staggerClass(2)}`}>
+            <MetricCard icon={<IconTemplate />} color="accent" value={planCount} label="Planes activos" delta={withPlanCount > 0 ? `${members.length - withPlanCount} sin plan` : 'Sin planes'} deltaType={withPlanCount > 0 ? 'neutral' : 'down'} />
+          </div>
+          <div className={`animate-slide-up ${staggerClass(3)}`}>
+            <MetricCard icon={<IconClock />} color="amber" value={kpis?.expiring_soon ?? 0} label="Vencen en 7 días" delta="Atención" deltaType="down" />
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 mb-5">
-          <div className="bg-surface border border-border rounded-lg overflow-hidden">
-            <div className="flex items-center justify-between px-3 sm:px-5 py-3 sm:py-4 border-b border-border">
-              <div>
-                <div className="text-[13px] font-semibold">Miembros sin plan</div>
-                <div className="text-[11px] text-text-3 mt-0.5 hidden sm:block">Requieren asignación</div>
-              </div>
-              <span className="text-[11px] font-medium px-[9px] py-[3px] rounded-full bg-amber-bg text-amber-text">{membersWithoutPlan.length}</span>
-            </div>
-            <div className="flex flex-col">
-              {membersWithoutPlan.length === 0 ? (
-                <div className="text-center py-6 sm:py-8 text-[12px] text-text-3">Todos los miembros tienen plan asignado</div>
-              ) : (
-                membersWithoutPlan.slice(0, 5).map((mem) => {
-                  const c = AV_COLORS[mem.avC];
-                  return (
-                    <div key={mem.id} className="flex items-center gap-2 sm:gap-3 px-3 sm:px-5 py-2.5 sm:py-3 border-b border-border">
-                      <div className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-semibold flex-shrink-0"
-                        style={{ background: c.bg, color: c.fg }}>
-                        {mem.av}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="text-[13px] font-medium truncate">{mem.name}</div>
-                        <div className="text-[11px] text-text-3 mt-0.5 truncate">{mem.email}</div>
-                      </div>
-                      <span className="text-[10px] font-medium px-[9px] py-[3px] rounded-full bg-red-bg text-red-text whitespace-nowrap">Sin plan</span>
-                    </div>
-                  );
-                })
-              )}
-            </div>
-          </div>
+        <div className="grid grid-cols-1 lg:grid-cols-1 gap-3 mb-5">
 
-          <div className="bg-surface border border-border rounded-lg overflow-hidden">
+          <div className={`animate-slide-up ${staggerClass(4)} bg-surface border border-border rounded-lg overflow-hidden`}>
             <div className="flex items-center justify-between px-3 sm:px-5 py-3 sm:py-4 border-b border-border">
-              <div>
-                <div className="text-[13px] font-semibold">Membresías por vencer</div>
-                <div className="text-[11px] text-text-3 mt-0.5">Próximos 7 días</div>
+              <div className="flex items-center gap-2.5">
+                <div className="w-7 h-7 rounded-lg bg-amber-bg text-amber-text flex items-center justify-center">
+                  <div className="w-3.5 h-3.5"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-full h-full"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18" /><polyline points="17 6 23 6 23 12" /></svg></div>
+                </div>
+                <div>
+                  <div className="text-[13px] font-semibold">Membresías por vencer</div>
+                  <div className="text-[11px] text-text-3 mt-0.5 hidden sm:block">Próximos 7 días</div>
+                </div>
               </div>
             </div>
             <div className="flex flex-col">
               {expiring.length === 0 ? (
-                <div className="text-center py-6 sm:py-8 text-[12px] text-text-3">Sin membresías por vencer</div>
+                <div className="flex flex-col items-center justify-center py-8 sm:py-10 text-text-3">
+                  <div className="w-8 h-8 rounded-full bg-green-bg text-green-text flex items-center justify-center mb-2">
+                    <div className="w-4 h-4"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-full h-full"><path d="M9 11l3 3L22 4" /><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" /></svg></div>
+                  </div>
+                  <div className="text-[12px]">Sin membresías por vencer</div>
+                </div>
               ) : (
                 expiring.slice(0, 5).map((e) => {
                   const av = AV_COLORS[e.member_name.length % AV_COLORS.length];
@@ -309,7 +305,7 @@ export default function TrainerPanelPage() {
                   const ev = e.days_remaining === 0 ? 'Hoy' : e.days_remaining === 1 ? '1 día' : `${e.days_remaining} días`;
                   const isUrgent = e.days_remaining <= 1;
                   return (
-                    <div key={e.id} className="flex items-center gap-2 sm:gap-3 px-3 sm:px-5 py-2.5 sm:py-3 border-b border-border">
+                    <div key={e.id} className="row-hover flex items-center gap-2 sm:gap-3 px-3 sm:px-5 py-2.5 sm:py-3 border-b border-border">
                       <div className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-semibold flex-shrink-0"
                         style={{ background: av.bg, color: av.fg }}>
                         {inits}
@@ -328,45 +324,27 @@ export default function TrainerPanelPage() {
             </div>
           </div>
 
-          <div className="bg-surface border border-border rounded-lg overflow-hidden">
-            <div className="px-3 sm:px-5 py-3 sm:py-4 border-b border-border">
-              <div className="text-[13px] font-semibold">Actividad reciente</div>
-              <div className="text-[11px] text-text-3 mt-0.5 hidden sm:block">Últimos check-ins y altas</div>
-            </div>
-            <div className="flex flex-col">
-              {activities.length === 0 ? (
-                <div className="text-center py-6 sm:py-8 text-[12px] text-text-3">Sin actividad reciente</div>
-              ) : (
-                activities.map((a, i) => {
-                  const act = activityIcons[a.type] || { icon: <IconCheck />, cls: 'green' };
-                  return (
-                    <div key={a.id || i} className="flex items-start gap-2 sm:gap-3 px-3 sm:px-5 py-2.5 sm:py-3 border-b border-border">
-                      <div className={`w-[30px] h-[30px] rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 ${clsStyles[act.cls]}`}>
-                        <div className="w-[13px] h-[13px]">{act.icon}</div>
-                      </div>
-                      <div className="flex-1">
-                        <div className="text-[12px] text-text-2 leading-relaxed">
-                          <span className="font-semibold text-text-1">{a.userName}</span>
-                          {' '}{a.action}
-                        </div>
-                        <div className="text-[10px] text-text-3 mt-[3px]">{timeAgo(a.timestamp)}</div>
-                      </div>
-                    </div>
-                  );
-                })
-              )}
-            </div>
-          </div>
         </div>
 
-        <div className="grid grid-cols-1 gap-4 mb-5 lg:grid-cols-[1fr_340px]">
-          <div className="bg-surface border border-border rounded overflow-hidden">
-            <div className="flex items-center justify-between px-5 py-3.5 border-b border-border">
+        <div className={`grid grid-cols-1 gap-4 mb-5 lg:grid-cols-[1fr_340px] animate-slide-up ${staggerClass(5)}`}>
+          <div className="bg-surface border border-border rounded-lg overflow-hidden">
+            <div className="flex items-center gap-2.5 px-5 py-3.5 border-b border-border">
+              <div className="w-7 h-7 rounded-lg bg-blue-bg text-blue-text flex items-center justify-center">
+                <div className="w-3.5 h-3.5"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-full h-full"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg></div>
+              </div>
               <div>
                 <div className="text-[13px] font-semibold">Miembros</div>
-                <div className="text-[11px] text-text-3 mt-0.5">Contacta al admin para hacer cambios</div>
+                <div className="text-[11px] text-text-3 mt-0.5 hidden sm:block">Contacta al admin para hacer cambios</div>
               </div>
-              <span className="text-[11px] text-text-3">{members.length} miembros</span>
+            </div>
+            <div className="px-4 sm:px-5 py-2.5 border-b border-border flex flex-col sm:flex-row gap-2 sm:items-center sm:justify-between">
+              <SearchInput value={search} onChange={handleSearch} placeholder="Buscar por nombre, email o teléfono…" />
+              <TabBar tabs={[
+                { key: 'all', label: 'Todos' },
+                { key: 'plan', label: 'Con plan' },
+                { key: 'noplan', label: 'Sin plan' },
+                { key: 'nomen', label: 'Sin membresía' },
+              ]} active={memberFilter} onChange={handleFilterChange} />
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-[13px]" style={{ borderCollapse: 'collapse' }}>
@@ -380,12 +358,23 @@ export default function TrainerPanelPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {members.map((mem, i) => {
-                    const isSel = selectedIdx === i;
+                  {paginated.length === 0 ? (
+                    <tr>
+                      <td colSpan={5}>
+                        <div className="flex flex-col items-center justify-center py-10 text-text-3">
+                          <div className="w-8 h-8 rounded-full bg-surface2 flex items-center justify-center mb-2">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="16" height="16"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
+                          </div>
+                          <div className="text-[12px]">No se encontraron miembros</div>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : paginated.map((mem) => {
+                    const isSel = selectedId === mem.id;
                     const c = AV_COLORS[mem.avC];
                     return (
-                      <tr key={mem.id} onClick={() => selectMember(i)}
-                        className="cursor-pointer transition-colors duration-100"
+                      <tr key={mem.id} onClick={() => selectMember(mem.id)}
+                        className="cursor-pointer row-hover transition-colors duration-100"
                         style={{ background: isSel ? 'var(--accent-dim)' : undefined }}>
                         <td className="px-[18px] py-3 border-b border-border">
                           <div className="flex items-center gap-2.5">
@@ -431,7 +420,8 @@ export default function TrainerPanelPage() {
                           </span>
                         </td>
                         <td className="px-[18px] py-3 border-b border-border text-right">
-                          <button className="w-7 h-7 flex items-center justify-center rounded border border-border text-text-3 bg-transparent cursor-pointer"
+                          <button onClick={(e) => handleEyeClick(e, mem.id)}
+                            className="w-7 h-7 flex items-center justify-center rounded border border-border text-text-3 bg-transparent cursor-pointer"
                             style={{ borderRadius: 'var(--radius-sm)' }}>
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="13" height="13">
                               <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
@@ -444,13 +434,22 @@ export default function TrainerPanelPage() {
                 </tbody>
               </table>
             </div>
+            <Pagination
+              current={safePage}
+              total={totalPages}
+              start={pageStart}
+              end={Math.min(pageStart + PAGE_SIZE, filtered.length)}
+              totalItems={filtered.length}
+              label="miembros"
+              onChange={(p) => { setCurrentPage(p); setSelectedId(null); }}
+            />
           </div>
 
-          <div className="bg-surface border border-border rounded overflow-hidden">
+          <div ref={sidebarRef} className="bg-surface border border-border rounded-lg overflow-hidden">
             {!m ? (
               <div className="flex flex-col items-center justify-center text-center p-8 gap-2.5 min-h-[300px]">
-                <div className="w-11 h-11 rounded-full bg-surface2 flex items-center justify-center">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="20" height="20" style={{ color: 'var(--text-3)' }}>
+                <div className="w-9 h-9 rounded-lg bg-surface2 flex items-center justify-center">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="18" height="18" style={{ color: 'var(--text-3)' }}>
                     <circle cx="9" cy="7" r="4"/><path d="M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/>
                   </svg>
                 </div>
@@ -465,8 +464,34 @@ export default function TrainerPanelPage() {
                     {m.av}
                   </div>
                   <div className="text-[15px] font-semibold">{m.name}</div>
-                  <div className="text-[12px] text-text-3">{m.email}</div>
-                  <div>
+
+                  <div className="flex flex-col gap-1.5 text-[12px] w-full">
+                    <div className="flex items-center justify-center gap-1.5 text-text-3">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="13" height="13" className="shrink-0"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                      <span>{m.email}</span>
+                    </div>
+                    {m.phone && (
+                      <div className="flex items-center justify-center gap-1.5 text-text-3">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="13" height="13" className="shrink-0"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                        <span>{fmtPhone(m.phone)}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-2 flex-wrap justify-center">
+                    {checkinStatus === null ? (
+                      <span className="inline-flex items-center gap-1.5 px-[9px] py-[3px] rounded-full text-[11px] font-medium bg-surface2 text-text-3">
+                        <span className="w-1.5 h-1.5 rounded-full bg-text-3 shrink-0"></span>Verificando…
+                      </span>
+                    ) : checkedInToday ? (
+                      <span className="inline-flex items-center gap-1.5 px-[9px] py-[3px] rounded-full text-[11px] font-medium bg-green-bg text-green-text">
+                        <span className="w-1.5 h-1.5 rounded-full bg-green shrink-0"></span>Check-in hoy
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1.5 px-[9px] py-[3px] rounded-full text-[11px] font-medium bg-red-bg text-red-text">
+                        <span className="w-1.5 h-1.5 rounded-full bg-red shrink-0"></span>Sin check-in hoy
+                      </span>
+                    )}
                     {m.memDays > 0 && m.memDays <= 7 ? (
                       <span className="inline-flex items-center gap-1.5 px-[9px] py-[3px] rounded-full text-[11px] font-medium bg-amber-bg text-amber-text">
                         <span className="w-1.5 h-1.5 rounded-full bg-amber shrink-0"></span>Vence en {m.memDays} días
@@ -536,91 +561,35 @@ export default function TrainerPanelPage() {
                       Crear plan para {m.name.split(' ')[0]}
                     </button>
                   )}
-                  <button onClick={() => setNoteModalOpen(true)}
-                    className="w-full py-2.5 rounded text-[12px] font-medium cursor-pointer font-inherit border border-border2 bg-transparent text-text-2 flex items-center justify-center gap-1.5">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="13" height="13">
-                      <path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 16.5-3.5z"/>
-                    </svg>
-                    Agregar nota de seguimiento
+
+                  <div className="grid grid-cols-2 gap-2 mt-1">
+                    {m.phone && (
+                      <a href={`tel:${m.phone}`}
+                        className="py-2 rounded text-[11px] font-medium cursor-pointer font-inherit border border-border text-text-2 bg-transparent flex items-center justify-center gap-1.5 hover:bg-surface2 transition-colors no-underline">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="12" height="12"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                        Llamar
+                      </a>
+                    )}
+                    <a href={`mailto:${m.email}`}
+                      className="py-2 rounded text-[11px] font-medium cursor-pointer font-inherit border border-border text-text-2 bg-transparent flex items-center justify-center gap-1.5 hover:bg-surface2 transition-colors no-underline">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="12" height="12"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                      Email
+                    </a>
+                  </div>
+
+                  <button onClick={() => navigate(`/trainer/members`)}
+                    className="w-full py-2 rounded text-[11px] font-medium cursor-pointer font-inherit border border-dashed border-border text-text-3 bg-transparent flex items-center justify-center gap-1.5 hover:bg-surface2 transition-colors">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="12" height="12"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                    Ver perfil completo
                   </button>
+
                 </div>
               </>
             )}
           </div>
         </div>
 
-        <div className="bg-surface border border-border rounded overflow-hidden mb-5">
-          <div className="flex items-center justify-between px-5 py-3.5 border-b border-border">
-            <div>
-              <div className="text-[13px] font-semibold">Planes de entrenamiento</div>
-              <div className="text-[11px] text-text-3 mt-0.5">Planes registrados en el sistema</div>
-            </div>
-            <button onClick={() => setPlanModalOpen(true)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded text-[12px] font-medium cursor-pointer font-inherit bg-accent text-black border-none">
-              + Nuevo
-            </button>
-          </div>
-          {plans.length === 0 ? (
-            <div className="text-center py-10 text-text-3 text-[13px]">No hay planes registrados aún.</div>
-          ) : (
-            plans.map((p, i) => {
-              const iconKey = ['pi-purple', 'pi-blue', 'pi-green', 'pi-pink'][i % 4];
-              const ic = iconColors[iconKey] || iconColors['pi-purple'];
-              return (
-                <div key={p.id} className="flex items-center gap-3 px-[18px] py-3 transition-colors cursor-pointer"
-                  style={{ borderBottom: i < plans.length - 1 ? '1px solid var(--border)' : undefined }}>
-                  <div className="w-[34px] h-[34px] rounded flex items-center justify-center shrink-0"
-                    style={{ background: ic.bg, color: ic.fg }}>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="15" height="15"
-                      dangerouslySetInnerHTML={{ __html: planIcons[i % 3] }} />
-                  </div>
-                  <div className="flex-1">
-                    <div className="text-[13px] font-medium">{p.name}</div>
-                    <div className="text-[11px] text-text-3 mt-0.5">{p.days} días/semana · {p.members.join(', ') || 'Sin asignar'}</div>
-                  </div>
-                  <span className="text-[11px] font-mono text-text-3">
-                    {p.members.length} miembro{p.members.length !== 1 ? 's' : ''}
-                  </span>
-                </div>
-              );
-            })
-          )}
-        </div>
-
-        <div className="bg-surface border border-border rounded overflow-hidden mb-5">
-          <div className="flex items-center justify-between px-5 py-3.5 border-b border-border">
-            <div>
-              <div className="text-[13px] font-semibold">Notas de seguimiento</div>
-              <div className="text-[11px] text-text-3 mt-0.5">Observaciones sobre el progreso de tus miembros</div>
-            </div>
-            <button onClick={() => setNoteModalOpen(true)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded text-[12px] font-medium cursor-pointer font-inherit bg-transparent text-text-2 border border-border2">
-              + Nota
-            </button>
-          </div>
-          {notes.length === 0 ? (
-            <div className="text-center py-10 text-text-3 text-[13px]">Aún no hay notas de seguimiento. Crea una para comenzar.</div>
-          ) : (
-            notes.map((n, i) => {
-              const c = AV_COLORS[n.avC];
-              return (
-                <div key={i} className="flex items-start gap-2.5 px-[18px] py-3"
-                  style={{ borderBottom: i < notes.length - 1 ? '1px solid var(--border)' : undefined }}>
-                  <div className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-semibold shrink-0 mt-0.5"
-                    style={{ background: c.bg, color: c.fg }}>
-                    {n.av}
-                  </div>
-                  <div className="flex-1">
-                    <div className="text-[12px] font-medium">{n.member}</div>
-                    <div className="text-[12px] text-text-2 mt-0.5 leading-relaxed">{n.text}</div>
-                    <div className="text-[10px] text-text-3 mt-1 font-mono">{n.time}</div>
-                  </div>
-                </div>
-              );
-            })
-          )}
-        </div>
-
+        </>)}
         <Modal open={planModalOpen} onClose={() => setPlanModalOpen(false)} title="Nuevo plan de entrenamiento" className="max-w-[400px]" icon={<IconPlus width="16" height="16" />}>
           <Input label="Nombre del plan *" value={pName} onChange={e => setPName(e.target.value)} placeholder="Ej. Fuerza C — Avanzado" />
           <Input label="Descripción" value={pDesc} onChange={e => setPDesc(e.target.value)} placeholder="Objetivo, observaciones…" />
@@ -634,17 +603,6 @@ export default function TrainerPanelPage() {
           </div>
         </Modal>
 
-        <Modal open={noteModalOpen} onClose={() => setNoteModalOpen(false)} title="Nueva nota de seguimiento" className="max-w-[400px]" icon={<IconEdit width="16" height="16" />}>
-          <Select label="Miembro" value={nMember} onChange={e => setNMember(e.target.value)}>
-            <option value="">— Seleccionar —</option>
-            {members.map(m => <option key={m.id} value={m.name}>{m.name}</option>)}
-          </Select>
-          <Input label="Nota *" value={nText} onChange={e => setNText(e.target.value)} placeholder="Ej. Mejoró técnica en sentadilla. Aumentar peso la próxima sesión." />
-          <div className="flex justify-end gap-2.5 mt-2">
-            <Button variant="ghost" size="sm" onClick={() => setNoteModalOpen(false)}>Cancelar</Button>
-            <Button variant="primary" size="sm" onClick={guardarNota}>Guardar nota</Button>
-          </div>
-        </Modal>
       </div>
     </>
   );

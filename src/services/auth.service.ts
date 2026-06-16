@@ -60,7 +60,7 @@ export const authService = {
       .select('*')
       .eq('auth_user_id', userId)
       .maybeSingle()
-    if (error) return null
+    if (error) throw error
     return data as Profile | null
   },
 }

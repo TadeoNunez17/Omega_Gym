@@ -29,6 +29,10 @@ export default function RegisterPage() {
       toast.error('Completa los campos obligatorios')
       return
     }
+    if (password.trim().length < 6) {
+      toast.error('La contraseña debe tener al menos 6 caracteres')
+      return
+    }
     if (!email.trim() && !phone.trim()) {
       toast.error('Ingresa al menos correo electrónico o teléfono')
       return
@@ -51,7 +55,8 @@ export default function RegisterPage() {
       else if (user?.role === 'member') navigate('/my-plan')
       else navigate('/')
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Error al registrarse'
+      const msg = (err as any)?.message || (err as any)?.error_description || 'Error al registrarse'
+      console.error('Register error:', err)
       toast.error(msg)
     } finally {
       setSubmitting(false)

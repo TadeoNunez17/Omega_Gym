@@ -14,7 +14,7 @@ import { IconPlus, IconEye, IconEdit } from '@/lib/icons';
 import { checkInsService } from '@/services/checkIns.service';
 import { initials, avatarIndex, fmtDate, fmtPhone, daysDiff, AVATAR_COLORS } from '@/lib/helpers';
 import { membersService, type MemberListItem } from '@/services/members.service';
-import { supabase } from '@/lib/supabase';
+
 import { ResponsiveTable, type Column } from '@/components/ui/molecules/ResponsiveTable';
 import { toast } from 'sonner';
 
@@ -122,11 +122,7 @@ export default function TrainerMembersPage() {
   }, [currentFilter, search, currentPage]);
 
   useEffect(() => {
-    supabase.auth.refreshSession().then(() => {
-      fetchMembers();
-    }).catch(() => {
-      fetchMembers();
-    });
+    fetchMembers();
   }, [fetchMembers]);
 
   const totalPages = Math.max(1, Math.ceil(total / ROWS_PER_PAGE));
@@ -351,12 +347,9 @@ export default function TrainerMembersPage() {
 
   return (
     <>
+      <div className="noise-overlay" />
       <header className="px-4 sm:px-7 h-14 flex items-center justify-between border-b border-border bg-surface2 sticky top-0 z-9">
-        <div className="flex items-center gap-2 text-xs sm:text-[13px] text-text-3">
-          <div className="w-4 h-4 shrink-0 flex items-center justify-center"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-full h-full" width="16" height="16"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></div>
-          <span className="text-text-4 mx-0.5">/</span>
-          <span className="font-medium text-text-1">Miembros</span>
-        </div>
+        <div />
         <div className="flex items-center gap-2 sm:gap-2.5">
 
           <Button variant="primary" size="sm" onClick={() => { resetForm(); setModalOpen(true); }} icon={<IconPlus />}>Nuevo miembro</Button>
@@ -368,7 +361,14 @@ export default function TrainerMembersPage() {
           <div className="absolute inset-0 opacity-[0.04]"
             style={{ background: 'radial-gradient(600px circle at 20% 30%, var(--accent), transparent)' }} />
           <div className="relative">
-            <PageHeader title="Miembros" description="Registro completo de socios, roles y estado de membresía" />
+            <PageHeader
+              breadcrumbs={[
+                { label: 'Inicio', href: '/trainer/panel' },
+                { label: 'Miembros' },
+              ]}
+              title="Miembros"
+              description="Registro completo de socios, roles y estado de membresía"
+            />
           </div>
         </div>
 
@@ -592,8 +592,8 @@ export default function TrainerMembersPage() {
           );
         })()}
         <div className="mt-5 pt-4 border-t border-border text-center">
-            <Button variant="primary" onClick={() => { setPreviewTarget(null); navigate(`/members/${previewTarget!.id}`); }}>
-            Ir a perfil completo
+            <Button variant="primary" onClick={() => { setPreviewTarget(null); navigate('/trainer/members'); }}>
+            Ver todos los miembros
           </Button>
         </div>
       </Modal>

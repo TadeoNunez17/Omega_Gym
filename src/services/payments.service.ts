@@ -9,6 +9,7 @@ export interface Payment {
   status: 'paid' | 'pending' | 'cancelled'
   notes: string | null
   created_at: string
+  concept?: string
 }
 
 export interface PaymentListItem {
@@ -216,12 +217,18 @@ export const paymentsService = {
 
     const { data, error } = await supabase
       .from('payments')
-      .select('*')
+      .select(`*,
+        memberships!inner(membership_types!inner(name))
+      `)
       .in('membership_id', ids)
       .order('payment_date', { ascending: false })
 
     if (error) throw error
-    return (data || []) as Payment[]
+    return (data || []).map((p: any) => ({
+      ...p,
+      concept: p.memberships?.membership_types?.name ?? null,
+      memberships: undefined,
+    })) as Payment[]
   },
 
   getMonthlyRevenue: async (year?: number): Promise<{ month: number; amount: number }[]> => {

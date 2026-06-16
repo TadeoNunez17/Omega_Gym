@@ -2,19 +2,32 @@ import { useEffect, useCallback } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useAuthStore } from '@/store/auth.store'
 import { useSidebarStore } from '@/store/sidebar.store'
-import { baseNavItems, icons } from './sidebar-config'
-import type { NavItem } from './sidebar-config'
+import { baseNavItems as defaultNavItems, icons as defaultIcons } from './sidebar-config'
+import type { NavItem, NavSection } from './sidebar-config'
 
 interface SidebarProps {
   pendingPaymentsCount?: number
   onOpenSettings?: () => void
+  navItems?: NavSection[]
+  icons?: Record<string, string>
+  subtitle?: string
 }
 
-export function Sidebar({ pendingPaymentsCount = 0, onOpenSettings }: SidebarProps) {
+export function Sidebar({
+  pendingPaymentsCount = 0,
+  onOpenSettings,
+  navItems: customNavItems,
+  icons: customIcons,
+  subtitle,
+}: SidebarProps) {
   const { isOpen, close } = useSidebarStore()
   const pathname = useLocation().pathname
   const user = useAuthStore((s) => s.user)
   const initials = user ? user.full_name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() : 'AD'
+
+  const activeNavItems = customNavItems || defaultNavItems
+  const activeIcons = customIcons || defaultIcons
+  const displayRole = subtitle || (user?.role === 'admin' ? 'Administrador' : user?.role === 'trainer' ? 'Entrenador' : 'Miembro')
 
   const closeCb = useCallback(() => { close() }, [close])
   useEffect(() => { closeCb() }, [pathname, closeCb])
@@ -23,7 +36,7 @@ export function Sidebar({ pendingPaymentsCount = 0, onOpenSettings }: SidebarPro
     pendingPayments: pendingPaymentsCount || undefined,
   }
 
-  const navItems = baseNavItems.map(section => ({
+  const navItems = activeNavItems.map(section => ({
     ...section,
     items: section.items.map((item: NavItem) => ({
       ...item,
@@ -52,7 +65,7 @@ export function Sidebar({ pendingPaymentsCount = 0, onOpenSettings }: SidebarPro
             </div>
             <div>
               <div className="text-[15px] font-semibold -tracking-[0.01em]">Omega Gym</div>
-              <div className="text-[10px] text-text-3 mt-0.5 tracking-[0.08em] uppercase">Admin Panel</div>
+              <div className="text-[10px] text-text-3 mt-0.5 tracking-[0.08em] uppercase">{displayRole}</div>
             </div>
           </div>
           <button onClick={close} className="p-1.5 rounded-sm hover:bg-surface2 text-text-3 transition-colors">
@@ -74,7 +87,7 @@ export function Sidebar({ pendingPaymentsCount = 0, onOpenSettings }: SidebarPro
                     className={`flex items-center gap-2.5 px-2.5 py-[9px] rounded-sm text-[13px] no-underline mb-0.5 transition-all duration-150
                       ${isActive ? 'text-accent bg-accent-dim font-medium' : 'text-text-2 bg-transparent hover:bg-surface2'}`}>
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
-                      dangerouslySetInnerHTML={{ __html: icons[item.icon] || '' }}
+                      dangerouslySetInnerHTML={{ __html: activeIcons[item.icon] || '' }}
                       className={`flex-shrink-0 ${isActive ? 'opacity-100' : 'opacity-70'}`} />
                     {item.label}
                     {item.badge && (

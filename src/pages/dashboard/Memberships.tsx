@@ -153,8 +153,8 @@ export default function MembershipsPage() {
   const start = (safePage - 1) * ROWS_PER_PAGE;
   const rows = filtered.slice(start, start + ROWS_PER_PAGE);
 
-  const activeCount = allWithStatus.filter((m) => m.status === 'active').length;
-  const warnCount = allWithStatus.filter((m) => m.status === 'warning').length;
+  const activeCount = filtered.filter((m) => m.status === 'active').length;
+  const warnCount = filtered.filter((m) => m.status === 'warning').length;
 
   const selTypeData = membershipTypes.find((t) => t.id === selType);
   const isVisita = selTypeData?.name === 'Visita';

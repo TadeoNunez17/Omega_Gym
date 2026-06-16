@@ -141,8 +141,8 @@ export default function TrainerMembershipsPage() {
   const start = (safePage - 1) * ROWS_PER_PAGE;
   const rows = filtered.slice(start, start + ROWS_PER_PAGE);
 
-  const activeCount = allWithStatus.filter((m) => m.status === 'active').length;
-  const warnCount = allWithStatus.filter((m) => m.status === 'warning').length;
+  const activeCount = filtered.filter((m) => m.status === 'active').length;
+  const warnCount = filtered.filter((m) => m.status === 'warning').length;
 
   const selTypeData = membershipTypes.find((t) => t.id === selType);
   const isVisita = selTypeData?.name === 'Visita';
@@ -266,12 +266,9 @@ export default function TrainerMembershipsPage() {
 
   return (
     <>
+      <div className="noise-overlay" />
       <header className="px-4 sm:px-7 h-14 flex items-center justify-between border-b border-border bg-surface2 sticky top-0 z-9">
-        <div className="flex items-center gap-2 text-xs sm:text-[13px] text-text-3">
-          <div className="w-4 h-4 shrink-0 flex items-center justify-center"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-full h-full" width="16" height="16"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></div>
-          <span className="text-text-4 mx-0.5">/</span>
-          <span className="font-medium text-text-1">Membresías</span>
-        </div>
+        <div />
         <div className="flex items-center gap-2 sm:gap-2.5">
           <Button variant="primary" size="sm" icon={<IconPlus />} onClick={() => { resetForm(); setModalOpen(true); }}>
             Nueva membresía
@@ -284,7 +281,14 @@ export default function TrainerMembershipsPage() {
           <div className="absolute inset-0 opacity-[0.04]"
             style={{ background: 'radial-gradient(600px circle at 20% 30%, var(--accent), transparent)' }} />
           <div className="relative">
-            <PageHeader title="Membresías" description="Control de planes y vencimientos" />
+            <PageHeader
+              breadcrumbs={[
+                { label: 'Inicio', href: '/trainer/panel' },
+                { label: 'Membresías' },
+              ]}
+              title="Membresías"
+              description="Control de planes y vencimientos"
+            />
           </div>
         </div>
 
