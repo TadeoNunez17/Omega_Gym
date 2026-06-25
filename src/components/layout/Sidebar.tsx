@@ -47,10 +47,10 @@ export function Sidebar({
   return (
     <>
       {isOpen && (
-        <div className="fixed inset-0 bg-black/50 z-40" onClick={close} />
+        <div className="hidden lg:block fixed inset-0 bg-black/50 z-40" onClick={close} />
       )}
       <aside
-        className={`fixed top-0 left-0 bottom-0 z-50 flex flex-col border-r border-border transition-transform duration-300 ease-in-out ${
+        className={`hidden lg:flex fixed top-0 left-0 bottom-0 z-50 flex-col border-r border-border transition-transform duration-300 ease-in-out ${
           isOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
         style={{ width: 'var(--sidebar-w)', background: 'var(--surface)' }}

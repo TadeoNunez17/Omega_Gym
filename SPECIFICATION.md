@@ -1254,7 +1254,7 @@ Cerrar ticket externo REQ-OMEGYM-030
 **Descripción**: Control de los planes de pago contratados por cada miembro y sus pagos asociados.
 
 **Funcionalidades — Membresías**:
-- Administrar tipos de membresía (mensual, trimestral, anual)
+- Administrar tipos de membresía (mensual, visita)
 - Asignar membresía a miembro
 - Ver estado: activa, vencida, cancelada
 - Alerta de membresías próximas a vencer (configurable: 7, 14 días)

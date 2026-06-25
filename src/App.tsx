@@ -20,6 +20,10 @@ import FingerprintPage from '@/pages/dashboard/Fingerprint'
 import ReportsPage from '@/pages/dashboard/Reports'
 import CheckInPage from '@/pages/kiosk/CheckIn'
 import MyPlanPage from '@/pages/member/MyPlan'
+import MyMembershipPage from '@/pages/member/MyMembership'
+import MyPaymentsPage from '@/pages/member/MyPayments'
+import MyCheckinsPage from '@/pages/member/MyCheckins'
+import MyProfilePage from '@/pages/member/MyProfile'
 import TrainerPanel from '@/pages/trainer/Panel'
 import TrainerMembers from '@/pages/trainer/Members'
 import TrainerMemberships from '@/pages/trainer/Memberships'
@@ -68,6 +72,10 @@ export default function App() {
 
         <Route element={<ProtectedRoute roles={['member', 'admin']}><MemberLayout /></ProtectedRoute>}>
           <Route path="/my-plan" element={<MyPlanPage />} />
+          <Route path="/my-membership" element={<MyMembershipPage />} />
+          <Route path="/my-payments" element={<MyPaymentsPage />} />
+          <Route path="/my-checkins" element={<MyCheckinsPage />} />
+          <Route path="/my-profile" element={<MyProfilePage />} />
         </Route>
 
         <Route path="/" element={<RootRedirect />} />

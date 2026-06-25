@@ -4,9 +4,14 @@ import { useAuthStore } from '@/store/auth.store'
 import { useSidebarStore } from '@/store/sidebar.store'
 import { useThemeStore } from '@/store/theme.store'
 import { SettingsModal } from '@/pages/settings/SettingsModal'
+import { BottomNav } from '@/components/ui/layout/BottomNav'
 
 const icons: Record<string, string> = {
-  plan: '<path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>',
+  plan: '<path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>',
+  membership: '<rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/>',
+  payment: '<path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/>',
+  checkin: '<rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><polyline points="9 13 12 16 17 11"/>',
+  profile: '<path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/>',
 }
 
 interface NavItem {
@@ -17,6 +22,10 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { label: 'Mi plan', href: '/my-plan', icon: 'plan' },
+  { label: 'Membresía', href: '/my-membership', icon: 'membership' },
+  { label: 'Pagos', href: '/my-payments', icon: 'payment' },
+  { label: 'Asistencia', href: '/my-checkins', icon: 'checkin' },
+  { label: 'Perfil', href: '/my-profile', icon: 'profile' },
 ]
 
 export function MemberLayout() {
@@ -73,10 +82,10 @@ export function MemberLayout() {
       </div>
 
       {isOpen && (
-        <div className="fixed inset-0 bg-black/50 z-40" onClick={close} />
+        <div className="hidden lg:block fixed inset-0 bg-black/50 z-40" onClick={close} />
       )}
       <aside
-        className={`fixed top-0 left-0 bottom-0 z-50 flex flex-col border-r border-border transition-transform duration-300 ease-in-out ${
+        className={`hidden lg:flex fixed top-0 left-0 bottom-0 z-50 flex-col border-r border-border transition-transform duration-300 ease-in-out ${
           isOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
         style={{ width: 'var(--sidebar-w)', background: 'var(--surface)' }}
@@ -138,18 +147,10 @@ export function MemberLayout() {
       </aside>
       <SettingsModal open={showSettings} onClose={() => setShowSettings(false)} />
 
-      <main className="flex flex-col min-h-screen lg:ml-14">
-        <div className="lg:hidden fixed top-3 left-3 z-20">
-          <button onClick={toggle} className="p-2 rounded-sm bg-surface border border-border text-text-3 hover:text-text transition-colors">
-            <svg viewBox="0 0 24 24" fill="none" width="18" height="18" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-              <line x1="3" y1="6" x2="21" y2="6" />
-              <line x1="3" y1="12" x2="21" y2="12" />
-              <line x1="3" y1="18" x2="21" y2="18" />
-            </svg>
-          </button>
-        </div>
+        <main className="flex flex-col min-h-screen lg:ml-14 pb-16 lg:pb-0">
         <Outlet />
       </main>
+      <BottomNav />
     </div>
   )
 }

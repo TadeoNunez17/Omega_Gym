@@ -17,8 +17,6 @@ DECLARE
   v_trainer_id     UUID;
   v_type_visita    UUID;
   v_type_mensual   UUID;
-  v_type_trimestral UUID;
-  v_type_anual     UUID;
   v_profile_id     UUID;
   v_mem_id         UUID;
   v_start          DATE := CURRENT_DATE;
@@ -36,19 +34,9 @@ BEGIN
     INSERT INTO public.membership_types (name, price, duration_days, description, is_active)
     VALUES ('Mensual', 49.99, 30, 'Acceso completo por 30 dias', true);
   END IF;
-  IF NOT EXISTS (SELECT 1 FROM public.membership_types WHERE name = 'Trimestral') THEN
-    INSERT INTO public.membership_types (name, price, duration_days, description, is_active)
-    VALUES ('Trimestral', 129.99, 90, 'Acceso completo por 90 dias', true);
-  END IF;
-  IF NOT EXISTS (SELECT 1 FROM public.membership_types WHERE name = 'Anual') THEN
-    INSERT INTO public.membership_types (name, price, duration_days, description, is_active)
-    VALUES ('Anual', 399.99, 365, 'Acceso completo por 365 dias', true);
-  END IF;
 
   SELECT id INTO v_type_visita     FROM public.membership_types WHERE name = 'Visita';
   SELECT id INTO v_type_mensual    FROM public.membership_types WHERE name = 'Mensual';
-  SELECT id INTO v_type_trimestral FROM public.membership_types WHERE name = 'Trimestral';
-  SELECT id INTO v_type_anual      FROM public.membership_types WHERE name = 'Anual';
 
   -- ============================================
   -- 2. Admin user
@@ -107,7 +95,7 @@ BEGIN
       VALUES (v_mem_id, 49.99, v_start, 'card', 'paid');
   END IF;
 
-  -- 02: Maria Martinez — Anual activo
+  -- 02: Maria Martinez — Mensual activo
   SELECT p.id INTO v_profile_id FROM public.profiles p JOIN auth.users u ON u.id = p.auth_user_id WHERE u.email = 'maria@omega.com';
   IF v_profile_id IS NULL THEN
     INSERT INTO auth.users (id, instance_id, email, encrypted_password, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at, role, aud, confirmation_token)
@@ -117,12 +105,12 @@ BEGIN
   END IF;
   UPDATE public.profiles SET full_name = 'Maria Martinez', phone = '3001113302', alias = 'Mary', is_active = true WHERE id = v_profile_id;
   IF NOT EXISTS (SELECT 1 FROM public.memberships WHERE member_id = v_profile_id AND status = 'active') THEN
-    v_start := CURRENT_DATE - 120; v_end := v_start + 365;
-    INSERT INTO public.memberships (member_id, type_id, start_date, end_date, status) VALUES (v_profile_id, v_type_anual, v_start, v_end, 'active') RETURNING id INTO v_mem_id;
-    INSERT INTO public.payments (membership_id, amount, payment_date, method, status) VALUES (v_mem_id, 399.99, v_start, 'transfer', 'paid');
+    v_start := CURRENT_DATE - 15; v_end := v_start + 30;
+    INSERT INTO public.memberships (member_id, type_id, start_date, end_date, status) VALUES (v_profile_id, v_type_mensual, v_start, v_end, 'active') RETURNING id INTO v_mem_id;
+    INSERT INTO public.payments (membership_id, amount, payment_date, method, status) VALUES (v_mem_id, 49.99, v_start, 'transfer', 'paid');
   END IF;
 
-  -- 03: Jose Lopez — Trimestral (vence en 5 dias)
+  -- 03: Jose Lopez — Mensual (vence en 5 dias)
   SELECT p.id INTO v_profile_id FROM public.profiles p JOIN auth.users u ON u.id = p.auth_user_id WHERE u.email = 'jose@omega.com';
   IF v_profile_id IS NULL THEN
     INSERT INTO auth.users (id, instance_id, email, encrypted_password, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at, role, aud, confirmation_token)
@@ -132,9 +120,9 @@ BEGIN
   END IF;
   UPDATE public.profiles SET full_name = 'Jose Lopez', phone = '3001113303', alias = 'Pepe', is_active = true WHERE id = v_profile_id;
   IF NOT EXISTS (SELECT 1 FROM public.memberships WHERE member_id = v_profile_id AND status = 'active') THEN
-    v_start := CURRENT_DATE - 85; v_end := CURRENT_DATE + 5;
-    INSERT INTO public.memberships (member_id, type_id, start_date, end_date, status) VALUES (v_profile_id, v_type_trimestral, v_start, v_end, 'active') RETURNING id INTO v_mem_id;
-    INSERT INTO public.payments (membership_id, amount, payment_date, method, status) VALUES (v_mem_id, 129.99, v_start, 'cash', 'paid');
+    v_start := CURRENT_DATE - 25; v_end := CURRENT_DATE + 5;
+    INSERT INTO public.memberships (member_id, type_id, start_date, end_date, status) VALUES (v_profile_id, v_type_mensual, v_start, v_end, 'active') RETURNING id INTO v_mem_id;
+    INSERT INTO public.payments (membership_id, amount, payment_date, method, status) VALUES (v_mem_id, 49.99, v_start, 'cash', 'paid');
   END IF;
 
   -- 04: Ana Hernandez — Mensual activo
@@ -152,7 +140,7 @@ BEGIN
     INSERT INTO public.payments (membership_id, amount, payment_date, method, status) VALUES (v_mem_id, 49.99, v_start, 'card', 'paid');
   END IF;
 
-  -- 05: Luis Gonzalez — Trimestral (vence en 12 dias)
+  -- 05: Luis Gonzalez — Mensual (vence en 12 dias)
   SELECT p.id INTO v_profile_id FROM public.profiles p JOIN auth.users u ON u.id = p.auth_user_id WHERE u.email = 'luis@omega.com';
   IF v_profile_id IS NULL THEN
     INSERT INTO auth.users (id, instance_id, email, encrypted_password, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at, role, aud, confirmation_token)
@@ -162,12 +150,12 @@ BEGIN
   END IF;
   UPDATE public.profiles SET full_name = 'Luis Gonzalez', phone = '3001113305', alias = 'Luisito', is_active = true WHERE id = v_profile_id;
   IF NOT EXISTS (SELECT 1 FROM public.memberships WHERE member_id = v_profile_id AND status = 'active') THEN
-    v_start := CURRENT_DATE - 78; v_end := CURRENT_DATE + 12;
-    INSERT INTO public.memberships (member_id, type_id, start_date, end_date, status) VALUES (v_profile_id, v_type_trimestral, v_start, v_end, 'active') RETURNING id INTO v_mem_id;
-    INSERT INTO public.payments (membership_id, amount, payment_date, method, status) VALUES (v_mem_id, 129.99, v_start, 'card', 'paid');
+    v_start := CURRENT_DATE - 18; v_end := CURRENT_DATE + 12;
+    INSERT INTO public.memberships (member_id, type_id, start_date, end_date, status) VALUES (v_profile_id, v_type_mensual, v_start, v_end, 'active') RETURNING id INTO v_mem_id;
+    INSERT INTO public.payments (membership_id, amount, payment_date, method, status) VALUES (v_mem_id, 49.99, v_start, 'card', 'paid');
   END IF;
 
-  -- 06: Sofia Perez — Anual activo
+  -- 06: Sofia Perez — Mensual activo
   SELECT p.id INTO v_profile_id FROM public.profiles p JOIN auth.users u ON u.id = p.auth_user_id WHERE u.email = 'sofia@omega.com';
   IF v_profile_id IS NULL THEN
     INSERT INTO auth.users (id, instance_id, email, encrypted_password, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at, role, aud, confirmation_token)
@@ -177,9 +165,9 @@ BEGIN
   END IF;
   UPDATE public.profiles SET full_name = 'Sofia Perez', phone = '3001113306', alias = 'Sofi', is_active = true WHERE id = v_profile_id;
   IF NOT EXISTS (SELECT 1 FROM public.memberships WHERE member_id = v_profile_id AND status = 'active') THEN
-    v_start := CURRENT_DATE - 200; v_end := v_start + 365;
-    INSERT INTO public.memberships (member_id, type_id, start_date, end_date, status) VALUES (v_profile_id, v_type_anual, v_start, v_end, 'active') RETURNING id INTO v_mem_id;
-    INSERT INTO public.payments (membership_id, amount, payment_date, method, status) VALUES (v_mem_id, 399.99, v_start, 'transfer', 'paid');
+    v_start := CURRENT_DATE - 15; v_end := v_start + 30;
+    INSERT INTO public.memberships (member_id, type_id, start_date, end_date, status) VALUES (v_profile_id, v_type_mensual, v_start, v_end, 'active') RETURNING id INTO v_mem_id;
+    INSERT INTO public.payments (membership_id, amount, payment_date, method, status) VALUES (v_mem_id, 49.99, v_start, 'transfer', 'paid');
   END IF;
 
   -- 07: Pedro Rodriguez — Vencido
@@ -227,7 +215,7 @@ BEGIN
     INSERT INTO public.payments (membership_id, amount, payment_date, method, status) VALUES (v_mem_id, 49.99, v_start, 'cash', 'paid');
   END IF;
 
-  -- 10: Laura Cruz — Trimestral (vence en 3 dias)
+  -- 10: Laura Cruz — Mensual (vence en 3 dias)
   SELECT p.id INTO v_profile_id FROM public.profiles p JOIN auth.users u ON u.id = p.auth_user_id WHERE u.email = 'laura@omega.com';
   IF v_profile_id IS NULL THEN
     INSERT INTO auth.users (id, instance_id, email, encrypted_password, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at, role, aud, confirmation_token)
@@ -237,9 +225,9 @@ BEGIN
   END IF;
   UPDATE public.profiles SET full_name = 'Laura Cruz', phone = '3001113310', alias = 'Lau', is_active = true WHERE id = v_profile_id;
   IF NOT EXISTS (SELECT 1 FROM public.memberships WHERE member_id = v_profile_id AND status = 'active') THEN
-    v_start := CURRENT_DATE - 87; v_end := CURRENT_DATE + 3;
-    INSERT INTO public.memberships (member_id, type_id, start_date, end_date, status) VALUES (v_profile_id, v_type_trimestral, v_start, v_end, 'active') RETURNING id INTO v_mem_id;
-    INSERT INTO public.payments (membership_id, amount, payment_date, method, status) VALUES (v_mem_id, 129.99, v_start, 'transfer', 'paid');
+    v_start := CURRENT_DATE - 27; v_end := CURRENT_DATE + 3;
+    INSERT INTO public.memberships (member_id, type_id, start_date, end_date, status) VALUES (v_profile_id, v_type_mensual, v_start, v_end, 'active') RETURNING id INTO v_mem_id;
+    INSERT INTO public.payments (membership_id, amount, payment_date, method, status) VALUES (v_mem_id, 49.99, v_start, 'transfer', 'paid');
   END IF;
 
   -- 11: Miguel Morales — Mensual activo
@@ -257,7 +245,7 @@ BEGIN
     INSERT INTO public.payments (membership_id, amount, payment_date, method, status) VALUES (v_mem_id, 49.99, v_start, 'card', 'paid');
   END IF;
 
-  -- 12: Carmen Ortega — Anual activo
+  -- 12: Carmen Ortega — Mensual activo
   SELECT p.id INTO v_profile_id FROM public.profiles p JOIN auth.users u ON u.id = p.auth_user_id WHERE u.email = 'carmen@omega.com';
   IF v_profile_id IS NULL THEN
     INSERT INTO auth.users (id, instance_id, email, encrypted_password, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at, role, aud, confirmation_token)
@@ -267,9 +255,9 @@ BEGIN
   END IF;
   UPDATE public.profiles SET full_name = 'Carmen Ortega', phone = '3001113312', alias = 'Carmencita', is_active = true WHERE id = v_profile_id;
   IF NOT EXISTS (SELECT 1 FROM public.memberships WHERE member_id = v_profile_id AND status = 'active') THEN
-    v_start := CURRENT_DATE - 60; v_end := v_start + 365;
-    INSERT INTO public.memberships (member_id, type_id, start_date, end_date, status) VALUES (v_profile_id, v_type_anual, v_start, v_end, 'active') RETURNING id INTO v_mem_id;
-    INSERT INTO public.payments (membership_id, amount, payment_date, method, status) VALUES (v_mem_id, 399.99, v_start, 'card', 'paid');
+    v_start := CURRENT_DATE - 15; v_end := v_start + 30;
+    INSERT INTO public.memberships (member_id, type_id, start_date, end_date, status) VALUES (v_profile_id, v_type_mensual, v_start, v_end, 'active') RETURNING id INTO v_mem_id;
+    INSERT INTO public.payments (membership_id, amount, payment_date, method, status) VALUES (v_mem_id, 49.99, v_start, 'card', 'paid');
   END IF;
 
   -- 13: Diego Torres — Sin membresia

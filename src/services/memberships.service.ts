@@ -44,6 +44,7 @@ export const membershipsService = {
     const { data, error } = await supabase
       .from('membership_types')
       .select('*')
+      .eq('is_active', true)
       .order('price')
 
     if (error) throw error
