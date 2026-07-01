@@ -36,6 +36,7 @@ export interface PlanListItem {
   type: 'assigned' | 'template' | 'draft'
   trainer_name: string
   member_name: string | null
+  assigned_to: string | null
   exercise_count: number
   days: number
   created_at: string
@@ -83,6 +84,7 @@ export const trainingService = {
           type,
           trainer_name: p.creator?.full_name ?? '—',
           member_name: p.assignee?.full_name ?? null,
+          assigned_to: p.assigned_to ?? null,
           exercise_count: p.plan_exercises?.[0]?.count ?? 0,
           days: 0,
           created_at: p.created_at,
@@ -163,10 +165,32 @@ export const trainingService = {
       type: 'template',
       trainer_name: p.creator?.full_name ?? '—',
       member_name: null,
+      assigned_to: null,
       exercise_count: p.plan_exercises?.[0]?.count ?? 0,
       days: 0,
       created_at: p.created_at,
     }))
+  },
+
+  update: async (id: string, input: {
+    name?: string
+    description?: string | null
+    assigned_to?: string | null
+  }) => {
+    const payload: Record<string, unknown> = {}
+    if (input.name !== undefined) payload.name = input.name
+    if (input.description !== undefined) payload.description = input.description
+    if (input.assigned_to !== undefined) payload.assigned_to = input.assigned_to || null
+
+    const { data, error } = await supabase
+      .from('training_plans')
+      .update(payload)
+      .eq('id', id)
+      .select()
+      .single()
+
+    if (error) throw error
+    return data as TrainingPlan
   },
 
   getByMember: async (memberId: string) => {

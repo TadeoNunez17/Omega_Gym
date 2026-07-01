@@ -96,14 +96,14 @@ export function SettingsModal({ open, onClose }: Props) {
         <div className="h-px mx-6" style={{ background: 'var(--border)' }} />
 
         <div className="px-6 py-4 flex flex-col gap-0.5">
-          <button onClick={() => { onClose(); navigate(user?.role === 'admin' ? `/members/${user?.id}` : '') }}
+          <button onClick={() => { onClose(); navigate(user?.role === 'admin' ? `/members/${user?.id}` : user?.role === 'trainer' ? '/trainer/profile' : '/my-profile') }}
             className="flex items-center gap-3 w-full px-3 py-[10px] rounded-sm bg-transparent border-none cursor-pointer font-sans transition-colors duration-150
               text-text-2 hover:bg-surface2 hover:text-text text-[13px]">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="text-text-3">
               <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
               <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
             </svg>
-            Editar perfil
+            Ver perfil
           </button>
           <button onClick={() => { useAuthStore.getState().logout(); window.location.href = '/login' }}
             className="flex items-center gap-3 w-full px-3 py-[10px] rounded-sm bg-transparent border-none cursor-pointer font-sans transition-colors duration-150

@@ -9,18 +9,6 @@ export interface DashboardKPIs {
   monthly_revenue: number
 }
 
-export interface MonthlyRevenueItem {
-  month: string
-  amount: number
-  is_current: boolean
-}
-
-export interface MembershipDistributionItem {
-  name: string
-  count: number
-  percentage: number
-}
-
 export interface RecentActivityItem {
   id: string
   type: 'check_in' | 'new_member' | 'payment' | 'expired_membership' | 'membership_assigned'
@@ -106,59 +94,6 @@ export const dashboardService = {
     }
   },
 
-  getMonthlyRevenue: async (year?: number): Promise<MonthlyRevenueItem[]> => {
-    const y = year || new Date().getFullYear()
-    const currentMonth = new Date().getMonth()
-
-    const start = `${y}-01-01`
-    const end = `${y}-12-31`
-
-    const { data, error } = await supabase
-      .from('payments')
-      .select('amount, payment_date')
-      .eq('status', 'paid')
-      .gte('payment_date', start)
-      .lte('payment_date', end)
-      .order('payment_date')
-
-    if (error) throw error
-
-    const monthly: Record<number, number> = {}
-    for (let i = 0; i < 12; i++) monthly[i] = 0
-
-    for (const p of data || []) {
-      const m = new Date(p.payment_date).getMonth()
-      monthly[m] += Number(p.amount)
-    }
-
-    return Object.entries(monthly).map(([monthIdx, amount]) => ({
-      month: MONTHS_SHORT[Number(monthIdx)],
-      amount,
-      is_current: Number(monthIdx) === currentMonth,
-    }))
-  },
-
-  getMembershipDistribution: async (): Promise<MembershipDistributionItem[]> => {
-    const { data, error } = await supabase
-      .from('memberships')
-      .select('membership_types(name)')
-      .eq('status', 'active')
-
-    if (error) throw error
-
-    const counts: Record<string, number> = {}
-    for (const item of data || []) {
-      const name = (item as any).membership_types?.name ?? 'Otro'
-      counts[name] = (counts[name] || 0) + 1
-    }
-
-    const total = Object.values(counts).reduce((a, b) => a + b, 0)
-    return Object.entries(counts).map(([name, count]) => ({
-      name,
-      count,
-      percentage: total > 0 ? Math.round((count / total) * 100) : 0,
-    }))
-  },
 
   getRecentActivity: async (limit: number = 10): Promise<RecentActivityItem[]> => {
     const thirtyDaysAgo = new Date()
@@ -312,6 +247,34 @@ export const dashboardService = {
         }
       })
       .filter((m): m is NonNullable<typeof m> => m !== null && m.days_remaining > 0)
+  },
+
+  getMembershipTypeDistribution: async (): Promise<{ name: string; count: number; price: number }[]> => {
+    await supabase.rpc('sync_membership_status')
+    const today = new Date().toISOString().split('T')[0]
+    const { data, error } = await supabase
+      .from('memberships')
+      .select(`
+        type_id,
+        membership_types!inner(name, price)
+      `)
+      .eq('status', 'active')
+      .lte('start_date', today)
+      .gte('end_date', today)
+
+    if (error) {
+      console.error('getMembershipTypeDistribution error:', error)
+      return []
+    }
+
+    const map = new Map<string, { name: string; count: number; price: number }>()
+    for (const m of (data || []) as any[]) {
+      const id = m.type_id
+      const entry = map.get(id) || { name: m.membership_types?.name ?? '—', count: 0, price: Number(m.membership_types?.price) || 0 }
+      entry.count++
+      map.set(id, entry)
+    }
+    return Array.from(map.values()).sort((a, b) => b.count - a.count)
   },
 
   getPendingPayments: async (): Promise<PendingPaymentItem[]> => {

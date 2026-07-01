@@ -74,26 +74,4 @@ export const checkInsService = {
       member_email: c.profiles?.email ?? null,
     }))
   },
-
-  getMonthlyCounts: async (year?: number): Promise<{ month: number; count: number }[]> => {
-    const y = year || new Date().getFullYear()
-    const startDate = `${y}-01-01`
-    const endDate = `${y}-12-31`
-
-    const { data, error } = await supabase
-      .from('check_ins')
-      .select('check_in_time')
-      .gte('check_in_time', startDate)
-      .lt('check_in_time', `${endDate}T23:59:59.999Z`)
-
-    if (error) throw error
-
-    const months = Array.from({ length: 12 }, (_, i) => ({ month: i + 1, count: 0 }))
-    for (const c of data || []) {
-      const m = new Date(c.check_in_time).getMonth()
-      months[m].count++
-    }
-
-    return months
-  },
 }

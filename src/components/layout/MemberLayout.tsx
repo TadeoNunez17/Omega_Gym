@@ -63,12 +63,6 @@ export function MemberLayout() {
           })}
         </div>
         <div className="pb-3 flex flex-col items-center gap-1">
-          <button onClick={() => setShowSettings(true)}
-            className="w-[30px] h-[30px] rounded-full flex items-center justify-center text-[10px] font-semibold cursor-pointer border-none hover:opacity-80 transition-opacity"
-            style={{ background: 'rgba(59,130,246,0.15)', color: '#60a5fa' }}
-            title={user?.full_name || 'Miembro'}>
-            {initials}
-          </button>
           <button onClick={toggleTheme}
             className="p-2.5 rounded-sm text-text hover:bg-surface2 transition-colors"
             title={theme === 'dark' ? 'Modo claro' : 'Modo oscuro'}>
@@ -77,6 +71,12 @@ export function MemberLayout() {
                 ? '<path d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />'
                 : '<path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" />'
               }} />
+          </button>
+          <button onClick={() => setShowSettings(true)}
+            className="w-[30px] h-[30px] rounded-full flex items-center justify-center text-[10px] font-semibold cursor-pointer border-none hover:opacity-80 transition-opacity"
+            style={{ background: 'rgba(59,130,246,0.15)', color: '#60a5fa' }}
+            title={user?.full_name || 'Miembro'}>
+            {initials}
           </button>
         </div>
       </div>

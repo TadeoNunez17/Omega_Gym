@@ -683,7 +683,7 @@ export default function MembersPage() {
         })()}
         <div className="mt-5 pt-4 border-t border-border text-center">
             <Button variant="primary" onClick={() => { setPreviewTarget(null); navigate(`/members/${previewTarget!.id}`); }}>
-            Ir a perfil completo
+            Ver perfil
           </Button>
         </div>
       </Modal>

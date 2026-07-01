@@ -17,7 +17,6 @@ import MembershipsPage from '@/pages/dashboard/Memberships'
 import PaymentsPage from '@/pages/dashboard/Payments'
 import TrainingPlansPage from '@/pages/dashboard/TrainingPlans'
 import FingerprintPage from '@/pages/dashboard/Fingerprint'
-import ReportsPage from '@/pages/dashboard/Reports'
 import CheckInPage from '@/pages/kiosk/CheckIn'
 import MyPlanPage from '@/pages/member/MyPlan'
 import MyMembershipPage from '@/pages/member/MyMembership'
@@ -29,6 +28,7 @@ import TrainerMembers from '@/pages/trainer/Members'
 import TrainerMemberships from '@/pages/trainer/Memberships'
 import TrainerPlans from '@/pages/trainer/Plans'
 import TrainerTemplates from '@/pages/trainer/Templates'
+import TrainerProfilePage from '@/pages/trainer/Profile'
 
 function RootRedirect() {
   const user = useAuthStore((s) => s.user)
@@ -59,7 +59,6 @@ export default function App() {
           <Route path="/payments" element={<PaymentsPage />} />
           <Route path="/training-plans" element={<TrainingPlansPage />} />
           <Route path="/fingerprint" element={<FingerprintPage />} />
-          <Route path="/reports" element={<ReportsPage />} />
         </Route>
 
         <Route element={<ProtectedRoute roles={['trainer', 'admin']}><TrainerLayout /></ProtectedRoute>}>
@@ -68,9 +67,10 @@ export default function App() {
           <Route path="/trainer/memberships" element={<TrainerMemberships />} />
           <Route path="/trainer/plans" element={<TrainerPlans />} />
           <Route path="/trainer/templates" element={<TrainerTemplates />} />
+          <Route path="/trainer/profile" element={<TrainerProfilePage />} />
         </Route>
 
-        <Route element={<ProtectedRoute roles={['member', 'admin']}><MemberLayout /></ProtectedRoute>}>
+        <Route element={<ProtectedRoute roles={['member', 'admin', 'trainer']}><MemberLayout /></ProtectedRoute>}>
           <Route path="/my-plan" element={<MyPlanPage />} />
           <Route path="/my-membership" element={<MyMembershipPage />} />
           <Route path="/my-payments" element={<MyPaymentsPage />} />

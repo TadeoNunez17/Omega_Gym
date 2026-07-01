@@ -415,17 +415,6 @@ export default function MembershipsPage() {
         {/* Table / Cards */}
         {!loading && !error && (
           <div className="animate-slide-up stagger-5 bg-surface border border-border rounded overflow-hidden">
-            <div className="px-3 sm:px-5 py-3 sm:py-4 border-b border-border">
-              <div className="flex items-center gap-2.5">
-                <div className="w-7 h-7 rounded-lg bg-green-bg text-green-text flex items-center justify-center">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-                </div>
-                <div>
-                  <div className="text-[13px] font-semibold">Membresías</div>
-                  <div className="text-[11px] text-text-3 mt-0.5 hidden sm:block">Control de planes activos y vencimientos</div>
-                </div>
-              </div>
-            </div>
             <ResponsiveTable
               columns={columns}
               data={rows}
@@ -597,7 +586,7 @@ export default function MembershipsPage() {
           <div className="flex flex-col gap-2">
             <label className="text-[12px] text-text-2 font-medium tracking-[0.03em]">Tipo de membresía *</label>
             <div className="grid grid-cols-2 gap-2">
-              {membershipTypes.filter((t) => t.is_active).map((type) => {
+              {membershipTypes.filter((t) => t.is_active && t.name !== 'Trimestral' && t.name !== 'Anual').map((type) => {
                 const selected = selType === type.id;
                 const isVisitaType = type.name === 'Visita';
                 return (
@@ -645,7 +634,7 @@ export default function MembershipsPage() {
                   className="bg-surface2 border border-border2 text-text text-[13px] px-3 py-[9px] rounded-sm outline-none w-full font-sans cursor-pointer"
                 >
                   <option value="">Seleccionar miembro</option>
-                  {memberList.filter((m) => m.role === 'member').map((m) => (
+                  {memberList.filter((m) => m.role === 'member' && !m.membership_type).map((m) => (
                     <option key={m.id} value={m.id}>{m.full_name}</option>
                   ))}
                 </select>
@@ -772,7 +761,7 @@ export default function MembershipsPage() {
             <div className="flex flex-col gap-2">
               <label className="text-[11px] text-text-3 uppercase tracking-[0.08em] font-medium">Tipo de membresía</label>
               <div className="grid grid-cols-2 gap-2">
-                {membershipTypes.filter((t) => t.is_active).map((type) => {
+                {membershipTypes.filter((t) => t.is_active && t.name !== 'Trimestral' && t.name !== 'Anual').map((type) => {
                   const selected = editTypeId === type.id;
                   return (
                     <button key={type.id} type="button"

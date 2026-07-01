@@ -330,32 +330,7 @@ export const membersService = {
     if (error) throw error
     return (data || []).map(toMemberListItem)
   },
-
-  getMonthlyGrowth: async (year?: number): Promise<{ month: number; count: number }[]> => {
-    const y = year || new Date().getFullYear()
-    const startDate = `${y}-01-01`
-    const endDate = `${y}-12-31`
-
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('created_at')
-      .eq('role', 'member')
-      .neq('registration_status', 'claimed')
-      .gte('created_at', startDate)
-      .lte('created_at', `${endDate}T23:59:59.999Z`)
-
-    if (error) throw error
-
-    const months = Array.from({ length: 12 }, (_, i) => ({ month: i + 1, count: 0 }))
-    for (const p of data || []) {
-      const m = new Date(p.created_at).getMonth()
-      months[m].count++
-    }
-
-    return months
-  },
-
-  getStats: async () => {
+    getStats: async () => {
     await supabase.rpc('sync_membership_status')
 
     const { data: allProfiles, error: err1 } = await supabase

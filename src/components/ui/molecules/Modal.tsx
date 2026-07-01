@@ -29,7 +29,7 @@ export function Modal({ open, onClose, title, children, className, icon, compact
 
   return (
     <div
-      className="fixed inset-0 bg-black/65 z-50 flex items-center justify-center"
+      className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center"
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
       role="dialog"
       aria-modal="true"
@@ -38,7 +38,7 @@ export function Modal({ open, onClose, title, children, className, icon, compact
       <div
         ref={ref}
         tabIndex={-1}
-        className={`bg-surface border border-border2 rounded w-full mx-4 max-h-[90vh] overflow-y-auto outline-none animate-in fade-in duration-200${
+        className={`bg-surface border border-border2 rounded w-full mx-4 max-h-[90vh] overflow-y-auto outline-none animate-modal-in${
           compact ? ' max-w-[380px]' : ' max-w-[480px]'
         }${className ? ` ${className}` : ''}`}
       >

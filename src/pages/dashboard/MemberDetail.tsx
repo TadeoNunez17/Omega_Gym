@@ -2,12 +2,11 @@ import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/atoms/Button';
 import { Badge } from '@/components/ui/atoms/Badge';
-import { IconButton } from '@/components/ui/atoms/IconButton';
 import { LoadingSpinner } from '@/components/ui/atoms/LoadingSpinner';
 import { Modal } from '@/components/ui/molecules/Modal';
 import { ResponsiveTable, type Column } from '@/components/ui/molecules/ResponsiveTable';
 import { initials, fmtDate, fmtMoney, fmtPhone, daysDiff, avatarIndex, AVATAR_COLORS } from '@/lib/helpers';
-import { IconEdit, IconEye, IconCalendar } from '@/lib/icons';
+import { IconEdit, IconCalendar } from '@/lib/icons';
 import { membersService, type MemberListItem } from '@/services/members.service';
 import { membershipsService, type Membership, type MembershipType } from '@/services/memberships.service';
 import { paymentsService, type Payment } from '@/services/payments.service';
@@ -84,7 +83,7 @@ export default function MemberDetailPage() {
   }, [id, navigate]);
 
   useEffect(() => {
-    if (!member || activeTab !== 'memberships') return;
+    if (!member) return;
     const ctrl = { cancelled: false }
     setMembershipsLoading(true);
     membershipsService.getByMember(member.id)
@@ -99,10 +98,10 @@ export default function MemberDetailPage() {
       .catch(() => { if (!ctrl.cancelled) toast.error('Error al cargar membresías') })
       .finally(() => { if (!ctrl.cancelled) setMembershipsLoading(false) })
     return () => { ctrl.cancelled = true }
-  }, [activeTab, member]);
+  }, [member]);
 
   useEffect(() => {
-    if (!member || activeTab !== 'payments') return;
+    if (!member) return;
     const ctrl = { cancelled: false }
     setPaymentsLoading(true);
     paymentsService.getByMember(member.id)
@@ -110,7 +109,7 @@ export default function MemberDetailPage() {
       .catch(() => { if (!ctrl.cancelled) toast.error('Error al cargar pagos') })
       .finally(() => { if (!ctrl.cancelled) setPaymentsLoading(false) })
     return () => { ctrl.cancelled = true }
-  }, [activeTab, member]);
+  }, [member]);
 
   useEffect(() => {
     if (!member || activeTab !== 'plan') return;
@@ -133,7 +132,7 @@ export default function MemberDetailPage() {
   }, [activeTab, member]);
 
   useEffect(() => {
-    if (!member || activeTab !== 'checkins') return;
+    if (!member) return;
     const ctrl = { cancelled: false }
     setCheckInsLoading(true);
     checkInsService.getByMember(member.id)
@@ -141,7 +140,7 @@ export default function MemberDetailPage() {
       .catch(() => { if (!ctrl.cancelled) toast.error('Error al cargar check-ins') })
       .finally(() => { if (!ctrl.cancelled) setCheckInsLoading(false) })
     return () => { ctrl.cancelled = true }
-  }, [activeTab, member]);
+  }, [member]);
 
   const handleSave = useCallback(async () => {
     if (!member || !id) return;
@@ -249,44 +248,42 @@ export default function MemberDetailPage() {
           <span className="text-text-4 mx-0.5">/</span>
           <span className="font-medium text-text-1">{m.full_name}</span>
         </div>
-        <div className="flex items-center gap-2">
-          <IconButton title="Ver en lista" onClick={() => navigate('/members')}>
-            <IconEye width="14" height="14" />
-          </IconButton>
-          <Button variant="primary" size="sm" icon={<IconEdit width="13" height="13" />} onClick={() => setEditModal(true)}>
-            Editar
-          </Button>
-        </div>
+
       </header>
 
       <div className="p-4 sm:p-7 flex-1">
-        <div className="flex items-center gap-4 mb-6">
-          <div className="w-[56px] h-[56px] rounded-full flex items-center justify-center text-[20px] font-semibold shrink-0"
-            style={{ background: AVATAR_COLORS[av].bg, color: AVATAR_COLORS[av].fg }}>
-            {initials(m.full_name)}
-          </div>
-          <div>
-            <h1 className="text-[20px] font-semibold">{m.full_name}</h1>
-            <div className="flex items-center gap-2 mt-1">
-              {roleBadge(m.role)}
-              {m.is_active
-                ? <Badge variant="green" dot>Activo</Badge>
-                : <Badge variant="red" dot>Inactivo</Badge>
-              }
-              {m.registration_status === 'pending' && <Badge variant="amber" dot>Pendiente</Badge>}
+        <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-surface to-surface2 border border-border p-6 sm:p-8 mb-8">
+          <div className="absolute inset-0 opacity-[0.06]"
+            style={{ background: 'radial-gradient(600px circle at 30% 40%, var(--accent), transparent)' }} />
+          <div className="relative flex items-center gap-5">
+            <div className="w-[64px] h-[64px] rounded-full flex items-center justify-center text-[24px] font-semibold shrink-0 ring-2 ring-white/[0.08]"
+              style={{ background: AVATAR_COLORS[av].bg, color: AVATAR_COLORS[av].fg }}>
+              {initials(m.full_name)}
+            </div>
+            <div className="flex-1">
+              <h1 className="text-[26px] sm:text-[30px] font-display italic leading-tight -tracking-[0.02em]">{m.full_name}</h1>
+              <div className="flex items-center gap-2 mt-2 flex-wrap">
+                {roleBadge(m.role)}
+                {m.is_active
+                  ? <Badge variant="green" dot>Activo</Badge>
+                  : <Badge variant="red" dot>Inactivo</Badge>
+                }
+                {m.registration_status === 'pending' && <Badge variant="amber" dot>Pendiente</Badge>}
+                <span className="text-[11px] text-text-3 ml-1">Miembro desde {fmtDate(m.created_at)}</span>
+              </div>
             </div>
           </div>
         </div>
 
-        <div className="flex gap-1 mb-6 border-b border-border overflow-x-auto">
+        <div className="flex gap-1 mb-7 border-b border-border overflow-x-auto">
           {TABS.map((tab) => (
             <button
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
-              className={`px-4 py-2.5 text-[12px] font-medium whitespace-nowrap border-b-2 transition-colors cursor-pointer ${
+              className={`tab-underline px-4 sm:px-5 py-3 text-[12px] font-medium whitespace-nowrap cursor-pointer ${
                 activeTab === tab.key
-                  ? 'border-accent text-text'
-                  : 'border-transparent text-text-3 hover:text-text-2'
+                  ? 'active text-text'
+                  : 'text-text-3 hover:text-text-2'
               }`}
             >
               {tab.label}
@@ -302,19 +299,21 @@ export default function MemberDetailPage() {
                 { label: 'Membresía', value: activeMembership ? 'Activa' : 'Sin membresía', color: activeMembership ? 'green' : 'red', sub: activeMembership ? `Vence ${fmtDate(activeMembership.end_date)}` : 'Sin membresía activa' },
                 { label: 'Pagos', value: payments.length, color: 'green', sub: `Total: ${fmtMoney(totalPaid)}` },
                 { label: 'Check-ins', value: thisMonthCheckins, color: 'blue', sub: 'Este mes' },
-              ].map((m) => (
-                <div key={m.label} className="relative bg-surface border border-border rounded overflow-hidden p-[18px]">
-                  <div className="absolute top-0 left-0 right-0 h-0.5" style={{ background: `var(--${m.color})` }} />
-                  <div className="text-[11px] text-text-3 uppercase tracking-[0.06em] mb-2.5">{m.label}</div>
-                  <div className="text-[26px] font-semibold leading-none -tracking-[0.03em]" style={{ color: `var(--${m.color}-text)` }}>{m.value}</div>
-                  <div className="text-[11px] text-text-3 mt-1.5">{m.sub}</div>
+              ].map((item, i) => (
+                <div key={item.label} className={`relative bg-surface border border-border rounded overflow-hidden p-[18px] animate-slide-up stagger-${i + 1} card-hover-lift`}>
+                  <div className="absolute top-0 left-0 right-0 h-0.5" style={{ background: `var(--${item.color})` }} />
+                  <div className="text-[11px] text-text-3 uppercase tracking-[0.06em] mb-2.5">{item.label}</div>
+                  <div className="text-[26px] font-semibold leading-none -tracking-[0.03em]" style={{ color: `var(--${item.color}-text)` }}>{item.value}</div>
+                  <div className="text-[11px] text-text-3 mt-1.5">{item.sub}</div>
                 </div>
               ))}
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <div className="bg-surface border border-border rounded p-5">
-                <h3 className="text-[11px] text-text-3 uppercase tracking-[0.08em] mb-4">Información de contacto</h3>
+              <div className="bg-surface border border-border rounded p-5 animate-slide-up stagger-5 card-hover-lift">
+                <h3 className="text-[11px] text-text-3 uppercase tracking-[0.08em] mb-4 flex items-center gap-2">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--accent-text)" strokeWidth="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                  Información de contacto</h3>
                 <div className="space-y-3.5">
                   <div className="flex items-center gap-3">
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-text-3 shrink-0">
@@ -354,8 +353,10 @@ export default function MemberDetailPage() {
                 </div>
               </div>
 
-              <div className="bg-surface border border-border rounded p-5">
-                <h3 className="text-[11px] text-text-3 uppercase tracking-[0.08em] mb-4">Membresía activa</h3>
+              <div className="bg-surface border border-border rounded p-5 animate-slide-up stagger-6 card-hover-lift">
+                <h3 className="text-[11px] text-text-3 uppercase tracking-[0.08em] mb-4 flex items-center gap-2">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--green-text)" strokeWidth="2"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>
+                  Membresía activa</h3>
                 {activeMembership ? (
                   <div className="space-y-3.5">
                     <div className="flex items-center justify-between">
@@ -403,8 +404,10 @@ export default function MemberDetailPage() {
                 )}
               </div>
 
-              <div className="bg-surface border border-border rounded p-5">
-                <h3 className="text-[11px] text-text-3 uppercase tracking-[0.08em] mb-4">Plan de entrenamiento</h3>
+              <div className="bg-surface border border-border rounded p-5 animate-slide-up stagger-7 card-hover-lift">
+                <h3 className="text-[11px] text-text-3 uppercase tracking-[0.08em] mb-4 flex items-center gap-2">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--purple-text)" strokeWidth="2" style={{color:'var(--purple-text)'}}><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+                  Plan de entrenamiento</h3>
                 {m.plan_name ? (
                   <div>
                     <div className="flex items-center gap-2 mb-2">
@@ -429,8 +432,10 @@ export default function MemberDetailPage() {
                 )}
               </div>
 
-              <div className="bg-surface border border-border rounded p-5">
-                <h3 className="text-[11px] text-text-3 uppercase tracking-[0.08em] mb-4">Actividad reciente</h3>
+              <div className="bg-surface border border-border rounded p-5 animate-slide-up stagger-8 card-hover-lift">
+                <h3 className="text-[11px] text-text-3 uppercase tracking-[0.08em] mb-4 flex items-center gap-2">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--blue-text)" strokeWidth="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                  Actividad reciente</h3>
                 {checkIns.length > 0 ? (
                   <div className="space-y-2.5">
                     {checkIns.slice(0, 5).map((c) => (

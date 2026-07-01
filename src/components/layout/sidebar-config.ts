@@ -21,9 +21,7 @@ export const baseNavItems: NavSection[] = [
     { label: 'Planes de Entrenamiento', href: '/training-plans', icon: 'plans' },
     { label: 'Registro de Huella', href: '/fingerprint', icon: 'fingerprint' },
   ]},
-  { section: 'Analisis', items: [
-    { label: 'Reportes', href: '/reports', icon: 'reports' },
-  ]},
+
 ]
 
 export const icons: Record<string, string> = {
@@ -32,6 +30,5 @@ export const icons: Record<string, string> = {
   memberships: '<rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/>',
   payments: '<path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>',
   plans: '<path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>',
-  reports: '<polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>',
   fingerprint: '<path d="M12 11c0-1.1.9-2 2-2s2 .9 2 2-.9 2-2 2-2-.9-2-2z"/><path d="M17.657 16.657L13.414 20.9a1.998 1.998 0 0 1-2.827 0l-4.244-4.243a8 8 0 1 1 11.314 0z"/>',
 }

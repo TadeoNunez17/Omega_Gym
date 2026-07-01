@@ -23,6 +23,7 @@ export type TrainerPlan = {
   id: string
   name: string
   description: string | null
+  assigned_to: string | null
   assigned_to_name: string | null
   exercise_count: number
   created_at: string
@@ -106,6 +107,7 @@ export const trainerService = {
       id: p.id,
       name: p.name,
       description: p.description,
+      assigned_to: p.assigned_to,
       assigned_to_name: p.member_name,
       exercise_count: p.exercise_count,
       created_at: p.created_at,
@@ -127,18 +129,21 @@ export const trainerService = {
     name: string
     description?: string
     assigned_to?: string
+    is_template?: boolean
   }): Promise<TrainerPlan> => {
     const { data: { session } } = await supabase.auth.getSession()
     const plan = await trainingService.create({
       name: input.name,
       description: input.description,
-      assigned_to: input.assigned_to,
+      assigned_to: input.is_template ? undefined : input.assigned_to,
+      is_template: input.is_template ?? false,
       created_by: session?.user?.id ?? '00000000-0000-0000-0000-000000000000',
     })
     return {
       id: plan.id,
       name: plan.name,
       description: plan.description,
+      assigned_to: null,
       assigned_to_name: null,
       exercise_count: 0,
       created_at: plan.created_at,
