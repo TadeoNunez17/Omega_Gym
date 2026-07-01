@@ -25,8 +25,21 @@ export interface PlanExercise {
   rest_seconds: number | null
   day: number | null
   notes: string | null
+  reference_link: string | null
   order_index: number
   created_at: string
+}
+
+export type ExerciseInput = {
+  exercise_name: string
+  muscle?: string | null
+  sets?: number | null
+  reps?: number | null
+  rest_seconds?: number | null
+  notes?: string | null
+  reference_link?: string | null
+  day: number
+  order_index: number
 }
 
 export interface PlanListItem {
@@ -216,5 +229,32 @@ export const trainingService = {
 
     if (error) throw error
     return (data || []) as PlanExercise[]
+  },
+
+  upsertExercises: async (planId: string, exercises: ExerciseInput[]): Promise<void> => {
+    const { error: delError } = await supabase
+      .from('plan_exercises')
+      .delete()
+      .eq('plan_id', planId)
+
+    if (delError) throw delError
+    if (exercises.length === 0) return
+
+    const { error } = await supabase
+      .from('plan_exercises')
+      .insert(exercises.map((ex, i) => ({
+        plan_id: planId,
+        exercise_name: ex.exercise_name,
+        muscle: ex.muscle || null,
+        sets: ex.sets || null,
+        reps: ex.reps || null,
+        rest_seconds: ex.rest_seconds || null,
+        notes: ex.notes || null,
+        reference_link: ex.reference_link || null,
+        day: ex.day,
+        order_index: ex.order_index ?? i,
+      })))
+
+    if (error) throw error
   },
 }

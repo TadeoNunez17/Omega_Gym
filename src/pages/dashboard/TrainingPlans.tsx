@@ -1,12 +1,9 @@
 ﻿import { useState, useEffect, useCallback } from 'react';
 import { trainingService, type PlanListItem, type PlanExercise } from '@/services/training.service';
-import { membersService } from '@/services/members.service';
 import { Button } from '@/components/ui/atoms/Button';
 import { Chip } from '@/components/ui/atoms/Chip';
-import { Modal } from '@/components/ui/molecules/Modal';
-import { Input, Select } from '@/components/ui/atoms/Input';
 import { MetricCard } from '@/components/ui/atoms/MetricCard';
-import { IconPlus } from '@/lib/icons';
+import { RoutineBuilder, type EditPlanData } from '@/components/routine-builder/RoutineBuilder';
 
 const DAY_NAMES = ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'];
 
@@ -66,13 +63,10 @@ export default function TrainingPlansPage() {
   const [selectedDay, setSelectedDay] = useState(0);
   const [filter, setFilter] = useState('all');
   const [search, setSearch] = useState('');
-  const [modalOpen, setModalOpen] = useState(false);
-  const [fName, setFName] = useState('');
-  const [fDesc, setFDesc] = useState('');
-  const [fType, setFType] = useState('assigned');
-  const [fMember, setFMember] = useState('');
-  const [members, setMembers] = useState<{ id: string; full_name: string }[]>([]);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [builderOpen, setBuilderOpen] = useState(false);
+  const [builderEditPlan, setBuilderEditPlan] = useState<EditPlanData | null>(null);
+  const [builderIsTemplate, setBuilderIsTemplate] = useState(false);
 
   const fetchPlans = useCallback(async () => {
     setLoading(true);
@@ -99,17 +93,9 @@ export default function TrainingPlansPage() {
     }
   }, []);
 
-  const fetchMembers = useCallback(async () => {
-    try {
-      const result = await membersService.getAll({ role: 'member', pageSize: 100 });
-      setMembers(result.data.map(m => ({ id: m.id, full_name: m.full_name })));
-    } catch {}
-  }, []);
-
   useEffect(() => {
     fetchPlans();
-    fetchMembers();
-  }, [fetchPlans, fetchMembers]);
+  }, [fetchPlans]);
 
   const selectedPlan = plans.find(p => p.id === selectedId) || null;
 
@@ -153,24 +139,38 @@ export default function TrainingPlansPage() {
     draft: plans.filter(p => p.type === 'draft').length,
   };
 
-  async function handleCreate() {
-    if (!fName.trim()) return;
+  function openNewPlan() {
+    setBuilderEditPlan(null);
+    setBuilderIsTemplate(false);
+    setBuilderOpen(true);
+  }
+
+  function openNewTemplate() {
+    setBuilderEditPlan(null);
+    setBuilderIsTemplate(true);
+    setBuilderOpen(true);
+  }
+
+  async function openEditPlan(planId: string) {
     try {
-      const plan = await trainingService.create({
-        name: fName.trim(),
-        description: fDesc || undefined,
-        is_template: fType === 'template',
-        created_by: '00000000-0000-0000-0000-000000000000',
-        assigned_to: fType === 'assigned' && fMember ? fMember : undefined,
+      const data = await trainingService.getById(planId);
+      setBuilderEditPlan({
+        id: data.id,
+        name: data.name,
+        description: data.description,
+        is_template: data.is_template,
+        exercises: data.exercises,
       });
-      setModalOpen(false);
-      setFName(''); setFDesc(''); setFType('assigned'); setFMember('');
-      setSelectedId(plan.id);
-      setSelectedDay(0);
-      fetchPlans();
+      setBuilderIsTemplate(!!data.is_template);
+      setBuilderOpen(true);
     } catch (e: any) {
-      alert('Error al crear plan: ' + e.message);
+      alert('Error al cargar plan: ' + e.message);
     }
+  }
+
+  function onBuilderSave() {
+    fetchPlans();
+    if (selectedId) loadDetail(selectedId);
   }
 
   return (
@@ -181,11 +181,11 @@ export default function TrainingPlansPage() {
           <div className="text-[13px] text-text-2 mt-1">Crea, edita y asigna rutinas a los miembros del gym</div>
         </div>
         <div className="flex gap-[10px]">
-          <Button variant="ghost" size="sm" onClick={() => setModalOpen(true)}>
+          <Button variant="ghost" size="sm" onClick={openNewTemplate}>
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="17"/></svg>
             Nueva plantilla
           </Button>
-          <Button variant="primary" size="sm" onClick={() => setModalOpen(true)}>
+          <Button variant="primary" size="sm" onClick={openNewPlan}>
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             Nuevo plan
           </Button>
@@ -291,7 +291,7 @@ export default function TrainingPlansPage() {
                       <IconBtn title="Duplicar">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
                       </IconBtn>
-                      <IconBtn title="Editar">
+                      <IconBtn title="Editar" onClick={() => openEditPlan(selectedPlan.id)}>
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                       </IconBtn>
                       <IconBtn title="Eliminar" danger>
@@ -367,7 +367,7 @@ export default function TrainingPlansPage() {
                           <span className="text-[11px] text-text-3 uppercase tracking-[0.06em]">
                             {DAY_NAMES[selectedDay]} · {exercises.length} ejercicio{exercises.length !== 1 ? 's' : ''}
                           </span>
-                          <button className="flex items-center gap-1 text-[11px] text-accent bg-accent-dim border border-[rgba(232,255,71,0.15)] px-[10px] py-1 rounded-[var(--radius-sm)] cursor-pointer font-sans transition-all duration-150 hover:bg-accent hover:text-black">
+                          <button onClick={() => openEditPlan(selectedPlan.id)} className="flex items-center gap-1 text-[11px] text-accent bg-accent-dim border border-[rgba(232,255,71,0.15)] px-[10px] py-1 rounded-[var(--radius-sm)] cursor-pointer font-sans transition-all duration-150 hover:bg-accent hover:text-black">
                             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                             Agregar ejercicio
                           </button>
@@ -411,31 +411,13 @@ export default function TrainingPlansPage() {
         </>
       )}
 
-      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="Nuevo plan de entrenamiento" className="max-w-[400px]" icon={<IconPlus width="16" height="16" />}>
-        <div className="grid grid-cols-2 gap-3">
-          <Input label="Nombre del plan *" value={fName} onChange={e => setFName(e.target.value)} placeholder="Ej. Fuerza A — Intermedio" />
-          <Select label="Tipo" value={fType} onChange={e => setFType(e.target.value)}>
-            <option value="assigned">Asignar a miembro</option>
-            <option value="template">Guardar como plantilla</option>
-            <option value="draft">Sin asignar (borrador)</option>
-          </Select>
-          <div className={fType === 'assigned' ? 'col-span-2' : 'col-span-2'}>
-            <Input label="Descripción" value={fDesc} onChange={e => setFDesc(e.target.value)} placeholder="Objetivo del plan, observaciones generales…" />
-          </div>
-          {fType === 'assigned' && (
-            <div className="col-span-2">
-              <Select label="Asignar a miembro" value={fMember} onChange={e => setFMember(e.target.value)}>
-                <option value="">— Seleccionar miembro —</option>
-                {members.map(m => <option key={m.id} value={m.id}>{m.full_name}</option>)}
-              </Select>
-            </div>
-          )}
-        </div>
-        <div className="flex justify-end gap-[10px] pt-3">
-          <Button variant="ghost" size="sm" onClick={() => setModalOpen(false)}>Cancelar</Button>
-          <Button variant="primary" size="sm" onClick={handleCreate}>Crear plan</Button>
-        </div>
-      </Modal>
+      <RoutineBuilder
+        open={builderOpen}
+        onClose={() => setBuilderOpen(false)}
+        onSave={onBuilderSave}
+        editPlan={builderEditPlan}
+        isTemplateDefault={builderIsTemplate}
+      />
     </div>
   );
 }
@@ -451,9 +433,9 @@ function ChipSm({ icon, text }: { icon: string; text: string }) {
   );
 }
 
-function IconBtn({ children, title, danger }: { children: React.ReactNode; title: string; danger?: boolean }) {
+function IconBtn({ children, title, danger, onClick }: { children: React.ReactNode; title: string; danger?: boolean; onClick?: () => void }) {
   return (
-    <button title={title}
+    <button title={title} onClick={onClick}
       className={`w-10 sm:w-7 h-10 sm:h-7 rounded-[var(--radius-sm)] bg-transparent border border-border flex items-center justify-center cursor-pointer transition-all duration-150 ${
         danger ? 'text-red-text hover:bg-red-bg hover:border-[rgba(239,68,68,0.3)]' : 'text-text-3 hover:bg-surface2 hover:text-text hover:border-border2'
       }`}>

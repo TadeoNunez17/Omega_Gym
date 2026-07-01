@@ -1,11 +1,9 @@
 import { useEffect, useState } from 'react';
-import { trainerService, type TrainerMember, type TrainerPlan } from '@/services/trainer.service';
+import { trainerService, type TrainerPlan } from '@/services/trainer.service';
 import { trainingService } from '@/services/training.service';
 import { Button } from '@/components/ui/atoms/Button';
-import { Modal } from '@/components/ui/molecules/Modal';
-import { Input, Select } from '@/components/ui/atoms/Input';
 import { PageHeader } from '@/components/ui/molecules/PageHeader';
-import { IconPlus } from '@/lib/icons';
+import { RoutineBuilder, type EditPlanData } from '@/components/routine-builder/RoutineBuilder';
 import { toast } from 'sonner';
 
 const ICON_COLORS = [
@@ -29,73 +27,43 @@ const staggerClass = (i: number) => {
 
 export default function TrainerPlansPage() {
   const [plans, setPlans] = useState<TrainerPlan[]>([]);
-  const [members, setMembers] = useState<TrainerMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [modalOpen, setModalOpen] = useState(false);
-  const [pName, setPName] = useState('');
-  const [pDesc, setPDesc] = useState('');
-  const [pMember, setPMember] = useState('');
-  const [editTarget, setEditTarget] = useState<TrainerPlan | null>(null);
-  const [eName, setEName] = useState('');
-  const [eDesc, setEDesc] = useState('');
-  const [eSaving, setESaving] = useState(false);
+  const [builderOpen, setBuilderOpen] = useState(false);
+  const [builderEditPlan, setBuilderEditPlan] = useState<EditPlanData | null>(null);
 
   useEffect(() => {
-    Promise.all([
-      trainerService.getPlans(),
-      trainerService.getMembers(),
-    ])
-      .then(([plansData, membersData]) => {
-        setPlans(plansData);
-        setMembers(membersData);
-      })
+    trainerService.getPlans()
+      .then(setPlans)
       .catch(e => setError(e.message))
       .finally(() => setLoading(false));
   }, []);
 
-  async function handleCreate() {
-    if (!pName.trim()) return;
+  function openNewPlan() {
+    setBuilderEditPlan(null);
+    setBuilderOpen(true);
+  }
+
+  async function openEditPlan(planId: string) {
     try {
-      const plan = await trainerService.createPlan({
-        name: pName.trim(),
-        description: pDesc.trim() || undefined,
-        assigned_to: pMember || undefined,
+      const data = await trainingService.getById(planId);
+      setBuilderEditPlan({
+        id: data.id,
+        name: data.name,
+        description: data.description,
+        is_template: data.is_template,
+        exercises: data.exercises,
       });
-      setPlans([plan, ...plans]);
-      setModalOpen(false);
-      setPName('');
-      setPDesc('');
-      setPMember('');
+      setBuilderOpen(true);
     } catch (e: any) {
-      toast.error('Error al crear plan: ' + e.message);
+      toast.error('Error al cargar plan: ' + e.message);
     }
   }
 
-  function openEdit(plan: TrainerPlan) {
-    setEditTarget(plan);
-    setEName(plan.name);
-    setEDesc(plan.description ?? '');
-    setPMember(plan.assigned_to || '');
-  }
-
-  async function saveEdit() {
-    if (!editTarget || !eName.trim()) return;
-    setESaving(true);
-    try {
-      await trainingService.update(editTarget.id, {
-        name: eName.trim(),
-        description: eDesc.trim() || null,
-        assigned_to: pMember || null,
-      });
-      setPlans((prev) => prev.map((pl) => pl.id === editTarget.id ? { ...pl, name: eName.trim(), description: eDesc.trim() || null, assigned_to: pMember || null } : pl));
-      toast.success('Plan actualizado');
-      setEditTarget(null);
-    } catch (e: any) {
-      toast.error('Error al actualizar plan: ' + e.message);
-    } finally {
-      setESaving(false);
-    }
+  function onBuilderSave() {
+    trainerService.getPlans()
+      .then(setPlans)
+      .catch(e => toast.error('Error al recargar: ' + e.message));
   }
 
   if (loading) {
@@ -116,7 +84,7 @@ export default function TrainerPlansPage() {
           <span className="font-medium text-text-1">Mis planes</span>
         </div>
         <div className="flex items-center gap-2 sm:gap-2.5">
-          <Button variant="primary" size="sm" onClick={() => setModalOpen(true)}>
+          <Button variant="primary" size="sm" onClick={openNewPlan}>
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
               <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
             </svg>
@@ -144,7 +112,7 @@ export default function TrainerPlansPage() {
             </svg>
             <div className="text-sm font-semibold text-text-2">No tienes planes aún</div>
             <div className="text-xs text-text-3 max-w-[300px]">Crea tu primer plan de entrenamiento y asígnaselo a uno de tus miembros.</div>
-            <Button variant="primary" size="sm" className="mt-2" onClick={() => setModalOpen(true)}>
+            <Button variant="primary" size="sm" className="mt-2" onClick={openNewPlan}>
               + Crear plan
             </Button>
           </div>
@@ -171,7 +139,7 @@ export default function TrainerPlansPage() {
                     <span className="text-[11px] text-text-3 font-mono hidden sm:inline">
                       {new Date(p.created_at).toLocaleDateString('es-MX')}
                     </span>
-                    <button onClick={() => openEdit(p)} className="w-10 sm:w-7 h-10 sm:h-7 [&>svg]:w-[18px] [&>svg]:h-[18px] sm:[&>svg]:w-[13px] sm:[&>svg]:h-[13px] rounded-[var(--radius-sm)] bg-transparent border border-border text-text-3 cursor-pointer flex items-center justify-center hover:bg-surface2 transition-colors">
+                    <button onClick={() => openEditPlan(p.id)} className="w-10 sm:w-7 h-10 sm:h-7 [&>svg]:w-[18px] [&>svg]:h-[18px] sm:[&>svg]:w-[13px] sm:[&>svg]:h-[13px] rounded-[var(--radius-sm)] bg-transparent border border-border text-text-3 cursor-pointer flex items-center justify-center hover:bg-surface2 transition-colors">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="13" height="13">
                         <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
                         <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
@@ -184,31 +152,12 @@ export default function TrainerPlansPage() {
           </div>
         )}
 
-        <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="Nuevo plan de entrenamiento" className="max-w-[400px]" icon={<IconPlus width="16" height="16" />}>
-          <Input label="Nombre del plan *" value={pName} onChange={e => setPName(e.target.value)} placeholder="Ej. Fuerza C — Avanzado" />
-          <Input label="Descripción" value={pDesc} onChange={e => setPDesc(e.target.value)} placeholder="Objetivo, observaciones…" />
-          <Select label="Asignar a miembro" value={pMember} onChange={e => setPMember(e.target.value)}>
-            <option value="">— Sin asignar —</option>
-            {members.map(m => <option key={m.id} value={m.id}>{m.full_name}</option>)}
-          </Select>
-          <div className="flex justify-end gap-[10px] pt-4 border-t border-border mt-2">
-            <Button variant="ghost" size="sm" onClick={() => setModalOpen(false)}>Cancelar</Button>
-            <Button variant="primary" size="sm" onClick={handleCreate}>Crear plan</Button>
-          </div>
-        </Modal>
-
-        <Modal open={!!editTarget} onClose={() => setEditTarget(null)} title="Editar plan" className="max-w-[400px]" icon={<IconPlus width="16" height="16" />}>
-          <Input label="Nombre del plan *" value={eName} onChange={e => setEName(e.target.value)} placeholder="Ej. Fuerza C — Avanzado" />
-          <Input label="Descripción" value={eDesc} onChange={e => setEDesc(e.target.value)} placeholder="Objetivo, observaciones…" />
-          <Select label="Asignar a miembro" value={pMember} onChange={e => setPMember(e.target.value)}>
-            <option value="">— Sin asignar —</option>
-            {members.map(m => <option key={m.id} value={m.id}>{m.full_name}</option>)}
-          </Select>
-          <div className="flex justify-end gap-[10px] pt-4 border-t border-border mt-2">
-            <Button variant="ghost" size="sm" onClick={() => setEditTarget(null)} disabled={eSaving}>Cancelar</Button>
-            <Button variant="primary" size="sm" onClick={saveEdit} disabled={!eName.trim() || eSaving}>{eSaving ? 'Guardando…' : 'Guardar cambios'}</Button>
-          </div>
-        </Modal>
+        <RoutineBuilder
+          open={builderOpen}
+          onClose={() => setBuilderOpen(false)}
+          onSave={onBuilderSave}
+          editPlan={builderEditPlan}
+        />
       </div>
     </>
   );

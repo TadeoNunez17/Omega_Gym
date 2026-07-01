@@ -46,19 +46,21 @@ export default function MyPaymentsPage() {
 
   const lastPayment = payments.find(p => p.status === 'paid') || payments[0]
 
-  return (
+  return (<>
+      <header className="px-4 sm:px-7 h-14 flex items-center justify-between border-b border-border bg-surface2 sticky top-0 z-9">
+        <div className="flex items-center gap-2 text-xs sm:text-[13px] text-text-3">
+          <div className="w-4 h-4 shrink-0 flex items-center justify-center">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-full h-full" width="16" height="16">
+              <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>
+            </svg>
+          </div>
+          <span className="text-text-4 mx-0.5">/</span>
+          <span className="font-medium text-text-1">Mis pagos</span>
+        </div>
+        <div />
+      </header>
     <div className="p-4 sm:p-7 flex-1">
-      <div className={`flex items-center gap-3 mb-6 animate-slide-up ${staggerClass(0)}`}>
-        <div className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 bg-accent">
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="black" strokeWidth="2.5" strokeLinecap="round">
-            <path d="M6 4v16M18 4v16M3 8h3M18 8h3M3 16h3M18 16h3M6 12h12"/>
-          </svg>
-        </div>
-        <div>
-          <div className="text-[11px] text-text-3">Omega Gym</div>
-          <div className="text-[17px] font-semibold -tracking-[0.01em]">Mis pagos</div>
-        </div>
-      </div>
+
 
       {payments.length === 0 ? (
         <div className={`bg-surface border border-border rounded-xl p-10 flex flex-col items-center gap-4 text-center animate-slide-up ${staggerClass(1)}`}>
@@ -185,5 +187,6 @@ export default function MyPaymentsPage() {
         )}
       </Modal>
     </div>
+    </>
   )
 }
