@@ -51,7 +51,6 @@ export default function TrainerPlansPage() {
         id: data.id,
         name: data.name,
         description: data.description,
-        is_template: data.is_template,
         exercises: data.exercises,
       });
       setBuilderOpen(true);

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { trainingService, type ExerciseInput } from '@/services/training.service'
 import { useAuthStore } from '@/store/auth.store'
 import { Button } from '@/components/ui/atoms/Button'
@@ -13,7 +13,6 @@ export type EditPlanData = {
   id: string
   name: string
   description?: string | null
-  is_template?: boolean
   exercises: {
     exercise_name: string
     muscle: string | null
@@ -30,9 +29,8 @@ export type EditPlanData = {
 interface Props {
   open: boolean
   onClose: () => void
-  onSave: () => void
+  onSave: (planId?: string) => void
   editPlan?: EditPlanData | null
-  isTemplateDefault?: boolean
 }
 
 let _tempCounter = 0
@@ -47,7 +45,7 @@ function normalizeUrl(url: string): string {
   return v
 }
 
-export function RoutineBuilder({ open, onClose, onSave, editPlan, isTemplateDefault }: Props) {
+export function RoutineBuilder({ open, onClose, onSave, editPlan }: Props) {
   const user = useAuthStore(s => s.user)
 
   // Step
@@ -56,7 +54,6 @@ export function RoutineBuilder({ open, onClose, onSave, editPlan, isTemplateDefa
   // Step 1
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
-  const [isTemplate, setIsTemplate] = useState(false)
 
   // Step 2
   const [exercisesByDay, setExercisesByDay] = useState<Record<number, LocalExercise[]>>({})
@@ -76,6 +73,7 @@ export function RoutineBuilder({ open, onClose, onSave, editPlan, isTemplateDefa
   const [exLink, setExLink] = useState('')
 
   const [saving, setSaving] = useState(false)
+  const savingRef = useRef(false)
 
   useEffect(() => {
     if (!open) return
@@ -83,7 +81,6 @@ export function RoutineBuilder({ open, onClose, onSave, editPlan, isTemplateDefa
     if (editPlan) {
       setName(editPlan.name)
       setDescription(editPlan.description ?? '')
-      setIsTemplate(editPlan.is_template ?? false)
       const grouped: Record<number, LocalExercise[]> = {}
       for (const ex of editPlan.exercises) {
         const d = ex.day ?? 0
@@ -105,14 +102,13 @@ export function RoutineBuilder({ open, onClose, onSave, editPlan, isTemplateDefa
     } else {
       setName('')
       setDescription('')
-      setIsTemplate(isTemplateDefault ?? false)
       setExercisesByDay({})
     }
     setSelectedDay(0)
     setFormOpen(false)
     setEditingId(null)
     resetForm()
-  }, [open, editPlan, isTemplateDefault])
+  }, [open, editPlan])
 
   function resetForm() {
     setExName('')
@@ -213,7 +209,8 @@ export function RoutineBuilder({ open, onClose, onSave, editPlan, isTemplateDefa
   }, [exercisesByDay])
 
   async function handleSave() {
-    if (!name.trim() || !user) return
+    if (!name.trim() || !user || savingRef.current) return
+    savingRef.current = true
     setSaving(true)
     try {
       if (editPlan) {
@@ -225,17 +222,17 @@ export function RoutineBuilder({ open, onClose, onSave, editPlan, isTemplateDefa
         const plan = await trainingService.create({
           name: name.trim(),
           description: description.trim() || undefined,
-          is_template: isTemplate,
           created_by: user.id,
         })
-        editPlan = { id: plan.id, name: plan.name, description: plan.description, is_template: plan.is_template, exercises: [] }
+        editPlan = { id: plan.id, name: plan.name, description: plan.description, exercises: [] }
       }
       await trainingService.upsertExercises(editPlan.id, flatExercises())
-      onSave()
+      onSave(editPlan.id)
       onClose()
     } catch (e: any) {
       alert('Error al guardar: ' + e.message)
     } finally {
+      savingRef.current = false
       setSaving(false)
     }
   }
@@ -276,27 +273,6 @@ export function RoutineBuilder({ open, onClose, onSave, editPlan, isTemplateDefa
             <div className="flex flex-col gap-4">
               <Input label="Nombre del plan *" value={name} onChange={e => setName(e.target.value)} placeholder="Ej. Fuerza Básica" />
               <Textarea label="Descripción" value={description} onChange={e => setDescription(e.target.value)} placeholder="Objetivo del plan, notas generales…" />
-              <div>
-                <label className="text-xs font-medium text-text-2 block mb-2">Tipo</label>
-                <div className="flex gap-2">
-                  <button onClick={() => setIsTemplate(false)}
-                    className={`px-4 py-[7px] rounded-[var(--radius-sm)] text-xs font-medium cursor-pointer transition-all duration-150 ${
-                      !isTemplate
-                        ? 'bg-accent text-black border border-accent'
-                        : 'bg-transparent text-text-3 border border-border hover:bg-surface2 hover:text-text-2'
-                    }`}>
-                    Plan de entrenamiento
-                  </button>
-                  <button onClick={() => setIsTemplate(true)}
-                    className={`px-4 py-[7px] rounded-[var(--radius-sm)] text-xs font-medium cursor-pointer transition-all duration-150 ${
-                      isTemplate
-                        ? 'bg-accent text-black border border-accent'
-                        : 'bg-transparent text-text-3 border border-border hover:bg-surface2 hover:text-text-2'
-                    }`}>
-                    Plantilla
-                  </button>
-                </div>
-              </div>
               <div className="flex justify-end gap-[10px] pt-3">
                 <Button variant="ghost" size="sm" onClick={onClose}>Cancelar</Button>
                 <Button variant="primary" size="sm" onClick={() => setStep(2)} disabled={!name.trim()}>

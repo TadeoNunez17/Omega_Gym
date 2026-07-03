@@ -46,7 +46,7 @@ export const trainerService = {
 
     const memberIds = profiles.map((p) => p.id)
 
-    const [membershipsResult, plansResult] = await Promise.all([
+    const [membershipsResult, plansResult, assignmentsResult] = await Promise.all([
       supabase
         .from('memberships')
         .select('member_id, end_date, membership_types(name)')
@@ -59,6 +59,11 @@ export const trainerService = {
         .from('training_plans')
         .select('name, description, assigned_to')
         .in('assigned_to', memberIds),
+
+      supabase
+        .from('plan_assignments')
+        .select('plan_id, member_id')
+        .in('member_id', memberIds),
     ])
 
     const membershipByMember: Record<string, any> = {}
@@ -69,6 +74,21 @@ export const trainerService = {
     const planByMember: Record<string, any> = {}
     for (const p of plansResult.data || []) {
       planByMember[p.assigned_to] = p
+    }
+
+    const assignmentPlanIds = [...new Set((assignmentsResult.data || []).map(a => a.plan_id))]
+    if (assignmentPlanIds.length > 0) {
+      const { data: plans } = await supabase
+        .from('training_plans')
+        .select('id, name, description')
+        .in('id', assignmentPlanIds)
+
+      for (const a of assignmentsResult.data || []) {
+        if (!planByMember[a.member_id]) {
+          const plan = (plans || []).find(p => p.id === a.plan_id)
+          if (plan) planByMember[a.member_id] = plan
+        }
+      }
     }
 
     return profiles.map((profile): TrainerMember => {
