@@ -122,8 +122,29 @@ export const membersService = {
 
     const deduped = deduplicateProfiles(data || [])
 
+    const memberIds = deduped.map(d => d.id).filter(Boolean)
+    let planAssignmentNames: Record<string, string> = {}
+    if (memberIds.length > 0) {
+      const { data: planAssignments } = await supabase
+        .from('plan_assignments')
+        .select('member_id, plan:training_plans(name)')
+        .in('member_id', memberIds)
+      for (const pa of planAssignments || []) {
+        const name = (pa.plan as any)?.name
+        if (name && !planAssignmentNames[pa.member_id]) {
+          planAssignmentNames[pa.member_id] = name
+        }
+      }
+    }
+
     const sorted = deduped
-      .map(toMemberListItem)
+      .map((raw) => {
+        const item = toMemberListItem(raw)
+        if (!item.plan_name && planAssignmentNames[raw.id]) {
+          item.plan_name = planAssignmentNames[raw.id]
+        }
+        return item
+      })
       .sort((a, b) =>
         (ROLE_PRIORITY[a.role] ?? 99) - (ROLE_PRIORITY[b.role] ?? 99) ||
         a.full_name.localeCompare(b.full_name)
@@ -150,7 +171,17 @@ export const membersService = {
       .single()
 
     if (error) throw error
-    return toMemberListItem(data)
+    const item = toMemberListItem(data)
+    if (!item.plan_name) {
+      const { data: pa } = await supabase
+        .from('plan_assignments')
+        .select('plan:training_plans(name)')
+        .eq('member_id', id)
+        .maybeSingle()
+      const name = (pa as any)?.plan?.name
+      if (name) item.plan_name = name
+    }
+    return item
   },
 
   create: async (input: {

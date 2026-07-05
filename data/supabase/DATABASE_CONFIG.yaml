@@ -16,9 +16,9 @@ mcp:
 
 model_status:
   overall: active
-  last_reviewed: 2026-05-14
+  last_reviewed: 2026-07-04
   approved_by: "admin"
-  notes: "Schema aplicado y en producción"
+  notes: "Schema aplicado y en producción. Migración 005: RLS en training_plans y plan_exercises ahora cubre plan_assignments. Migración 006: fix RLS en plan_assignments (member_id IN profiles WHERE auth_user_id = auth.uid() en vez de member_id = auth.uid()). Migración 007: tabla workout_logs para registro de series completadas por miembros."
 
 tables:
   - name: profiles
@@ -37,6 +37,12 @@ tables:
     status: active
     rls_enabled: true
   - name: plan_exercises
+    status: active
+    rls_enabled: true
+  - name: plan_assignments
+    status: active
+    rls_enabled: true
+  - name: workout_logs
     status: active
     rls_enabled: true
   - name: check_ins
