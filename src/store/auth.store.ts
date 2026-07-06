@@ -10,6 +10,7 @@ interface AuthState {
   register: (params: { email?: string; phone?: string; password: string; fullName: string }) => Promise<void>
   loginWithGoogle: () => Promise<void>
   logout: () => Promise<void>
+  deleteAccount: () => Promise<void>
   initialize: () => Promise<void>
 }
 
@@ -56,6 +57,12 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
 
   logout: async () => {
+    await authService.logout()
+    set({ user: null })
+  },
+
+  deleteAccount: async () => {
+    await authService.deleteAccount()
     await authService.logout()
     set({ user: null })
   },

@@ -113,6 +113,8 @@ export const membersService = {
 
     if (filters?.registration) {
       query = query.eq('registration_status', filters.registration)
+    } else {
+      query = query.neq('registration_status', 'pending')
     }
 
     const { data, error } = await query

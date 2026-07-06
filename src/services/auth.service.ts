@@ -54,6 +54,11 @@ export const authService = {
     return data
   },
 
+  deleteAccount: async () => {
+    const { error } = await supabase.rpc('delete_my_account')
+    if (error) throw error
+  },
+
   getProfile: async (userId: string) => {
     const { data, error } = await supabase
       .from('profiles')

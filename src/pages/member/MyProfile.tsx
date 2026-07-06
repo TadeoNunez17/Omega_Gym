@@ -1,9 +1,12 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { toast } from 'sonner'
 import { useAuthStore } from '@/store/auth.store'
 import { fmtDate, fmtPhone, avatarColor, initials } from '@/lib/helpers'
 import { Badge } from '@/components/ui/atoms/Badge'
 import { MetricCard } from '@/components/ui/atoms/MetricCard'
 import { LoadingSpinner } from '@/components/ui/atoms/LoadingSpinner'
+import { Modal } from '@/components/ui/molecules/Modal'
 import { membershipsService } from '@/services/memberships.service'
 import { checkInsService } from '@/services/checkIns.service'
 
@@ -21,9 +24,14 @@ function IconCheck() {
 
 export default function MyProfilePage() {
   const user = useAuthStore(s => s.user)
+  const navigate = useNavigate()
   const [loading, setLoading] = useState(true)
   const [membership, setMembership] = useState<any>(null)
   const [checkinCount, setCheckinCount] = useState(0)
+
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [confirmName, setConfirmName] = useState('')
+  const [deleting, setDeleting] = useState(false)
 
   useEffect(() => {
     if (!user) return
@@ -72,21 +80,36 @@ export default function MyProfilePage() {
     useAuthStore.getState().logout()
   }
 
-  return (<>
-      <header className="px-4 sm:px-7 h-14 flex items-center justify-between border-b border-border bg-surface2 sticky top-0 z-9">
-        <div className="flex items-center gap-2 text-xs sm:text-[13px] text-text-3">
-          <div className="w-4 h-4 shrink-0 flex items-center justify-center">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-full h-full" width="16" height="16">
-              <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>
-            </svg>
-          </div>
-          <span className="text-text-4 mx-0.5">/</span>
-          <span className="font-medium text-text-1">Mi perfil</span>
-        </div>
-        <div />
-      </header>
-    <div className="p-4 sm:p-7 flex-1">
+  const handleDeleteAccount = async () => {
+    setDeleting(true)
+    try {
+      await useAuthStore.getState().deleteAccount()
+      toast.success('Tu cuenta ha sido eliminada')
+      navigate('/login')
+    } catch (err: any) {
+      toast.error(err.message || 'Error al eliminar la cuenta')
+    } finally {
+      setDeleting(false)
+      setShowDeleteModal(false)
+    }
+  }
 
+  const nameMatches = confirmName.trim() === user.full_name
+
+  return (<>
+    <header className="px-4 sm:px-7 h-14 flex items-center justify-between border-b border-border bg-surface2 sticky top-0 z-9">
+      <div className="flex items-center gap-2 text-xs sm:text-[13px] text-text-3">
+        <div className="w-4 h-4 shrink-0 flex items-center justify-center">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-full h-full" width="16" height="16">
+            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>
+          </svg>
+        </div>
+        <span className="text-text-4 mx-0.5">/</span>
+        <span className="font-medium text-text-1">Mi perfil</span>
+      </div>
+      <div />
+    </header>
+    <div className="p-4 sm:p-7 flex-1">
 
       <div className={`bg-surface border border-border rounded-xl p-5 sm:p-6 flex flex-col items-center animate-slide-up ${staggerClass(1)}`}>
         <div className="w-20 h-20 rounded-full flex items-center justify-center text-[26px] font-semibold mb-3"
@@ -157,7 +180,72 @@ export default function MyProfilePage() {
           Cerrar sesión
         </button>
       </div>
+
+      <div className={`mt-3 animate-slide-up ${staggerClass(5)}`}>
+        <button onClick={() => setShowDeleteModal(true)}
+          className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-[13px] font-medium cursor-pointer transition-all duration-150"
+          style={{ background: 'rgba(220,38,38,0.06)', color: 'rgba(248,113,113,0.7)', border: '1px solid rgba(220,38,38,0.12)' }}>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+          </svg>
+          Eliminar cuenta
+        </button>
+      </div>
     </div>
+
+    <Modal
+      open={showDeleteModal}
+      onClose={() => { if (!deleting) { setShowDeleteModal(false); setConfirmName('') } }}
+      title="Eliminar cuenta"
+      compact
+      icon={
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={{ color: '#f87171' }}>
+          <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+        </svg>
+      }
+    >
+      <div className="text-center">
+        <div className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4"
+          style={{ background: 'rgba(220,38,38,0.12)' }}>
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#f87171" strokeWidth="2" strokeLinecap="round">
+            <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+          </svg>
+        </div>
+
+        <p className="text-sm font-semibold text-text-1 mb-1">¿Eliminar tu cuenta?</p>
+        <p className="text-xs text-text-3 leading-relaxed">
+          Perderás acceso a tu cuenta. Tus membresías, pagos e historial se conservarán para que el administrador pueda re-vincular tu perfil después.
+        </p>
+      </div>
+
+      <div className="h-px bg-border" />
+
+      <div className="flex flex-col gap-3">
+        <label className="text-[11px] uppercase tracking-[0.08em] text-text-3 font-semibold">
+          Escribe tu nombre completo para confirmar
+        </label>
+        <input
+          type="text"
+          value={confirmName}
+          onChange={e => setConfirmName(e.target.value)}
+          placeholder={user.full_name}
+          disabled={deleting}
+          className="w-full bg-transparent border border-border rounded-lg px-4 py-3 text-sm font-medium text-text-1 outline-none transition-all duration-150 placeholder:text-text-4 disabled:opacity-40"
+        />
+      </div>
+
+      <button
+        onClick={handleDeleteAccount}
+        disabled={!nameMatches || deleting}
+        className="w-full py-3 rounded-xl text-[13px] font-bold cursor-pointer transition-all duration-150 disabled:cursor-not-allowed"
+        style={{
+          background: nameMatches && !deleting ? 'rgba(220,38,38,0.9)' : 'rgba(220,38,38,0.15)',
+          color: nameMatches && !deleting ? '#fff' : 'rgba(248,113,113,0.4)',
+          border: nameMatches && !deleting ? '1px solid rgba(220,38,38,0.4)' : '1px solid rgba(220,38,38,0.08)',
+        }}>
+        {deleting ? 'Eliminando...' : 'Eliminar mi cuenta'}
+      </button>
+    </Modal>
     </>
   )
 }

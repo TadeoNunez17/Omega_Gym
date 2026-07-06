@@ -446,20 +446,6 @@ export default function MyPlanPage() {
                                   ? 'bg-surface2 border-green/30'
                                   : 'bg-surface2 border-border'
                               }`}>
-                              {/* Checkbox */}
-                              <button onClick={() => updateLog(e.id, setNum, { completed: !isCompleted })}
-                                className={`w-6 h-6 rounded-md flex items-center justify-center shrink-0 border cursor-pointer transition-all duration-150 ${
-                                  isCompleted
-                                    ? 'bg-green border-green text-black'
-                                    : 'bg-transparent border-border2 text-transparent hover:border-text-3'
-                                }`}>
-                                {isCompleted && (
-                                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="w-3.5 h-3.5">
-                                    <polyline points="20 6 9 17 4 12"/>
-                                  </svg>
-                                )}
-                              </button>
-
                               {/* Set number */}
                               <span className={`text-[11px] font-bold w-5 shrink-0 ${isCompleted ? 'text-green-text' : 'text-text-3'}`}>
                                 {setNum}
@@ -492,6 +478,20 @@ export default function MyPlanPage() {
                                   } ${isSaving ? 'opacity-60' : ''}`}
                                 />
                               </div>
+
+                              {/* Checkbox */}
+                              <button onClick={() => updateLog(e.id, setNum, { completed: !isCompleted })}
+                                className={`w-6 h-6 rounded-md flex items-center justify-center shrink-0 border cursor-pointer transition-all duration-150 ${
+                                  isCompleted
+                                    ? 'bg-green border-green text-black'
+                                    : 'bg-transparent border-border2 text-transparent hover:border-text-3'
+                                }`}>
+                                {isCompleted && (
+                                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="w-3.5 h-3.5">
+                                    <polyline points="20 6 9 17 4 12"/>
+                                  </svg>
+                                )}
+                              </button>
 
                               {/* Saving indicator */}
                               {isSaving && (
