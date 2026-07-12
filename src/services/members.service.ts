@@ -113,8 +113,6 @@ export const membersService = {
 
     if (filters?.registration) {
       query = query.eq('registration_status', filters.registration)
-    } else {
-      query = query.neq('registration_status', 'pending')
     }
 
     const { data, error } = await query
@@ -336,21 +334,36 @@ export const membersService = {
   },
 
   remove: async (id: string) => {
-    const { data: link } = await supabase
+    const { data: profile, error: fetchErr } = await supabase
+      .from('profiles')
+      .select('auth_user_id, alias')
+      .eq('id', id)
+      .single()
+
+    if (fetchErr || !profile) throw new Error('No se encontró el perfil.')
+
+    await supabase
       .from('auth_links')
-      .select('id')
+      .update({ status: 'unlinked', unlinked_at: new Date().toISOString() })
       .eq('profile_id', id)
       .eq('status', 'linked')
-      .maybeSingle()
 
-    if (link) throw new Error('Desvincula primero la cuenta del usuario antes de eliminar el perfil.')
-
-    const { error } = await supabase
+    const { error: updErr } = await supabase
       .from('profiles')
-      .delete()
+      .update({
+        auth_user_id: null,
+        full_name: profile.alias || undefined,
+        alias: null,
+        email: null,
+        phone: null,
+        registration_status: 'pending',
+        is_active: true,
+      })
       .eq('id', id)
 
-    if (error) throw error
+    if (updErr) throw updErr
+
+    await supabase.rpc('cleanup_orphan_auth_users')
   },
 
   getPendingMembers: async (): Promise<MemberListItem[]> => {

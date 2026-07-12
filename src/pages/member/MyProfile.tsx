@@ -221,8 +221,8 @@ export default function MyProfilePage() {
       <div className="h-px bg-border" />
 
       <div className="flex flex-col gap-3">
-        <label className="text-[11px] uppercase tracking-[0.08em] text-text-3 font-semibold">
-          Escribe tu nombre completo para confirmar
+        <label className="text-[11px] text-text-3 font-semibold">
+          Escribe <strong className="text-text-1">"{user.full_name}"</strong> para confirmar
         </label>
         <input
           type="text"

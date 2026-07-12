@@ -263,11 +263,11 @@ export default function MembersPage() {
     if (!target) return;
     try {
       await membersService.remove(target.id);
-      toast.success(`Miembro "${target.name}" eliminado`);
+      toast.success(`Miembro "${target.name}" desactivado correctamente`);
       setDeleteTarget(null);
       fetchMembers();
     } catch (e: any) {
-      toast.error('Error al eliminar: ' + e.message);
+      toast.error('Error al desactivar: ' + e.message);
       setDeleteTarget(null);
     }
   }, [deleteTarget, fetchMembers]);
@@ -345,9 +345,22 @@ export default function MembersPage() {
       hide: 'lg',
       render: (m) => (
         m.plan ? (
-          <span className="inline-flex items-center gap-1 px-[9px] py-[3px] rounded-sm text-[11px] bg-surface2 text-text-2 border border-border">{m.plan}</span>
+          <span className="inline-flex items-center gap-1 px-[9px] py-[3px] rounded-sm text-[11px] font-medium"
+            style={{
+              background: 'rgba(129, 140, 248, 0.10)',
+              color: '#818cf8',
+              border: '1px solid rgba(129, 140, 248, 0.22)',
+            }}>
+            {m.plan}
+          </span>
         ) : (
-          <span className="inline-flex items-center gap-1 px-[9px] py-[3px] rounded-sm text-[11px] text-text-3 border border-dashed border-border">Sin plan</span>
+          <span className="inline-flex items-center gap-1 px-[9px] py-[3px] rounded-sm text-[11px]"
+            style={{
+              color: '#52525b',
+              border: '1px dashed rgba(255, 255, 255, 0.08)',
+            }}>
+            Sin plan
+          </span>
         )
       ),
     },
@@ -925,19 +938,19 @@ export default function MembersPage() {
         </div>
       </Modal>
 
-      <Modal open={deleteTarget !== null} onClose={() => setDeleteTarget(null)} title="Eliminar miembro" className="max-w-[400px]" icon={<IconAlert width="16" height="16" />}>
+      <Modal open={deleteTarget !== null} onClose={() => setDeleteTarget(null)} title="Desactivar miembro" className="max-w-[400px]" icon={<IconAlert width="16" height="16" />}>
         <div className="flex flex-col gap-4">
           <div className="text-[13px] text-text-1 leading-relaxed">
-            ¿Estás seguro de eliminar a <strong>{deleteTarget?.name}</strong>?
+            ¿Estás seguro de desactivar a <strong>{deleteTarget?.name}</strong>?
           </div>
           <div className="text-[12px] text-text-3 bg-red-bg/10 border border-red/20 rounded-sm p-3 leading-relaxed">
-            Se eliminarán en cascada: membresías, pagos, planes de entrenamiento, ejercicios y registros de entrada.
-            Esta acción no se puede deshacer.
+            El perfil volverá a estado pendiente. Se conservan: membresías, pagos, planes y registros de entrada.
+            El usuario no podrá iniciar sesión hasta que sea vinculado nuevamente.
           </div>
         </div>
         <div className="flex justify-end gap-2.5 mt-2">
           <Button variant="ghost" onClick={() => setDeleteTarget(null)}>Cancelar</Button>
-          <Button variant="danger" onClick={confirmDelete}>Eliminar</Button>
+          <Button variant="danger" onClick={confirmDelete}>Desactivar</Button>
         </div>
       </Modal>
 

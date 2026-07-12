@@ -58,7 +58,7 @@ export default function App() {
           <Route path="/memberships" element={<MembershipsPage />} />
           <Route path="/payments" element={<PaymentsPage />} />
           <Route path="/training-plans" element={<TrainingPlansPage />} />
-          <Route path="/fingerprint" element={<FingerprintPage />} />
+          {import.meta.env.DEV && <Route path="/fingerprint" element={<FingerprintPage />} />}
         </Route>
 
         <Route element={<ProtectedRoute roles={['trainer', 'admin']}><TrainerLayout /></ProtectedRoute>}>

@@ -19,7 +19,7 @@ export const baseNavItems: NavSection[] = [
     { label: 'Membresias', href: '/memberships', icon: 'memberships' },
     { label: 'Pagos', href: '/payments', icon: 'payments', badgeKey: 'pendingPayments' },
     { label: 'Planes de Entrenamiento', href: '/training-plans', icon: 'plans' },
-    { label: 'Registro de Huella', href: '/fingerprint', icon: 'fingerprint' },
+    ...(import.meta.env.DEV ? [{ label: 'Registro de Huella', href: '/fingerprint', icon: 'fingerprint' }] : []),
   ]},
 
 ]
