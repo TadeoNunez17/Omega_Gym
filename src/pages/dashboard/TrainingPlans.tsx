@@ -1,6 +1,7 @@
 ﻿import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { trainingService, type PlanListItem, type PlanExercise } from '@/services/training.service';
+import { exercisesService, type Exercise } from '@/services/exercises.service';
 import { membersService, type MemberListItem } from '@/services/members.service';
 import { membershipsService, type Membership, type MembershipType } from '@/services/memberships.service';
 import { Button } from '@/components/ui/atoms/Button';
@@ -97,6 +98,8 @@ export default function TrainingPlansPage() {
   const [previewMember, setPreviewMember] = useState<MemberListItem | null>(null);
   const [previewMembership, setPreviewMembership] = useState<(Membership & { membership_types: MembershipType }) | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
+  const [catalogMap, setCatalogMap] = useState<Map<string, Exercise>>(new Map());
+  const [expandedInstructions, setExpandedInstructions] = useState<Set<string>>(new Set());
 
   const navigate = useNavigate();
 
@@ -154,6 +157,19 @@ export default function TrainingPlansPage() {
           })),
         };
       }));
+
+      // Load catalog data for exercises linked to catalog
+      const catalogIds = [...new Set((data.exercises || []).filter((e: any) => e.exercise_id).map((e: any) => e.exercise_id as string))];
+      if (catalogIds.length > 0) {
+        try {
+          const catalogExs = await exercisesService.getByIds(catalogIds);
+          const newMap = new Map<string, Exercise>();
+          catalogExs.forEach(ce => newMap.set(ce.id, ce));
+          setCatalogMap(newMap);
+        } catch {
+          // Silently fail — catalog data is optional
+        }
+      }
     } catch {
       setDetailLoading(false);
     }
@@ -526,35 +542,77 @@ export default function TrainingPlansPage() {
                               {exercises.length} ejercicio{exercises.length !== 1 ? 's' : ''}
                             </span>
                           </div>
-                          <div className="flex flex-col">
-                            {exercises.map((e: PlanExercise, i: number) => (
-                              <div key={e.id} className={`flex items-start gap-[14px] px-6 py-3.5 transition-colors duration-100 ${i < exercises.length - 1 ? 'border-b border-border' : ''}`}>
-                                <div className="mt-1 text-text-3 flex flex-col gap-[3px] shrink-0">
-                                  {[0,1,2].map(j => <span key={j} className="block w-3 h-[1.5px] bg-current rounded-sm" />)}
-                                </div>
-                                <div className="w-6 h-6 mt-1 rounded-full bg-surface3 border border-border2 flex items-center justify-center text-[10px] font-semibold text-text-3 shrink-0">{i + 1}</div>
-                                <div className="flex-1 min-w-0">
-                                  <div className="text-[13px] font-medium">{e.exercise_name}</div>
-                                  <div className="flex flex-wrap items-center gap-1.5 mt-1">
-                                    {e.muscle && <span className="inline-flex items-center px-2 py-[2px] rounded-full text-[10px] font-medium bg-purple-bg text-purple-text">{e.muscle}</span>}
-                                    {e.reference_link && (
-                                      <a href={e.reference_link} target="_blank" rel="noopener noreferrer"
-                                        className="inline-flex items-center gap-1 px-2 py-[2px] rounded-full text-[10px] font-medium bg-blue-bg text-blue-text hover:underline"
-                                        onClick={e => e.stopPropagation()}>
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="10" height="10"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-                                        Video
-                                      </a>
-                                    )}
+                           <div className="flex flex-col">
+                            {exercises.map((e: PlanExercise, i: number) => {
+                              const catalogEx = e.exercise_id ? catalogMap.get(e.exercise_id) : null;
+                              const gifUrl = catalogEx?.gif_url;
+                              const instructions = catalogEx?.instructions_es;
+                              const isInstructionExpanded = expandedInstructions.has(e.id);
+
+                              return (
+                                <div key={e.id} className={`px-6 py-3.5 transition-colors duration-100 ${i < exercises.length - 1 ? 'border-b border-border' : ''}`}>
+                                  <div className="flex items-start gap-[14px]">
+                                    <div className="mt-1 text-text-3 flex flex-col gap-[3px] shrink-0">
+                                      {[0,1,2].map(j => <span key={j} className="block w-3 h-[1.5px] bg-current rounded-sm" />)}
+                                    </div>
+                                    <div className="w-6 h-6 mt-1 rounded-full bg-surface3 border border-border2 flex items-center justify-center text-[10px] font-semibold text-text-3 shrink-0">{i + 1}</div>
+                                    <div className="flex-1 min-w-0">
+                                      <div className="text-[13px] font-medium">{e.exercise_name}</div>
+                                      <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                                        {e.muscle && <span className="inline-flex items-center px-2 py-[2px] rounded-full text-[10px] font-medium bg-purple-bg text-purple-text">{e.muscle}</span>}
+                                        {catalogEx?.equipment && catalogEx.equipment !== 'bodyweight' && (
+                                          <span className="inline-flex items-center px-2 py-[2px] rounded-full text-[10px] font-medium bg-surface3 text-text-3 border border-border">{catalogEx.equipment}</span>
+                                        )}
+                                        {e.reference_link && (
+                                          <a href={e.reference_link} target="_blank" rel="noopener noreferrer"
+                                            className="inline-flex items-center gap-1 px-2 py-[2px] rounded-full text-[10px] font-medium bg-blue-bg text-blue-text hover:underline"
+                                            onClick={ev => ev.stopPropagation()}>
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="10" height="10"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                                            Video
+                                          </a>
+                                        )}
+                                      </div>
+                                      {e.notes && <div className="text-[11px] text-text-3 mt-1.5 italic leading-relaxed">{e.notes}</div>}
+                                    </div>
+                                    <div className="flex gap-1.5 shrink-0">
+                                      <Chip value={e.sets ?? 0} label="Series" accent />
+                                      <Chip value={e.reps ?? 0} label="Reps" />
+                                      <Chip value={`${e.rest_seconds ?? 0}s`} label="Descanso" />
+                                    </div>
                                   </div>
-                                  {e.notes && <div className="text-[11px] text-text-3 mt-1.5 italic leading-relaxed">{e.notes}</div>}
+                                  {gifUrl && (
+                                    <div className="mt-2 ml-[38px] rounded-lg overflow-hidden bg-surface2 border border-border max-w-[240px]">
+                                      <img src={gifUrl} alt={e.exercise_name} className="w-full h-auto max-h-[160px] object-contain" loading="lazy" />
+                                    </div>
+                                  )}
+                                  {instructions && (
+                                    <div className="mt-2 ml-[38px]">
+                                      <button
+                                        onClick={() => {
+                                          setExpandedInstructions(prev => {
+                                            const next = new Set(prev);
+                                            if (next.has(e.id)) next.delete(e.id);
+                                            else next.add(e.id);
+                                            return next;
+                                          });
+                                        }}
+                                        className="flex items-center gap-1.5 text-[11px] text-text-3 hover:text-accent transition-colors cursor-pointer bg-transparent border-none p-0 font-inherit"
+                                      >
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={`w-3 h-3 transition-transform ${isInstructionExpanded ? 'rotate-90' : ''}`}>
+                                          <polyline points="9 18 15 12 9 6"/>
+                                        </svg>
+                                        Cómo hacer este ejercicio
+                                      </button>
+                                      {isInstructionExpanded && (
+                                        <div className="mt-2 text-[12px] text-text-2 leading-relaxed pl-4 border-l-2 border-border2">
+                                          {instructions}
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
                                 </div>
-                                <div className="flex gap-1.5 shrink-0">
-                                  <Chip value={e.sets ?? 0} label="Series" accent />
-                                  <Chip value={e.reps ?? 0} label="Reps" />
-                                  <Chip value={`${e.rest_seconds ?? 0}s`} label="Descanso" />
-                                </div>
-                              </div>
-                            ))}
+                              );
+                            })}
                           </div>
                         </>
                       ) : (

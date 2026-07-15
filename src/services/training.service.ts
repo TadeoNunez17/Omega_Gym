@@ -18,6 +18,7 @@ export interface TrainingPlan {
 export interface PlanExercise {
   id: string
   plan_id: string
+  exercise_id: string | null
   exercise_name: string
   muscle: string | null
   sets: number | null
@@ -31,6 +32,7 @@ export interface PlanExercise {
 }
 
 export type ExerciseInput = {
+  exercise_id?: string | null
   exercise_name: string
   muscle?: string | null
   sets?: number | null
@@ -275,6 +277,7 @@ export const trainingService = {
         .from('plan_exercises')
         .insert(plan.exercises.map((ex: PlanExercise) => ({
           plan_id: newPlan.id,
+          exercise_id: ex.exercise_id || null,
           exercise_name: ex.exercise_name,
           muscle: ex.muscle,
           sets: ex.sets,
@@ -406,6 +409,7 @@ export const trainingService = {
       .from('plan_exercises')
       .insert(exercises.map((ex, i) => ({
         plan_id: planId,
+        exercise_id: ex.exercise_id || null,
         exercise_name: ex.exercise_name,
         muscle: ex.muscle || null,
         sets: ex.sets || null,

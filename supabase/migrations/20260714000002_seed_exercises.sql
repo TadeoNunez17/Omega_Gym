@@ -1,0 +1,5 @@
+-- Omega Gym — Seed: 50 Exercise Catalog
+-- Fuente: hasaneyldrm/exercises-dataset (MIT + Gym visual media)
+-- Fecha: 2026-07-14
+-- Total: 50 ejercicios
+-- ============================================

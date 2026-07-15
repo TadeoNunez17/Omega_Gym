@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuthStore } from '@/store/auth.store'
 import { trainingService, type TrainingPlan, type PlanExercise } from '@/services/training.service'
 import { workoutService, type WorkoutLog } from '@/services/workout.service'
+import { exercisesService, type Exercise } from '@/services/exercises.service'
 
 const COMPLETION_MESSAGES = [
   '¡Rutina completada! 💪',
@@ -50,6 +51,8 @@ export default function MyPlanPage() {
   const logsRef = useRef<LogMap>({})
   const [lastSessionLogs, setLastSessionLogs] = useState<LogMap>({})
   const [completionMessage] = useState(() => COMPLETION_MESSAGES[Math.floor(Math.random() * COMPLETION_MESSAGES.length)])
+  const [catalogMap, setCatalogMap] = useState<Map<string, Exercise>>(new Map())
+  const [expandedInstructions, setExpandedInstructions] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     if (!user) return;
@@ -98,6 +101,21 @@ export default function MyPlanPage() {
               }
             })
             setLogs(map)
+
+            // Load catalog data for exercises linked to catalog
+            const catalogIds = [...new Set(exs.filter(e => e.exercise_id).map(e => e.exercise_id!))]
+            if (catalogIds.length > 0) {
+              try {
+                const catalogExs = await exercisesService.getByIds(catalogIds)
+                if (!ctrl.ignore) {
+                  const newMap = new Map<string, Exercise>()
+                  catalogExs.forEach(ce => newMap.set(ce.id, ce))
+                  setCatalogMap(newMap)
+                }
+              } catch {
+                // Silently fail - catalog data is optional
+              }
+            }
           }
         }
       } catch (err) {
@@ -368,10 +386,25 @@ export default function MyPlanPage() {
                 const isTimerActive = activeTimerId === e.id
                 const timerDone = isTimerActive && timerRemaining === 0 && !timerRunning
                 const setCount = e.sets ?? 0
+                const catalogEx = e.exercise_id ? catalogMap.get(e.exercise_id) : null
+                const gifUrl = catalogEx?.gif_url
+                const instructions = catalogEx?.instructions_es
+                const isExpanded = expandedInstructions.has(e.id)
 
                 return (
                   <div key={e.id}
                     className="bg-surface border border-border rounded-xl p-4 sm:p-[18px]">
+                    {/* GIF animation */}
+                    {gifUrl && (
+                      <div className="mb-3 rounded-lg overflow-hidden bg-surface2 border border-border">
+                        <img
+                          src={gifUrl}
+                          alt={e.exercise_name}
+                          className="w-full h-auto max-h-[220px] object-contain"
+                          loading="lazy"
+                        />
+                      </div>
+                    )}
                     {/* Exercise header */}
                     <div className="flex items-center justify-between gap-4 mb-3">
                       <div className="flex flex-col gap-1.5 min-w-0">
@@ -379,6 +412,9 @@ export default function MyPlanPage() {
                         <div className="flex items-center gap-1.5 flex-wrap">
                           {e.muscle && (
                             <span className="bg-accent-dim text-accent text-[10px] font-bold uppercase px-2 py-[2px] rounded-[5px] tracking-wide">{e.muscle}</span>
+                          )}
+                          {catalogEx?.equipment && catalogEx.equipment !== 'bodyweight' && (
+                            <span className="bg-surface3 text-text-3 text-[10px] px-2 py-[2px] rounded-[5px]">{catalogEx.equipment}</span>
                           )}
                           {e.notes && (
                             <span className="text-[11px] text-text-3">{e.notes}</span>
@@ -500,6 +536,33 @@ export default function MyPlanPage() {
                             </div>
                           )
                         })}
+                      </div>
+                    )}
+
+                    {/* Instructions from catalog */}
+                    {instructions && (
+                      <div className="mt-3">
+                        <button
+                          onClick={() => {
+                            setExpandedInstructions(prev => {
+                              const next = new Set(prev)
+                              if (next.has(e.id)) next.delete(e.id)
+                              else next.add(e.id)
+                              return next
+                            })
+                          }}
+                          className="flex items-center gap-1.5 text-[11px] text-text-3 hover:text-accent transition-colors cursor-pointer bg-transparent border-none p-0 font-inherit"
+                        >
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={`w-3 h-3 transition-transform ${isExpanded ? 'rotate-90' : ''}`}>
+                            <polyline points="9 18 15 12 9 6"/>
+                          </svg>
+                          Cómo hacer este ejercicio
+                        </button>
+                        {isExpanded && (
+                          <div className="mt-2 text-[12px] text-text-2 leading-relaxed pl-4 border-l-2 border-border2">
+                            {instructions}
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>

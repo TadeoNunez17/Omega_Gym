@@ -3,6 +3,7 @@ import { trainingService, type ExerciseInput } from '@/services/training.service
 import { useAuthStore } from '@/store/auth.store'
 import { Button } from '@/components/ui/atoms/Button'
 import { Input, Textarea } from '@/components/ui/atoms/Input'
+import { ExercisePicker } from './ExercisePicker'
 
 const DAYS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado']
 const MUSCLES = ['Pecho', 'Espalda', 'Pierna', 'Hombro', 'Brazo', 'Core', 'Cardio']
@@ -14,6 +15,7 @@ export type EditPlanData = {
   name: string
   description?: string | null
   exercises: {
+    exercise_id?: string | null
     exercise_name: string
     muscle: string | null
     sets: number | null
@@ -64,6 +66,7 @@ export function RoutineBuilder({ open, onClose, onSave, editPlan }: Props) {
   const [editingId, setEditingId] = useState<string | null>(null)
 
   const [exName, setExName] = useState('')
+  const [exExerciseId, setExExerciseId] = useState<string | null>(null)
   const [exMuscle, setExMuscle] = useState('')
   const [exMuscleOther, setExMuscleOther] = useState('')
   const [exSets, setExSets] = useState('')
@@ -112,6 +115,7 @@ export function RoutineBuilder({ open, onClose, onSave, editPlan }: Props) {
 
   function resetForm() {
     setExName('')
+    setExExerciseId(null)
     setExMuscle('')
     setExMuscleOther('')
     setExSets('')
@@ -129,6 +133,7 @@ export function RoutineBuilder({ open, onClose, onSave, editPlan }: Props) {
 
   function openEditForm(ex: LocalExercise) {
     setExName(ex.exercise_name)
+    setExExerciseId(ex.exercise_id || null)
     setExMuscle(MUSCLES.includes(ex.muscle ?? '') ? (ex.muscle ?? '') : 'otro')
     setExMuscleOther(MUSCLES.includes(ex.muscle ?? '') ? '' : (ex.muscle ?? ''))
     setExSets(ex.sets != null ? String(ex.sets) : '')
@@ -147,6 +152,7 @@ export function RoutineBuilder({ open, onClose, onSave, editPlan }: Props) {
 
     const ex: LocalExercise = {
       _tempId: editingId || tempId(),
+      exercise_id: exExerciseId || null,
       exercise_name: exName.trim(),
       muscle: muscleVal || null,
       sets: exSets !== '' ? Number(exSets) : null,
@@ -327,6 +333,9 @@ export function RoutineBuilder({ open, onClose, onSave, editPlan }: Props) {
                           </button>
                         </div>
                         <div className="w-5 h-5 rounded-full bg-surface3 border border-border2 flex items-center justify-center text-[9px] font-semibold text-text-3 shrink-0">{idx + 1}</div>
+                        {ex.reference_link && ex.reference_link.endsWith('.gif') ? (
+                          <img src={ex.reference_link} alt="" className="w-8 h-8 rounded object-cover bg-surface3 shrink-0" loading="lazy" />
+                        ) : null}
                         <div className="flex-1 min-w-0">
                           <div className="text-[12px] font-medium truncate">{ex.exercise_name}</div>
                           <div className="flex items-center gap-2 mt-0.5">
@@ -370,7 +379,21 @@ export function RoutineBuilder({ open, onClose, onSave, editPlan }: Props) {
                   <div className="border-t border-border p-4 bg-surface">
                     <div className="text-xs font-semibold text-text-2 mb-3">{editingId ? 'Editar ejercicio' : 'Nuevo ejercicio'}</div>
                     <div className="flex flex-col gap-3">
-                      <Input label="Nombre del ejercicio *" value={exName} onChange={e => setExName(e.target.value)} placeholder="Ej. Press banca" />
+                      <ExercisePicker
+                        value={exName}
+                        exerciseId={exExerciseId}
+                        onSelect={(ex) => {
+                          setExName(ex.name)
+                          setExExerciseId(ex.id || null)
+                          if (ex.muscle) setExMuscle(MUSCLES.includes(ex.muscle) ? ex.muscle : 'otro')
+                          if (ex.muscle && !MUSCLES.includes(ex.muscle)) setExMuscleOther(ex.muscle)
+                          if (ex.reference_link) setExLink(ex.reference_link)
+                        }}
+                        onCustomMode={() => {
+                          setExExerciseId(null)
+                        }}
+                        placeholder="Ej. Press banca"
+                      />
 
                       <div>
                         <label className="text-xs font-medium text-text-2 block mb-2">Músculo</label>
