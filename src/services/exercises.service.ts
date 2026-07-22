@@ -8,6 +8,7 @@ export interface Exercise {
   id: string
   external_id: string | null
   name: string
+  name_es: string
   category: string
   body_part: string
   equipment: string
@@ -39,7 +40,7 @@ export const exercisesService = {
 
     if (filters?.search) {
       const escaped = escapeSearch(filters.search)
-      query = query.ilike('name', `%${escaped}%`)
+      query = query.or(`name.ilike.%${escaped}%,name_es.ilike.%${escaped}%`)
     }
 
     if (filters?.category) {
@@ -93,7 +94,7 @@ export const exercisesService = {
       .from('exercises')
       .select('*')
       .eq('is_active', true)
-      .ilike('name', `%${escaped}%`)
+      .or(`name.ilike.%${escaped}%,name_es.ilike.%${escaped}%`)
       .order('name')
       .limit(limit)
 

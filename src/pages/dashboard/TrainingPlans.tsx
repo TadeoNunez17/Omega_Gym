@@ -1,21 +1,16 @@
 ﻿import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { trainingService, type PlanListItem, type PlanExercise } from '@/services/training.service';
-import { exercisesService, type Exercise } from '@/services/exercises.service';
 import { membersService, type MemberListItem } from '@/services/members.service';
 import { membershipsService, type Membership, type MembershipType } from '@/services/memberships.service';
 import { Button } from '@/components/ui/atoms/Button';
-import { Chip } from '@/components/ui/atoms/Chip';
 import { Badge } from '@/components/ui/atoms/Badge';
-import { MetricCard } from '@/components/ui/atoms/MetricCard';
-import { PageHeader } from '@/components/ui/molecules/PageHeader';
-import { SearchInput } from '@/components/ui/molecules/SearchInput';
-import { TabBar } from '@/components/ui/molecules/TabBar';
 import { RoutineBuilder, type EditPlanData } from '@/components/routine-builder/RoutineBuilder';
 import { Modal } from '@/components/ui/molecules/Modal';
 import { IconAlert } from '@/lib/icons';
 import { toast } from 'sonner';
 import { initials, fmtDate, AVATAR_COLORS } from '@/lib/helpers';
+import '@/styles/training-plans.css';
 
 const DAY_NAMES = ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'];
 
@@ -52,24 +47,12 @@ interface Plan {
   exercises: Record<number, PlanExercise[] | null>;
 }
 
-const AV_COLORS = [
-  { bg: 'rgba(59,130,246,0.2)', fg: '#60a5fa' },
-  { bg: 'rgba(16,185,129,0.2)', fg: '#34d399' },
-  { bg: 'rgba(168,85,247,0.2)', fg: '#c084fc' },
-  { bg: 'rgba(20,184,166,0.2)', fg: '#2dd4bf' },
-  { bg: 'rgba(244,114,182,0.2)', fg: '#f472b6' },
-  { bg: 'rgba(251,146,60,0.2)', fg: '#fb923c' },
-];
+const AVATAR_CSS = ['tp-avatar-blue','tp-avatar-green','tp-avatar-purple','tp-avatar-pink','tp-avatar-amber','tp-avatar-teal'];
 
-function avatarIndex(id: string): number {
+function avatarClass(id: string): string {
   let hash = 0;
   for (let i = 0; i < id.length; i++) hash = (hash * 31 + id.charCodeAt(i)) >>> 0;
-  return hash % AV_COLORS.length;
-}
-
-function typeBadge(type: string) {
-  if (type === 'assigned') return { label: 'Asignado', cls: 'bg-green-bg text-green-text' };
-  return { label: 'Sin asignar', cls: 'bg-surface3 text-text-3 border border-border' };
+  return AVATAR_CSS[hash % AVATAR_CSS.length];
 }
 
 const FILTER_TABS = [
@@ -98,8 +81,6 @@ export default function TrainingPlansPage() {
   const [previewMember, setPreviewMember] = useState<MemberListItem | null>(null);
   const [previewMembership, setPreviewMembership] = useState<(Membership & { membership_types: MembershipType }) | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
-  const [catalogMap, setCatalogMap] = useState<Map<string, Exercise>>(new Map());
-  const [expandedInstructions, setExpandedInstructions] = useState<Set<string>>(new Set());
 
   const navigate = useNavigate();
 
@@ -115,10 +96,10 @@ export default function TrainingPlansPage() {
         type: p.type,
         trainer: p.trainer_name,
         members: p.member_names.map((n: string) => {
-          const initials = n.split(' ').map((w: string) => w[0]).slice(0, 2).join('').toUpperCase();
-          return { id: '', name: n, initials };
+          const ini = n.split(' ').map((w: string) => w[0]).slice(0, 2).join('').toUpperCase();
+          return { id: '', name: n, initials: ini };
         }),
-        avClass: `av-${avatarIndex(p.id)}`,
+        avClass: avatarClass(p.id),
         days: p.days || 5,
         exerciseCount: p.exercise_count,
         exercises: {},
@@ -131,9 +112,7 @@ export default function TrainingPlansPage() {
     }
   }, []);
 
-  useEffect(() => {
-    fetchPlans();
-  }, [fetchPlans]);
+  useEffect(() => { fetchPlans(); }, [fetchPlans]);
 
   const selectedPlan = plans.find(p => p.id === selectedId) || null;
 
@@ -157,27 +136,10 @@ export default function TrainingPlansPage() {
           })),
         };
       }));
-
-      // Load catalog data for exercises linked to catalog
-      const catalogIds = [...new Set((data.exercises || []).filter((e: any) => e.exercise_id).map((e: any) => e.exercise_id as string))];
-      if (catalogIds.length > 0) {
-        try {
-          const catalogExs = await exercisesService.getByIds(catalogIds);
-          const newMap = new Map<string, Exercise>();
-          catalogExs.forEach(ce => newMap.set(ce.id, ce));
-          setCatalogMap(newMap);
-        } catch {
-          // Silently fail — catalog data is optional
-        }
-      }
-    } catch {
-      setDetailLoading(false);
-    }
+    } catch { setDetailLoading(false); }
   }, []);
 
-  useEffect(() => {
-    if (selectedId) loadDetail(selectedId);
-  }, [selectedId, loadDetail]);
+  useEffect(() => { if (selectedId) loadDetail(selectedId); }, [selectedId, loadDetail]);
 
   const exercises = selectedPlan?.exercises[selectedDay] ?? null;
 
@@ -191,11 +153,7 @@ export default function TrainingPlansPage() {
     return p.name.toLowerCase().includes(q) || p.members.some(m => m.name.toLowerCase().includes(q));
   });
 
-  const metrics = {
-    total: plans.length,
-    assigned: plans.filter(p => p.type === 'assigned').length,
-
-  };
+  const metrics = { total: plans.length, assigned: plans.filter(p => p.type === 'assigned').length };
 
   async function confirmDelete() {
     if (!deleteTarget) return;
@@ -205,9 +163,7 @@ export default function TrainingPlansPage() {
       setSelectedId(null);
       fetchPlans();
       toast.success('Plan eliminado');
-    } catch (e: any) {
-      toast.error(e.message);
-    }
+    } catch (e: any) { toast.error(e.message); }
   }
 
   async function handleDuplicate(planId: string) {
@@ -217,9 +173,7 @@ export default function TrainingPlansPage() {
       setSelectedId(newId);
       setSelectedDay(0);
       toast.success('Plan duplicado');
-    } catch (e: any) {
-      toast.error(e.message);
-    }
+    } catch (e: any) { toast.error(e.message); }
   }
 
   async function handleRemoveMember(planId: string, memberId: string) {
@@ -228,9 +182,7 @@ export default function TrainingPlansPage() {
       await fetchPlans();
       if (selectedId === planId) loadDetail(planId);
       toast.success('Miembro removido del plan');
-    } catch (e: any) {
-      toast.error(e.message);
-    }
+    } catch (e: any) { toast.error(e.message); }
   }
 
   async function showMemberInfo(member: PlanMember) {
@@ -246,9 +198,7 @@ export default function TrainingPlansPage() {
       setPreviewMembership(activeMs);
     } catch {
       toast.error('Error al cargar información del miembro');
-    } finally {
-      setPreviewLoading(false);
-    }
+    } finally { setPreviewLoading(false); }
   }
 
   async function openAssignModal() {
@@ -262,9 +212,7 @@ export default function TrainingPlansPage() {
       setMembersList(result.data.filter(m => !assignedIds.has(m.id)));
       setSelectedMemberIds([]);
       setAssignModalOpen(true);
-    } catch (e: any) {
-      toast.error('Error al cargar miembros: ' + e.message);
-    }
+    } catch (e: any) { toast.error('Error al cargar miembros: ' + e.message); }
   }
 
   function toggleMemberSelection(memberId: string) {
@@ -282,342 +230,259 @@ export default function TrainingPlansPage() {
       await fetchPlans();
       loadDetail(selectedPlan.id);
       toast.success(`Plan asignado a ${selectedMemberIds.length} miembro${selectedMemberIds.length !== 1 ? 's' : ''}`);
-    } catch (e: any) {
-      toast.error(e.message);
-    } finally {
-      setAssigning(false);
-    }
+    } catch (e: any) { toast.error(e.message); } finally { setAssigning(false); }
   }
 
-  function openNewPlan() {
-    setBuilderEditPlan(null);
-    setBuilderOpen(true);
-  }
+  function openNewPlan() { setBuilderEditPlan(null); setBuilderOpen(true); }
 
   async function openEditPlan(planId: string) {
     try {
       const data = await trainingService.getById(planId);
-      setBuilderEditPlan({
-        id: data.id,
-        name: data.name,
-        description: data.description,
-        exercises: data.exercises,
-      });
+      setBuilderEditPlan({ id: data.id, name: data.name, description: data.description, exercises: data.exercises });
       setBuilderOpen(true);
-    } catch (e: any) {
-      alert('Error al cargar plan: ' + e.message);
-    }
+    } catch (e: any) { alert('Error al cargar plan: ' + e.message); }
   }
 
   async function onBuilderSave(planId?: string) {
     await fetchPlans();
-    if (planId) {
-      setSelectedId(planId);
-      setSelectedDay(0);
-    } else if (selectedId) {
-      loadDetail(selectedId);
-    }
+    if (planId) { setSelectedId(planId); setSelectedDay(0); }
+    else if (selectedId) loadDetail(selectedId);
+  }
+
+  function weekBar(days: number, exMap: Record<number, PlanExercise[] | null>) {
+    const heights = [8, 11, 6, 9, 7, 5, 4];
+    return (
+      <div className="tp-week-bar">
+        {[0,1,2,3,4,5,6].map(d => (
+          <span key={d} className={exMap[d] ? 'on' : ''} style={{ height: heights[d] }} />
+        ))}
+      </div>
+    );
   }
 
   return (
     <>
-      <div className="noise-overlay" />
-      <header className="px-4 sm:px-7 h-14 flex items-center justify-between border-b border-border bg-surface2 sticky top-0 z-9">
-        <div className="flex items-center gap-2 text-xs sm:text-[13px] text-text-3">
-          <div className="w-4 h-4 shrink-0 flex items-center justify-center">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-full h-full" width="16" height="16"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-          </div>
-          <span className="text-text-4 mx-0.5">/</span>
-          <span className="font-medium text-text-1">Planes de Entrenamiento</span>
+      <header className="tp-header">
+        <div className="tp-breadcrumb">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="15" height="15"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+          <span className="tp-breadcrumb-sep">/</span>
+          <span className="tp-breadcrumb-current">Planes de Entrenamiento</span>
         </div>
-        <div className="flex items-center gap-2 sm:gap-2.5">
-          <Button variant="primary" size="sm" onClick={openNewPlan}>
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-            Nuevo plan
-          </Button>
-        </div>
+        <button className="tp-btn tp-btn-primary" onClick={openNewPlan}>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Nuevo plan
+        </button>
       </header>
 
-      <div className="p-4 sm:p-7 flex-1">
-        <div className="relative mb-7 overflow-hidden rounded-xl bg-gradient-to-br from-surface to-surface2 border border-border p-5 sm:p-7">
-          <div className="absolute inset-0 opacity-[0.04]"
-            style={{ background: 'radial-gradient(600px circle at 20% 30%, var(--accent), transparent)' }} />
-          <div className="relative">
-            <PageHeader title="Planes de Entrenamiento" description="Crea, edita y asigna rutinas a los miembros del gym" />
+      <div className="tp-page">
+        {/* Hero */}
+        <div className="tp-hero">
+          <div>
+            <div className="tp-hero-title">Planes de Entrenamiento</div>
+            <div className="tp-hero-desc">Crea, edita y asigna rutinas a los miembros del gym</div>
+          </div>
+          <div className="tp-hero-stats">
+            <div className="tp-hero-stat">
+              <div className="tp-hero-stat-value">{metrics.total}</div>
+              <div className="tp-hero-stat-label">Planes totales</div>
+            </div>
+            <div className="tp-hero-stat">
+              <div className="tp-hero-stat-value tp-accent">{metrics.assigned}</div>
+              <div className="tp-hero-stat-label">Asignados</div>
+            </div>
           </div>
         </div>
 
-        {loading && <div className="text-center py-[60px] text-text-3">Cargando planes…</div>}
-        {!loading && error && <div className="text-center py-[60px] text-red-text">Error: {error}</div>}
+        {loading && <div className="tp-loading">Cargando planes...</div>}
+        {!loading && error && <div className="tp-loading" style={{ color: '#f28a8a' }}>Error: {error}</div>}
         {!loading && !error && (
           <>
-            <div className="grid grid-cols-2 gap-3 mb-6 sm:grid-cols-2">
-              <div className="animate-slide-up stagger-1">
-                <MetricCard color="accent" label="Total de planes" value={metrics.total} sub="Creados en el sistema" />
-              </div>
-              <div className="animate-slide-up stagger-2">
-                <MetricCard color="green" label="Planes asignados" value={metrics.assigned} sub="Con miembro activo" />
+            {/* Toolbar */}
+            <div className="tp-toolbar">
+              <input className="tp-search" type="text" placeholder="Buscar plan o miembro..." value={search} onChange={e => setSearch(e.target.value)} />
+              <div className="tp-tabs">
+                {FILTER_TABS.map(t => (
+                  <button key={t.key} className={`tp-tab ${filter === t.key ? 'active' : ''}`} onClick={() => setFilter(t.key)}>{t.label}</button>
+                ))}
               </div>
             </div>
 
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 mb-4">
-              <SearchInput value={search} onChange={setSearch} placeholder="Buscar plan o miembro…" />
-              <TabBar tabs={FILTER_TABS} active={filter} onChange={setFilter} />
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-[340px_1fr] gap-4 min-h-[500px]">
-              {/* Left panel */}
-              <div className="bg-surface border border-border rounded overflow-hidden flex flex-col">
-                <div className="flex-1 overflow-y-auto">
-                  {filteredPlans.length === 0 ? (
-                    <div className="py-10 text-center text-[13px] text-text-3">Sin resultados</div>
-                  ) : (
-                    filteredPlans.map(p => {
-                      const badge = typeBadge(p.type);
-                      const exCount = p.exerciseCount;
-                      const isSel = selectedPlan?.id === p.id;
-                      return (
-                        <div key={p.id} onClick={() => { setSelectedId(p.id); setSelectedDay(0); }}
-                          className={`px-4 py-3.5 border-b border-border cursor-pointer transition-colors duration-100 flex flex-col gap-2 ${
-                            isSel ? 'bg-accent-dim border-l-2 border-l-accent' : 'bg-transparent border-l-2 border-l-transparent hover:bg-surface2'
-                          }`}>
-                          <div className="flex items-start justify-between gap-2">
-                            <div>
-                              <div className="text-[13px] font-semibold">{p.name}</div>
-                              <div className="text-[11px] text-text-3 mt-0.5">
-                                {p.members.length > 0
-                                  ? `→ ${p.members.slice(0, 2).map(m => m.name).join(', ')}${p.members.length > 2 ? ` +${p.members.length - 2}` : ''}`
-                                  : p.trainer}
-                              </div>
-                            </div>
-                            <span className={`inline-flex items-center gap-1 px-2 py-[2px] rounded-full text-[10px] font-medium whitespace-nowrap shrink-0 ${badge.cls}`}>{badge.label}</span>
-                          </div>
-                          <div className="flex items-center gap-[10px]">
-                            <ChipSm icon="check" text={`${exCount} ejercicios`} />
-                            <ChipSm icon="calendar" text={`${p.days} días / semana`} />
+            {/* Main grid */}
+            <div className="tp-main-grid">
+              {/* Left: Plan list */}
+              <div className="tp-panel" style={{ overflowY: 'auto', maxHeight: 600 }}>
+                {filteredPlans.length === 0 ? (
+                  <div className="tp-empty"><div className="tp-empty-title">Sin resultados</div></div>
+                ) : filteredPlans.map(p => {
+                  const isSel = selectedPlan?.id === p.id;
+                  const badgeCls = p.type === 'assigned' ? 'tp-badge-green' : 'tp-badge-gray';
+                  const badgeLabel = p.type === 'assigned' ? 'Asignado' : 'Sin asignar';
+                  return (
+                    <div key={p.id} className={`tp-plan-item ${isSel ? 'selected' : ''}`}
+                      onClick={() => { setSelectedId(p.id); setSelectedDay(0); }}>
+                      <div className="tp-plan-top">
+                        <div>
+                          <div className="tp-plan-name">{p.name}</div>
+                          <div className="tp-plan-meta">
+                            {p.members.length > 0
+                              ? `\u2192 ${p.members.slice(0, 2).map(m => m.name).join(', ')}${p.members.length > 2 ? ` +${p.members.length - 2}` : ''}`
+                              : p.trainer}
                           </div>
                         </div>
-                      );
-                    })
-                  )}
-                </div>
+                        <span className={`tp-badge ${badgeCls}`}>{badgeLabel}</span>
+                      </div>
+                      <div className="tp-plan-chips">
+                        <div className="tp-chip-sm">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="11" height="11"><path d="M9 11l3 3L22 4"/></svg>
+                          {p.exerciseCount} ejercicios
+                        </div>
+                        <div className="tp-chip-sm">
+                          {weekBar(p.days, p.exercises)}
+                          {p.days} días
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
 
-              {/* Right detail panel */}
-              <div className="bg-surface border border-border rounded overflow-hidden flex flex-col">
+              {/* Right: Detail */}
+              <div className="tp-panel">
                 {!selectedPlan ? (
-                  <div className="flex flex-col items-center justify-center h-full min-h-[300px] gap-3 text-center p-10">
-                    <div className="w-12 h-12 rounded-full bg-surface2 flex items-center justify-center">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="22" height="22" className="text-text-3"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+                  <div className="tp-empty" style={{ minHeight: 300 }}>
+                    <div className="tp-empty-icon">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="22" height="22"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
                     </div>
-                    <div className="text-base font-semibold">Selecciona un plan</div>
-                    <div className="text-[13px] text-text-3 max-w-[260px] leading-[1.5]">Haz clic en cualquier plan de la lista para ver sus ejercicios y detalles.</div>
+                    <div className="tp-empty-title">Selecciona un plan</div>
+                    <div className="tp-empty-desc">Haz clic en cualquier plan de la lista para ver sus ejercicios y detalles.</div>
                   </div>
                 ) : detailLoading ? (
-                  <div className="flex items-center justify-center h-full min-h-[300px] text-text-3 text-[13px]">Cargando detalles…</div>
+                  <div className="tp-loading" style={{ minHeight: 300 }}>Cargando detalles...</div>
                 ) : (
                   <>
-                    <div className="px-6 py-5 border-b border-border flex items-start justify-between gap-4">
-                      <div className="flex-1">
-                        <div className="text-lg font-semibold tracking-tight">{selectedPlan.name}</div>
-                        <div className="text-xs text-text-3 mt-1">{selectedPlan.desc}</div>
-                        <div className="flex gap-1.5 mt-[10px] flex-wrap">
-                          <span className={`inline-flex items-center gap-1 px-2 py-[2px] rounded-full text-[10px] font-medium ${typeBadge(selectedPlan.type).cls}`}>
-                            {typeBadge(selectedPlan.type).label}
+                    {/* Detail header */}
+                    <div className="tp-detail-header">
+                      <div style={{ flex: 1 }}>
+                        <div className="tp-detail-title">{selectedPlan.name}</div>
+                        <div className="tp-detail-desc">{selectedPlan.desc}</div>
+                        <div className="tp-detail-badges">
+                          <span className={`tp-badge ${selectedPlan.type === 'assigned' ? 'tp-badge-green' : 'tp-badge-gray'}`}>
+                            {selectedPlan.type === 'assigned' ? 'Asignado' : 'Sin asignar'}
                           </span>
-                          <span className="inline-flex items-center gap-1 px-2 py-[2px] rounded-full text-[10px] font-medium bg-surface2 text-text-3 border border-border">
-                            Por {selectedPlan.trainer}
-                          </span>
+                          <span className="tp-badge tp-badge-gray">Por {selectedPlan.trainer}</span>
                         </div>
                       </div>
-                      <div className="flex gap-2 shrink-0">
-                        <IconBtn title="Duplicar" onClick={() => handleDuplicate(selectedPlan.id)}>
+                      <div className="tp-detail-actions">
+                        <button className="tp-icon-btn" title="Duplicar" onClick={() => handleDuplicate(selectedPlan.id)}>
                           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-                        </IconBtn>
-                        <IconBtn title="Editar" onClick={() => openEditPlan(selectedPlan.id)}>
+                        </button>
+                        <button className="tp-icon-btn" title="Editar" onClick={() => openEditPlan(selectedPlan.id)}>
                           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                        </IconBtn>
-                        <IconBtn title="Eliminar" danger onClick={() => setDeleteTarget(selectedPlan)}>
+                        </button>
+                        <button className="tp-icon-btn danger" title="Eliminar" onClick={() => setDeleteTarget(selectedPlan)}>
                           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
-                        </IconBtn>
+                        </button>
                       </div>
                     </div>
 
-                    <div className="px-6 py-4 border-b border-border bg-[var(--surface2)] relative">
-                      <div className="absolute inset-0 pointer-events-none opacity-[0.015]" style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg viewBox=\'0 0 512 512\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'n\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'.9\' numOctaves=\'4\' stitchTiles=\'stitch\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23n)\'/%3E%3C/svg%3E")', backgroundSize: '120px 120px' }} />
-                      <div className="relative">
-                        <div className="flex items-center justify-between cursor-pointer select-none"
-                          onClick={() => setAssigneeOpen(!assigneeOpen)}>
-                          <div className="flex items-center gap-2">
-                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-accent"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-                            <span className="text-[11px] font-semibold text-text-3 uppercase tracking-[0.08em]">
-                              Asignados
-                            </span>
-                            <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-accent/15 text-accent text-[10px] font-bold leading-none">
-                              {selectedPlan.members.length}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <button
-                              className="group flex items-center gap-1.5 text-[11px] font-semibold text-accent bg-accent-dim border border-accent/20 px-3 py-1.5 rounded-[var(--radius-sm)] cursor-pointer transition-all duration-200 hover:bg-accent hover:text-black hover:shadow-[0_0_20px_-4px_var(--accent)] active:scale-[0.97]"
-                              onClick={e => { e.stopPropagation(); openAssignModal(); }}>
-                              <svg className="transition-transform duration-200 group-hover:rotate-90" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                              Asignar
-                            </button>
-                            <svg className={`transition-transform duration-200 ${assigneeOpen ? 'rotate-180' : ''}`} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                              <polyline points="6 9 12 15 18 9"/>
-                            </svg>
-                          </div>
+                    {/* Assignees */}
+                    <div className="tp-assignees">
+                      <div className="tp-assignees-header" onClick={() => setAssigneeOpen(!assigneeOpen)}>
+                        <div className="tp-assignees-label">
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ color: '#e85d5d' }}><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                          Asignados
+                          <span className="tp-assignees-count">{selectedPlan.members.length}</span>
                         </div>
-                        <div className={`overflow-hidden transition-all duration-200 ${assigneeOpen ? 'max-h-[600px] opacity-100 mt-3' : 'max-h-0 opacity-0'}`}>
-                          {selectedPlan.members.length > 0 ? (
-                            <div className="flex flex-col gap-1">
-                              {selectedPlan.members.map((m, idx) => (
-                                <div key={m.id || idx}
-                                  className="group flex items-center justify-between px-3 py-2 rounded-[var(--radius-sm)] bg-surface border border-border transition-all duration-150 hover:border-accent/20 hover:shadow-[0_0_12px_-6px_var(--accent)]">
-                                  <div className="flex items-center gap-2.5 min-w-0">
-                                    <div className="w-[28px] h-[28px] rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ring-1 ring-white/5"
-                                      style={{ background: AV_COLORS[avatarIndex(m.id || String(idx))].bg, color: AV_COLORS[avatarIndex(m.id || String(idx))].fg }}>
-                                      {m.initials}
-                                    </div>
-                                    <div className="text-[13px] font-medium text-text truncate">{m.name}</div>
-                                  </div>
-                                  <div className="flex items-center gap-0.5 shrink-0 opacity-60 group-hover:opacity-100 transition-opacity duration-150">
-                                    <button
-                                      className="w-7 h-7 rounded-[var(--radius-sm)] flex items-center justify-center text-text-3 hover:text-accent hover:bg-accent-dim border border-transparent cursor-pointer transition-all duration-150"
-                                      title="Ver miembro"
-                                      onClick={() => showMemberInfo(m)}>
-                                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="13" height="13"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-                                    </button>
-                                    <button
-                                      className="w-7 h-7 rounded-[var(--radius-sm)] flex items-center justify-center text-text-3 hover:text-red-text hover:bg-red-bg/20 border border-transparent cursor-pointer transition-all duration-150"
-                                      title="Quitar"
-                                      onClick={() => m.id && handleRemoveMember(selectedPlan.id, m.id)}>
-                                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="13" height="13"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                                    </button>
-                                  </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <button className="tp-assign-btn" onClick={e => { e.stopPropagation(); openAssignModal(); }}>
+                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                            Asignar
+                          </button>
+                          <svg className={`tp-collapse-arrow ${assigneeOpen ? 'open' : ''}`} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="6 9 12 15 18 9"/></svg>
+                        </div>
+                      </div>
+                      <div style={{ overflow: 'hidden', maxHeight: assigneeOpen ? 600 : 0, opacity: assigneeOpen ? 1 : 0, transition: 'all 0.2s', marginTop: assigneeOpen ? 12 : 0 }}>
+                        {selectedPlan.members.length > 0 ? (
+                          <div className="tp-assignee-list">
+                            {selectedPlan.members.map((m, idx) => (
+                              <div key={m.id || idx} className="tp-assignee-row">
+                                <div className="tp-assignee-left">
+                                  <div className={`tp-avatar ${avatarClass(m.id || String(idx))}`}>{m.initials}</div>
+                                  <div className="tp-assignee-name">{m.name}</div>
                                 </div>
-                              ))}
-                            </div>
-                          ) : (
-                            <div className="flex flex-col items-center justify-center py-7 gap-2 border border-dashed border-border rounded-[var(--radius-sm)] bg-surface/50">
-                              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-text-4"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-                              <div className="text-[12px] text-text-4 font-medium">Aún no hay miembros asignados</div>
-                            </div>
-                          )}
-                        </div>
+                                <div className="tp-assignee-actions">
+                                  <button className="tp-assignee-action" title="Ver miembro" onClick={() => showMemberInfo(m)}>
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="13" height="13"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                                  </button>
+                                  <button className="tp-assignee-action remove" title="Quitar" onClick={() => m.id && handleRemoveMember(selectedPlan.id, m.id)}>
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="13" height="13"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                                  </button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="tp-assignees-empty">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ color: '#5f5f6a' }}><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                            <div className="tp-assignees-empty-text">Aún no hay miembros asignados</div>
+                          </div>
+                        )}
                       </div>
                     </div>
 
-                    <div className="flex gap-1.5 px-6 py-3.5 border-b border-border overflow-x-auto">
+                    {/* Day tabs */}
+                    <div className="tp-day-tabs">
                       {DAY_NAMES.map((d, i) => {
                         const exs = selectedPlan.exercises[i];
-                        const isRest = exs === null;
+                        const hasExs = exs !== null && exs !== undefined;
                         return (
-                          <button key={d} onClick={() => setSelectedDay(i)}
-                            className={`shrink-0 px-3.5 py-[7px] rounded-[var(--radius-sm)] text-xs font-medium cursor-pointer font-sans transition-all duration-150 ${
-                              selectedDay === i
-                                ? 'bg-accent text-black border border-accent'
-                                : isRest
-                                  ? 'bg-transparent text-text-3 border border-border'
-                                  : 'bg-transparent text-text-2 border border-border hover:bg-surface2 hover:text-text'
-                            }`}>
-                            {d}{!isRest && exs ? <span className="ml-1 text-[10px] opacity-70">({exs.length})</span> : ''}
+                          <button key={d} className={`tp-day-tab ${selectedDay === i ? 'active' : ''} ${hasExs ? 'has-exs' : ''}`}
+                            onClick={() => setSelectedDay(i)}>
+                            <span className="tp-day-dot" />
+                            {d}
+                            {hasExs && exs && <span className="tp-day-count">{exs.length}</span>}
                           </button>
                         );
                       })}
                     </div>
 
-                    <div className="flex-1 overflow-y-auto">
+                    {/* Exercise list */}
+                    <div className="tp-detail-panel">
                       {exercises === null ? (
-                        <div className="flex flex-col items-center justify-center py-[60px] gap-[10px] text-center">
-                          <div className="text-3xl">🧘</div>
-                          <div className="text-sm font-semibold">Día de descanso</div>
-                          <div className="text-xs text-text-3">Sin ejercicios programados. El descanso es parte del entrenamiento.</div>
+                        <div className="tp-empty" style={{ minHeight: 200 }}>
+                          <div style={{ fontSize: 28 }}>🧘</div>
+                          <div className="tp-empty-title">Día de descanso</div>
+                          <div className="tp-empty-desc">Sin ejercicios programados. El descanso es parte del entrenamiento.</div>
                         </div>
                       ) : exercises && exercises.length > 0 ? (
                         <>
-                          <div className="px-6 py-3 border-b border-border bg-surface2">
-                            <span className="text-[11px] text-text-3 uppercase tracking-[0.06em]">
-                              {exercises.length} ejercicio{exercises.length !== 1 ? 's' : ''}
-                            </span>
+                          <div className="tp-ex-count-bar">
+                            <span className="tp-ex-count-text">{exercises.length} ejercicio{exercises.length !== 1 ? 's' : ''} · {DAY_NAMES[selectedDay]}</span>
                           </div>
-                           <div className="flex flex-col">
-                            {exercises.map((e: PlanExercise, i: number) => {
-                              const catalogEx = e.exercise_id ? catalogMap.get(e.exercise_id) : null;
-                              const gifUrl = catalogEx?.gif_url;
-                              const instructions = catalogEx?.instructions_es;
-                              const isInstructionExpanded = expandedInstructions.has(e.id);
-
-                              return (
-                                <div key={e.id} className={`px-6 py-3.5 transition-colors duration-100 ${i < exercises.length - 1 ? 'border-b border-border' : ''}`}>
-                                  <div className="flex items-start gap-[14px]">
-                                    <div className="mt-1 text-text-3 flex flex-col gap-[3px] shrink-0">
-                                      {[0,1,2].map(j => <span key={j} className="block w-3 h-[1.5px] bg-current rounded-sm" />)}
-                                    </div>
-                                    <div className="w-6 h-6 mt-1 rounded-full bg-surface3 border border-border2 flex items-center justify-center text-[10px] font-semibold text-text-3 shrink-0">{i + 1}</div>
-                                    <div className="flex-1 min-w-0">
-                                      <div className="text-[13px] font-medium">{e.exercise_name}</div>
-                                      <div className="flex flex-wrap items-center gap-1.5 mt-1">
-                                        {e.muscle && <span className="inline-flex items-center px-2 py-[2px] rounded-full text-[10px] font-medium bg-purple-bg text-purple-text">{e.muscle}</span>}
-                                        {catalogEx?.equipment && catalogEx.equipment !== 'bodyweight' && (
-                                          <span className="inline-flex items-center px-2 py-[2px] rounded-full text-[10px] font-medium bg-surface3 text-text-3 border border-border">{catalogEx.equipment}</span>
-                                        )}
-                                        {e.reference_link && (
-                                          <a href={e.reference_link} target="_blank" rel="noopener noreferrer"
-                                            className="inline-flex items-center gap-1 px-2 py-[2px] rounded-full text-[10px] font-medium bg-blue-bg text-blue-text hover:underline"
-                                            onClick={ev => ev.stopPropagation()}>
-                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="10" height="10"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-                                            Video
-                                          </a>
-                                        )}
-                                      </div>
-                                      {e.notes && <div className="text-[11px] text-text-3 mt-1.5 italic leading-relaxed">{e.notes}</div>}
-                                    </div>
-                                    <div className="flex gap-1.5 shrink-0">
-                                      <Chip value={e.sets ?? 0} label="Series" accent />
-                                      <Chip value={e.reps ?? 0} label="Reps" />
-                                      <Chip value={`${e.rest_seconds ?? 0}s`} label="Descanso" />
-                                    </div>
+                          {exercises.map((e: PlanExercise, i: number) => {
+                            return (
+                              <div key={e.id} className="tp-ex-row">
+                                <div className="tp-ex-top">
+                                  <div className="tp-ex-grip">
+                                    <span className="tp-grip-line" /><span className="tp-grip-line" /><span className="tp-grip-line" />
                                   </div>
-                                  {gifUrl && (
-                                    <div className="mt-2 ml-[38px] rounded-lg overflow-hidden bg-surface2 border border-border max-w-[240px]">
-                                      <img src={gifUrl} alt={e.exercise_name} className="w-full h-auto max-h-[160px] object-contain" loading="lazy" />
-                                    </div>
-                                  )}
-                                  {instructions && (
-                                    <div className="mt-2 ml-[38px]">
-                                      <button
-                                        onClick={() => {
-                                          setExpandedInstructions(prev => {
-                                            const next = new Set(prev);
-                                            if (next.has(e.id)) next.delete(e.id);
-                                            else next.add(e.id);
-                                            return next;
-                                          });
-                                        }}
-                                        className="flex items-center gap-1.5 text-[11px] text-text-3 hover:text-accent transition-colors cursor-pointer bg-transparent border-none p-0 font-inherit"
-                                      >
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={`w-3 h-3 transition-transform ${isInstructionExpanded ? 'rotate-90' : ''}`}>
-                                          <polyline points="9 18 15 12 9 6"/>
-                                        </svg>
-                                        Cómo hacer este ejercicio
-                                      </button>
-                                      {isInstructionExpanded && (
-                                        <div className="mt-2 text-[12px] text-text-2 leading-relaxed pl-4 border-l-2 border-border2">
-                                          {instructions}
-                                        </div>
-                                      )}
-                                    </div>
-                                  )}
+                                  <div className="tp-ex-idx">{i + 1}</div>
+                                  <div className="tp-ex-body">
+                                    <div className="tp-ex-name">{e.exercise_name}</div>
+                                  </div>
+                                  <div className="tp-ex-chips">
+                                    <span className="tp-chip tp-chip-accent"><span className="tp-chip-label">Series</span>{e.sets ?? 0}</span>
+                                    <span className="tp-chip tp-chip-default"><span className="tp-chip-label">Reps</span>{e.reps ?? 0}</span>
+                                    <span className="tp-chip tp-chip-default"><span className="tp-chip-label">Desc.</span>{e.rest_seconds ?? 0}s</span>
+                                  </div>
                                 </div>
-                              );
-                            })}
-                          </div>
+                              </div>
+                            );
+                          })}
                         </>
                       ) : (
-                        <div className="flex flex-col items-center justify-center py-[60px] gap-[10px] text-center">
-                          <div className="text-xs text-text-3">Sin ejercicios en este día</div>
+                        <div className="tp-empty" style={{ minHeight: 200 }}>
+                          <div className="tp-empty-desc">Sin ejercicios en este día</div>
                         </div>
                       )}
                     </div>
@@ -629,86 +494,75 @@ export default function TrainingPlansPage() {
         )}
       </div>
 
+      {/* Modals */}
       <Modal open={assignModalOpen} onClose={() => setAssignModalOpen(false)} title="Asignar plan" compact>
-        <div className="flex flex-col gap-3">
-          <div className="text-[12px] text-text-3">Selecciona los miembros para asignar este plan:</div>
-          <div className="flex flex-col max-h-[260px] overflow-y-auto -mx-6">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div style={{ fontSize: 12, color: '#5f5f6a' }}>Selecciona los miembros para asignar este plan:</div>
+          <div style={{ display: 'flex', flexDirection: 'column', maxHeight: 260, overflowY: 'auto', margin: '0 -24px', padding: '0 24px' }}>
             {membersList.length === 0 ? (
-              <div className="px-6 text-[12px] text-text-3">No hay miembros disponibles</div>
-            ) : (
-              membersList.map(m => {
-                const isSelected = selectedMemberIds.includes(m.id);
-                return (
-                  <div key={m.id} onClick={() => toggleMemberSelection(m.id)}
-                    className={`flex items-center gap-3 px-6 py-2.5 cursor-pointer transition-colors border-b border-border last:border-0 ${
-                      isSelected ? 'bg-accent-dim' : 'hover:bg-surface2'
-                    }`}>
-                    <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-colors ${
-                      isSelected ? 'bg-accent border-accent' : 'border-border2 bg-transparent'
-                    }`}>
-                      {isSelected && (
-                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="black" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>
-                      )}
-                    </div>
-                    <div className="w-7 h-7 rounded-full bg-accent-dim text-accent flex items-center justify-center text-[10px] font-semibold shrink-0">
-                      {m.full_name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()}
-                    </div>
-                    <div>
-                      <div className="font-medium text-[13px]">{m.full_name}</div>
-                      {m.email && <div className="text-[11px] text-text-3">{m.email}</div>}
-                    </div>
+              <div style={{ fontSize: 12, color: '#5f5f6a' }}>No hay miembros disponibles</div>
+            ) : membersList.map(m => {
+              const isSelected = selectedMemberIds.includes(m.id);
+              const ini = m.full_name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
+              return (
+                <div key={m.id} onClick={() => toggleMemberSelection(m.id)}
+                  style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0', cursor: 'pointer', borderBottom: '1px solid rgba(255,255,255,0.07)', background: isSelected ? 'rgba(232,93,93,0.12)' : 'transparent', transition: 'background 0.15s' }}>
+                  <div style={{ width: 16, height: 16, borderRadius: 4, border: `1px solid ${isSelected ? '#e85d5d' : 'rgba(255,255,255,0.13)'}`, background: isSelected ? '#e85d5d' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    {isSelected && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#000" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>}
                   </div>
-                );
-              })
-            )}
+                  <div className={`tp-avatar ${avatarClass(m.id)}`} style={{ width: 28, height: 28 }}>{ini}</div>
+                  <div>
+                    <div style={{ fontWeight: 500, fontSize: 13 }}>{m.full_name}</div>
+                    {m.email && <div style={{ fontSize: 11, color: '#5f5f6a' }}>{m.email}</div>}
+                  </div>
+                </div>
+              );
+            })}
           </div>
-          <div className="flex justify-end gap-2 pt-1">
-            <Button variant="ghost" size="sm" onClick={() => setAssignModalOpen(false)}>Cancelar</Button>
-            <Button variant="primary" size="sm" onClick={handleAssignMultiple} disabled={selectedMemberIds.length === 0 || assigning}>
-              {assigning ? 'Asignando…' : `Asignar (${selectedMemberIds.length})`}
-            </Button>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, paddingTop: 4 }}>
+            <button className="tp-btn tp-btn-ghost" onClick={() => setAssignModalOpen(false)}>Cancelar</button>
+            <button className="tp-btn tp-btn-primary" onClick={handleAssignMultiple} disabled={selectedMemberIds.length === 0 || assigning}>
+              {assigning ? 'Asignando...' : `Asignar (${selectedMemberIds.length})`}
+            </button>
           </div>
         </div>
       </Modal>
 
       <Modal open={previewMember !== null} onClose={() => { setPreviewMember(null); setPreviewMembership(null); }} title="Miembro" compact>
         {previewLoading ? (
-          <div className="flex items-center justify-center py-10">
-            <div className="w-5 h-5 rounded-full border-2 border-accent border-t-transparent animate-spin" />
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 40 }}>
+            <div style={{ width: 20, height: 20, borderRadius: '999px', border: '2px solid #e85d5d', borderTopColor: 'transparent', animation: 'spin 0.6s linear infinite' }} />
           </div>
         ) : previewMember ? (
-          <div className="flex flex-col">
-            <div className="flex items-center gap-3.5 pb-5 border-b border-border">
-              <div className="w-[48px] h-[48px] rounded-full flex items-center justify-center text-[18px] font-bold shrink-0 ring-1 ring-white/[0.08]"
-                style={{ background: AVATAR_COLORS[avatarIndex(previewMember.id)].bg, color: AVATAR_COLORS[avatarIndex(previewMember.id)].fg }}>
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14, paddingBottom: 20, borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+              <div className={`tp-avatar ${avatarClass(previewMember.id)}`} style={{ width: 48, height: 48, fontSize: 18 }}>
                 {initials(previewMember.full_name)}
               </div>
               <div>
-                <div className="text-[15px] font-semibold">{previewMember.full_name}</div>
+                <div style={{ fontSize: 15, fontWeight: 600 }}>{previewMember.full_name}</div>
                 {previewMember.role === 'admin' ? <Badge variant="accent" dot>Admin</Badge> : previewMember.role === 'trainer' ? <Badge variant="blue" dot>Entrenador</Badge> : <Badge variant="gray" dot>Miembro</Badge>}
               </div>
             </div>
-
-            <div className="pt-4 pb-3">
-              <div className="text-[11px] font-semibold text-text-3 uppercase tracking-[0.06em] mb-3">Membresía actual</div>
+            <div style={{ paddingTop: 16, paddingBottom: 12 }}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: '#5f5f6a', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 12 }}>Membresía actual</div>
               {previewMembership ? (
-                <div className="flex flex-col gap-2.5">
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                   <Row label="Plan" value={previewMembership.membership_types.name} />
                   <Row label="Inicio" value={fmtDate(previewMembership.start_date)} />
                   <Row label="Vencimiento" value={fmtDate(previewMembership.end_date)} />
-                  <div className="flex items-center justify-between">
-                    <span className="text-[12px] text-text-3">Estado</span>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: 12, color: '#5f5f6a' }}>Estado</span>
                     {previewMembership.status === 'active' ? <Badge variant="green" dot>Activa</Badge> : previewMembership.status === 'expired' ? <Badge variant="red" dot>Vencida</Badge> : <Badge variant="amber" dot>Cancelada</Badge>}
                   </div>
                 </div>
               ) : (
-                <div className="text-[12px] text-text-3">Sin membresía activa</div>
+                <div style={{ fontSize: 12, color: '#5f5f6a' }}>Sin membresía activa</div>
               )}
             </div>
-
-            <div className="pt-3 border-t border-border">
-              <button onClick={() => { setPreviewMember(null); setPreviewMembership(null); navigate(`/members/${previewMember.id}`); }}
-                className="w-full flex items-center justify-center gap-2 text-[12px] font-semibold text-accent bg-accent-dim border border-accent/20 px-4 py-2.5 rounded-[var(--radius-sm)] cursor-pointer transition-all duration-200 hover:bg-accent hover:text-black active:scale-[0.98]">
+            <div style={{ paddingTop: 12, borderTop: '1px solid rgba(255,255,255,0.07)' }}>
+              <button className="tp-btn tp-btn-primary" style={{ width: '100%', justifyContent: 'center' }}
+                onClick={() => { setPreviewMember(null); setPreviewMembership(null); navigate(`/members/${previewMember.id}`); }}>
                 Ir a perfil completo
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
               </button>
@@ -718,57 +572,30 @@ export default function TrainingPlansPage() {
       </Modal>
 
       <Modal open={deleteTarget !== null} onClose={() => setDeleteTarget(null)} title="Eliminar plan" compact icon={<IconAlert width="16" height="16" />}>
-        <div className="flex flex-col gap-4">
-          <div className="text-[13px] text-text-1 leading-relaxed">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div style={{ fontSize: 13, lineHeight: 1.6 }}>
             ¿Estás seguro de eliminar el plan <strong>{deleteTarget?.name}</strong>?
           </div>
-          <div className="text-[12px] text-text-3 bg-red-bg/10 border border-red/20 rounded-sm p-3 leading-relaxed">
+          <div style={{ fontSize: 12, color: '#5f5f6a', background: 'rgba(241,101,101,0.12)', border: '1px solid rgba(241,101,101,0.2)', borderRadius: '0.25rem', padding: 12, lineHeight: 1.6 }}>
             Se eliminarán todos los ejercicios asociados. Esta acción no se puede deshacer.
           </div>
         </div>
-        <div className="flex justify-end gap-2.5 mt-2">
-          <Button variant="ghost" onClick={() => setDeleteTarget(null)}>Cancelar</Button>
-          <Button variant="danger" onClick={confirmDelete}>Eliminar</Button>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 8 }}>
+          <button className="tp-btn tp-btn-ghost" onClick={() => setDeleteTarget(null)}>Cancelar</button>
+          <button className="tp-btn" style={{ background: '#f16565', color: '#fff', border: '1px solid #f16565' }} onClick={confirmDelete}>Eliminar</button>
         </div>
       </Modal>
 
-      <RoutineBuilder
-        open={builderOpen}
-        onClose={() => setBuilderOpen(false)}
-        onSave={onBuilderSave}
-        editPlan={builderEditPlan}
-      />
+      <RoutineBuilder open={builderOpen} onClose={() => setBuilderOpen(false)} onSave={onBuilderSave} editPlan={builderEditPlan} />
     </>
-  );
-}
-
-function ChipSm({ icon, text }: { icon: string; text: string }) {
-  return (
-    <div className="flex items-center gap-1 text-[11px] text-text-3">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="11" height="11">
-        {icon === 'check' ? <path d="M9 11l3 3L22 4"/> : <><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></>}
-      </svg>
-      {text}
-    </div>
-  );
-}
-
-function IconBtn({ children, title, danger, onClick }: { children: React.ReactNode; title: string; danger?: boolean; onClick?: () => void }) {
-  return (
-    <button title={title} onClick={onClick}
-      className={`w-10 sm:w-7 h-10 sm:h-7 rounded-[var(--radius-sm)] bg-transparent border border-border flex items-center justify-center cursor-pointer transition-all duration-150 ${
-        danger ? 'text-red-text hover:bg-red-bg hover:border-[rgba(239,68,68,0.3)]' : 'text-text-3 hover:bg-surface2 hover:text-text hover:border-border2'
-      }`}>
-      {children}
-    </button>
   );
 }
 
 function Row({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex items-center justify-between">
-      <span className="text-[12px] text-text-3">{label}</span>
-      <span className="text-[12px] font-medium text-text">{value}</span>
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      <span style={{ fontSize: 12, color: '#5f5f6a' }}>{label}</span>
+      <span style={{ fontSize: 12, fontWeight: 500, color: '#f2f2ef' }}>{value}</span>
     </div>
   );
 }
