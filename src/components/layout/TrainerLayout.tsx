@@ -9,11 +9,10 @@ import { SettingsModal } from '@/pages/settings/SettingsModal'
 import { BottomNav, type BottomNavItem } from '@/components/ui/layout/BottomNav'
 
 const trainerBottomItems: BottomNavItem[] = [
-  { label: 'Mi panel', href: '/trainer/panel', icon: 'dashboard' },
-  { label: 'Perfil', href: '/trainer/profile', icon: 'profile' },
-  { label: 'Miembros', href: '/trainer/members', icon: 'members' },
-  { label: 'Planes', href: '/trainer/plans', icon: 'plans' },
-  { label: 'Plantillas', href: '/trainer/templates', icon: 'templates' },
+  { label: 'Dashboard', href: '/dashboard', icon: 'dashboard' },
+  { label: 'Miembros', href: '/members', icon: 'members' },
+  { label: 'Membresías', href: '/memberships', icon: 'memberships' },
+  { label: 'Planes', href: '/training-plans', icon: 'plans' },
   { label: 'Ajustes', icon: 'settings', action: 'settings' },
 ]
 

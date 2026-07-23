@@ -54,25 +54,22 @@ export default function DashboardPage() {
   const [pendingPayments, setPendingPayments] = useState<PendingPaymentItem[]>([]);
   const [expiring, setExpiring] = useState<any[]>([]);
   const [activities, setActivities] = useState<RecentActivityItem[]>([]);
-  const [typeDistribution, setTypeDistribution] = useState<{ name: string; count: number; price: number }[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function load() {
       setLoading(true);
       try {
-        const [k, pp, e, a, td] = await Promise.all([
+        const [k, pp, e, a] = await Promise.all([
           dashboardService.getKPIs(),
           dashboardService.getPendingPayments(),
           dashboardService.getExpiringMemberships(7),
           dashboardService.getRecentActivity(10),
-          dashboardService.getMembershipTypeDistribution(),
         ]);
         setKpis(k);
         setPendingPayments(pp);
         setExpiring(e);
         setActivities(a);
-        setTypeDistribution(td);
       } catch (err) {
         console.error(err);
       } finally {
@@ -276,40 +273,6 @@ export default function DashboardPage() {
               </div>
 
             </div>
-
-            {/* MEMBERSHIP DISTRIBUTION */}
-            {typeDistribution.length > 0 && (
-              <div className="animate-slide-up stagger-8 bg-surface border border-border rounded-lg overflow-hidden">
-                <div className="flex items-center justify-between px-3 sm:px-5 py-3 sm:py-4 border-b border-border">
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-7 h-7 rounded-lg bg-green-bg text-green-text flex items-center justify-center">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>
-                    </div>
-                    <div>
-                      <div className="text-[13px] font-semibold">Membresías por tipo</div>
-                      <div className="text-[11px] text-text-3 mt-0.5 hidden sm:block">Distribución de membresías activas</div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <span className="text-[11px] text-text-3">Ingresos del mes</span>
-                    <span className="text-[15px] font-semibold font-mono text-green-text">${(kpis?.monthly_revenue ?? 0).toLocaleString()}</span>
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 p-3 sm:p-5">
-                  {typeDistribution.map((t, i) => (
-                    <div key={t.name} className="relative bg-surface2 border border-border rounded overflow-hidden p-[14px]">
-                      <div className="absolute top-0 left-0 right-0 h-0.5" style={{ background: `var(--${i === 0 ? 'green' : i === 1 ? 'amber' : 'blue'}-text)` }} />
-                      <div className="text-[11px] text-text-3 uppercase tracking-[0.06em] mb-2">{t.name}</div>
-                      <div className="text-[22px] font-semibold leading-none -tracking-[0.03em]">{t.count}</div>
-                      <div className="text-[11px] text-text-3 mt-1.5">{t.count === 1 ? 'activa' : 'activas'}</div>
-                    </div>
-                  ))}
-                </div>
-                <div className="px-3 sm:px-5 py-2.5 sm:py-3 border-t border-border">
-                  <Link to="/memberships" className="text-[11px] text-text-3 no-underline cursor-pointer hover:text-text-2 transition-colors">Gestionar membresías →</Link>
-                </div>
-              </div>
-            )}
 
           </>
         )}

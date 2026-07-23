@@ -285,3 +285,8 @@ body {
   background-repeat: repeat;
   background-size: 256px 256px;
 }
+
+img[src*="/exercises/gifs/"],
+img[src*="/exercises/images/"] {
+  image-rendering: -webkit-optimize-contrast;
+}

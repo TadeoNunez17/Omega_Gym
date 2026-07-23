@@ -3,6 +3,7 @@ import { useAuthStore } from '@/store/auth.store'
 import { trainingService, type TrainingPlan, type PlanExercise } from '@/services/training.service'
 import { workoutService, type WorkoutLog } from '@/services/workout.service'
 import { exercisesService, type Exercise } from '@/services/exercises.service'
+import { Modal } from '@/components/ui/molecules/Modal'
 
 const COMPLETION_MESSAGES = [
   '¡Rutina completada! 💪',
@@ -52,7 +53,7 @@ export default function MyPlanPage() {
   const [lastSessionLogs, setLastSessionLogs] = useState<LogMap>({})
   const [completionMessage] = useState(() => COMPLETION_MESSAGES[Math.floor(Math.random() * COMPLETION_MESSAGES.length)])
   const [catalogMap, setCatalogMap] = useState<Map<string, Exercise>>(new Map())
-  const [expandedInstructions, setExpandedInstructions] = useState<Set<string>>(new Set())
+  const [selectedExerciseId, setSelectedExerciseId] = useState<string | null>(null)
 
   useEffect(() => {
     if (!user) return;
@@ -209,14 +210,6 @@ export default function MyPlanPage() {
     }, 1000)
   }, [activeTimerId, timerRunning, timerRemaining])
 
-  const stopTimer = useCallback(() => {
-    if (timerRef.current !== null) clearInterval(timerRef.current)
-    timerRef.current = null
-    setActiveTimerId(null)
-    setTimerRunning(false)
-    setTimerRemaining(0)
-  }, [])
-
   logsRef.current = logs
 
   if (loading || !user) {
@@ -263,7 +256,7 @@ export default function MyPlanPage() {
   const progressPct = totalSets > 0 ? (completedSets / totalSets) * 100 : 0
 
   return (<>
-    <header className="px-4 sm:px-7 h-14 flex items-center justify-between border-b border-border bg-surface2 sticky top-0 z-9">
+    <header className="px-4 sm:px-7 h-14 flex items-center justify-between border-b border-border bg-surface2 sticky top-0 z-40">
       <div className="flex items-center gap-2 text-xs sm:text-[13px] text-text-3">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 9l9-7 9 9M5 10v10a1 1 0 0 0 1 1h3v-6h6v6h3a1 1 0 0 0 1-1V10"/></svg>
         <span className="text-text-4 mx-0.5">/</span>
@@ -271,7 +264,7 @@ export default function MyPlanPage() {
       </div>
     </header>
 
-    <div className="p-4 sm:p-7 flex-1 max-w-4xl mx-auto w-full">
+    <div className="p-4 sm:p-7 flex-1 max-w-screen-xl mx-auto w-full">
 
       {/* Greeting card */}
       <div className={`bg-surface border border-border rounded-2xl p-6 sm:p-7 mb-5 relative overflow-hidden animate-slide-up ${staggerClass(1)}`}>
@@ -368,7 +361,7 @@ export default function MyPlanPage() {
           </div>
 
           {/* Exercises */}
-          <div className={`flex flex-col gap-2.5 animate-slide-up ${staggerClass(3)}`}>
+          <div className={`flex flex-col gap-3 animate-slide-up ${staggerClass(3)}`}>
             {isRest ? (
               <div className="bg-surface border border-border rounded-xl p-12 text-center flex flex-col items-center gap-3">
                 <div className="w-14 h-14 rounded-full flex items-center justify-center" style={{ background: 'var(--purple-bg)', color: 'var(--purple-text)' }}>
@@ -389,182 +382,193 @@ export default function MyPlanPage() {
                 const catalogEx = e.exercise_id ? catalogMap.get(e.exercise_id) : null
                 const gifUrl = catalogEx?.gif_url
                 const instructions = catalogEx?.instructions_es
-                const isExpanded = expandedInstructions.has(e.id)
 
                 return (
                   <div key={e.id}
-                    className="bg-surface border border-border rounded-xl p-4 sm:p-[18px]">
+                    className={`relative bg-surface border border-border rounded-xl overflow-hidden transition-all duration-200 hover:border-accent/20 stagger-${i + 3}`}
+                    style={{ animationDelay: `${120 + i * 60}ms` }}>
+                    {/* Left accent stripe */}
+                    <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-accent/40 rounded-l-xl" />
+
                     {/* GIF animation */}
                     {gifUrl && (
-                      <div className="mb-3 rounded-lg overflow-hidden bg-surface2 border border-border">
+                      <div className="mx-4 mt-4 rounded-lg overflow-hidden bg-surface2 border border-border">
                         <img
                           src={gifUrl}
                           alt={e.exercise_name}
-                          className="w-full h-auto max-h-[220px] object-contain"
+                          className="max-h-[200px] object-contain mx-auto sm:w-full"
                           loading="lazy"
                         />
                       </div>
                     )}
-                    {/* Exercise header */}
-                    <div className="flex items-center justify-between gap-4 mb-3">
-                      <div className="flex flex-col gap-1.5 min-w-0">
-                        <div className="text-sm font-bold">{e.exercise_name}</div>
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          {e.muscle && (
-                            <span className="bg-accent-dim text-accent text-[10px] font-bold uppercase px-2 py-[2px] rounded-[5px] tracking-wide">{e.muscle}</span>
-                          )}
-                          {catalogEx?.equipment && catalogEx.equipment !== 'bodyweight' && (
-                            <span className="bg-surface3 text-text-3 text-[10px] px-2 py-[2px] rounded-[5px]">{catalogEx.equipment}</span>
-                          )}
-                          {e.notes && (
-                            <span className="text-[11px] text-text-3">{e.notes}</span>
-                          )}
-                          {e.reference_link && (
-                            <a href={e.reference_link} target="_blank" rel="noopener noreferrer"
-                              className="text-[11px] text-text-3 inline-flex items-center gap-1 border border-border px-2 py-[2px] rounded-[6px] no-underline hover:text-accent hover:border-accent/40 transition-colors">
-                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-3 h-3"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-                              Referencia
-                            </a>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-4 shrink-0">
-                        <div className="text-center hidden sm:block">
-                          <div className="text-xl font-bold leading-none">{setCount || '—'}</div>
-                          <div className="text-[10px] text-text-3 uppercase tracking-[0.04em] mt-[2px]">Series</div>
-                        </div>
-                        <span className="text-border2 text-lg hidden sm:inline">×</span>
-                        <div className="text-center hidden sm:block">
-                          <div className="text-xl font-bold leading-none">{e.reps ?? '—'}</div>
-                          <div className="text-[10px] text-text-3 uppercase tracking-[0.04em] mt-[2px]">Reps</div>
-                        </div>
-                        {e.rest_seconds && (
-                          <div className={`flex items-center gap-2 bg-surface2 border border-border rounded-lg px-3 py-2 min-w-[88px] justify-center ${
-                            isTimerActive && timerRunning ? 'timer-running' : ''
-                          }`}>
-                            <button onClick={() => toggleTimer(e.id, e.rest_seconds!)}
-                              className="bg-none border-none text-text-3 cursor-pointer text-sm flex items-center p-0 hover:text-accent transition-colors"
-                              title={isTimerActive && timerRunning ? 'Pausar' : 'Iniciar descanso'}>
-                              {isTimerActive && timerRunning ? (
-                                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
-                              ) : timerDone ? (
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>
-                              ) : (
-                                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-                              )}
-                            </button>
-                            <span className={`text-sm font-bold font-mono tabular-nums ${
-                              isTimerActive ? (timerRunning ? 'text-accent' : 'text-text-2') : 'text-text-2'
-                            } ${timerDone ? 'text-green-text' : ''}`}>
-                              {timerDone ? 'Listo!' : formatTime(isTimerActive ? timerRemaining : e.rest_seconds)}
-                            </span>
+
+                    {/* Exercise content */}
+                    <div className="pl-5 pr-4 pt-4 pb-3 select-text">
+                      {/* Exercise header: number + name */}
+                      <div className="flex items-start justify-between gap-3 mb-2.5">
+                        <div className="flex items-start gap-3 min-w-0 flex-1">
+                          {/* Set number badge */}
+                          <div className="w-7 h-7 rounded-lg bg-accent-dim flex items-center justify-center text-[11px] font-bold text-accent shrink-0 mt-0.5">
+                            {i + 1}
                           </div>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Sets grid */}
-                    {setCount > 0 && (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
-                        {Array.from({ length: setCount }, (_, si) => {
-                          const setNum = si + 1
-                          const key = mkKey(e.id, setNum)
-                          const log = logs[key]
-                          const isCompleted = log?.completed ?? false
-                          const isSaving = saving[key]
-                          const weight = log?.weight
-                          const reps = log?.reps
-
-                          return (
-                            <div key={setNum}
-                              className={`flex items-center gap-2 rounded-lg px-3 py-2.5 border transition-all duration-150 ${
-                                isCompleted
-                                  ? 'bg-surface2 border-green/30'
-                                  : 'bg-surface2 border-border'
-                              }`}>
-                              {/* Set number */}
-                              <span className={`text-[11px] font-bold w-5 shrink-0 ${isCompleted ? 'text-green-text' : 'text-text-3'}`}>
-                                {setNum}
-                              </span>
-
-                              {/* Weight input */}
-                              <div className="relative flex-1 min-w-0">
-                                <input
-                                  type="number"
-                                  inputMode="decimal"
-                                  placeholder="kg"
-                                  value={weight ?? ''}
-                                  onChange={ev => updateLog(e.id, setNum, { weight: ev.target.value === '' ? null : Number(ev.target.value) })}
-                                  className={`w-full bg-transparent border rounded-md px-2 py-1 text-xs font-mono font-semibold text-right outline-none transition-colors ${
-                                    isCompleted ? 'border-green/20 text-green-text' : 'border-border text-text hover:border-text-3'
-                                  } ${isSaving ? 'opacity-60' : ''}`}
-                                />
-                              </div>
-
-                              {/* Reps input */}
-                              <div className="relative flex-1 min-w-0">
-                                <input
-                                  type="number"
-                                  inputMode="numeric"
-                                  placeholder="rep"
-                                  value={reps ?? ''}
-                                  onChange={ev => updateLog(e.id, setNum, { reps: ev.target.value === '' ? null : Number(ev.target.value) })}
-                                  className={`w-full bg-transparent border rounded-md px-2 py-1 text-xs font-mono font-semibold text-right outline-none transition-colors ${
-                                    isCompleted ? 'border-green/20 text-green-text' : 'border-border text-text hover:border-text-3'
-                                  } ${isSaving ? 'opacity-60' : ''}`}
-                                />
-                              </div>
-
-                              {/* Checkbox */}
-                              <button onClick={() => updateLog(e.id, setNum, { completed: !isCompleted })}
-                                className={`w-6 h-6 rounded-md flex items-center justify-center shrink-0 border cursor-pointer transition-all duration-150 ${
-                                  isCompleted
-                                    ? 'bg-green border-green text-black'
-                                    : 'bg-transparent border-border2 text-transparent hover:border-text-3'
-                                }`}>
-                                {isCompleted && (
-                                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="w-3.5 h-3.5">
-                                    <polyline points="20 6 9 17 4 12"/>
-                                  </svg>
-                                )}
-                              </button>
-
-                              {/* Saving indicator */}
-                              {isSaving && (
-                                <div className="w-3 h-3 rounded-full border border-accent border-t-transparent animate-spin shrink-0" />
+                            <div className="min-w-0 flex-1">
+                            <button
+                              onClick={() => setSelectedExerciseId(e.id)}
+                              className="group/btn text-[15px] font-bold leading-snug cursor-pointer text-text hover:text-accent transition-colors bg-transparent border-none p-0 text-left font-inherit inline-flex items-center gap-1.5"
+                            >
+                              {e.exercise_name}
+                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-3.5 h-3.5 text-text-3 group-hover/btn:text-accent transition-colors shrink-0 opacity-0 group-hover/btn:opacity-100">
+                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                                <circle cx="12" cy="12" r="3"/>
+                              </svg>
+                            </button>
+                            {/* Tags row */}
+                            <div className="flex items-center gap-1.5 flex-wrap mt-1.5">
+                              {e.muscle && (
+                                <span className="bg-accent-dim text-accent text-[10px] font-bold uppercase px-2 py-[2px] rounded-[5px] tracking-wide">{e.muscle}</span>
+                              )}
+                              {catalogEx?.equipment && catalogEx.equipment !== 'bodyweight' && (
+                                <span className="bg-surface2 text-text-3 text-[10px] px-2 py-[2px] rounded-[5px] border border-border">{catalogEx.equipment}</span>
+                              )}
+                              {e.notes && (
+                                <span className="text-[11px] text-text-3 select-text">{e.notes}</span>
+                              )}
+                              {e.reference_link && (
+                                <a href={e.reference_link} target="_blank" rel="noopener noreferrer"
+                                  className="text-[11px] text-text-3 inline-flex items-center gap-1 border border-border px-2 py-[2px] rounded-[6px] no-underline hover:text-accent hover:border-accent/40 transition-colors">
+                                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-3 h-3"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                                  Ref
+                                </a>
                               )}
                             </div>
-                          )
-                        })}
-                      </div>
-                    )}
-
-                    {/* Instructions from catalog */}
-                    {instructions && (
-                      <div className="mt-3">
-                        <button
-                          onClick={() => {
-                            setExpandedInstructions(prev => {
-                              const next = new Set(prev)
-                              if (next.has(e.id)) next.delete(e.id)
-                              else next.add(e.id)
-                              return next
-                            })
-                          }}
-                          className="flex items-center gap-1.5 text-[11px] text-text-3 hover:text-accent transition-colors cursor-pointer bg-transparent border-none p-0 font-inherit"
-                        >
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={`w-3 h-3 transition-transform ${isExpanded ? 'rotate-90' : ''}`}>
-                            <polyline points="9 18 15 12 9 6"/>
-                          </svg>
-                          Cómo hacer este ejercicio
-                        </button>
-                        {isExpanded && (
-                          <div className="mt-2 text-[12px] text-text-2 leading-relaxed pl-4 border-l-2 border-border2">
-                            {instructions}
                           </div>
-                        )}
+                        </div>
+
+                        {/* Stats: Series × Reps */}
+                        <div className="flex items-center gap-2 shrink-0">
+                          <div className="flex items-center gap-1.5 bg-surface2 border border-border rounded-lg px-2.5 py-1.5">
+                            <span className="text-lg font-bold leading-none">{setCount || '—'}</span>
+                            <span className="text-[9px] text-text-3 uppercase tracking-wider font-semibold leading-none">Series</span>
+                          </div>
+                          <span className="text-border2 text-xs font-light">×</span>
+                          <div className="flex items-center gap-1.5 bg-surface2 border border-border rounded-lg px-2.5 py-1.5">
+                            <span className="text-lg font-bold leading-none">{e.reps ?? '—'}</span>
+                            <span className="text-[9px] text-text-3 uppercase tracking-wider font-semibold leading-none">Reps</span>
+                          </div>
+                        </div>
                       </div>
-                    )}
+
+                      {/* Rest timer */}
+                      {e.rest_seconds && (
+                        <div className={`flex items-center gap-2 bg-surface2 border border-border rounded-lg px-3 py-2 w-fit mb-3 ${
+                          isTimerActive && timerRunning ? 'timer-running' : ''
+                        }`}>
+                          <button onClick={() => toggleTimer(e.id, e.rest_seconds!)}
+                            className="bg-none border-none text-text-3 cursor-pointer flex items-center p-0 hover:text-accent transition-colors"
+                            title={isTimerActive && timerRunning ? 'Pausar' : 'Iniciar descanso'}>
+                            {isTimerActive && timerRunning ? (
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+                            ) : timerDone ? (
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>
+                            ) : (
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                            )}
+                          </button>
+                          <span className={`text-sm font-bold font-mono tabular-nums ${
+                            isTimerActive ? (timerRunning ? 'text-accent' : 'text-text-2') : 'text-text-2'
+                          } ${timerDone ? 'text-green-text' : ''}`}>
+                            {timerDone ? 'Listo!' : formatTime(isTimerActive ? timerRemaining : e.rest_seconds)}
+                          </span>
+                          <span className="text-[9px] text-text-3 uppercase tracking-wider font-semibold">Desc</span>
+                        </div>
+                      )}
+
+                      {/* Sets grid */}
+                      {setCount > 0 && (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-1.5 mb-3">
+                          {Array.from({ length: setCount }, (_, si) => {
+                            const setNum = si + 1
+                            const key = mkKey(e.id, setNum)
+                            const log = logs[key]
+                            const isCompleted = log?.completed ?? false
+                            const isSaving = saving[key]
+                            const weight = log?.weight
+                            const reps = log?.reps
+
+                            return (
+                              <div key={setNum}
+                                className={`flex items-center gap-1.5 rounded-lg px-2.5 py-2 border transition-all duration-150 ${
+                                  isCompleted
+                                    ? 'bg-green/5 border-green/25'
+                                    : 'bg-surface2 border-border hover:border-border2'
+                                }`}>
+                                {/* Set number */}
+                                <span className={`text-[11px] font-bold w-4 shrink-0 ${isCompleted ? 'text-green-text' : 'text-text-3'}`}>
+                                  {setNum}
+                                </span>
+
+                                {/* Weight input */}
+                                <div className="relative flex-1 min-w-0">
+                                  <input
+                                    type="number"
+                                    inputMode="decimal"
+                                    placeholder="kg"
+                                    value={weight ?? ''}
+                                    onChange={ev => updateLog(e.id, setNum, { weight: ev.target.value === '' ? null : Number(ev.target.value) })}
+                                    className={`w-full bg-transparent border rounded-md px-1.5 py-0.5 text-[11px] font-mono font-semibold text-right outline-none transition-colors ${
+                                      isCompleted ? 'border-green/20 text-green-text' : 'border-border text-text hover:border-text-3 focus:border-accent'
+                                    } ${isSaving ? 'opacity-60' : ''}`}
+                                  />
+                                </div>
+
+                                {/* Reps input */}
+                                <div className="relative flex-1 min-w-0">
+                                  <input
+                                    type="number"
+                                    inputMode="numeric"
+                                    placeholder="rep"
+                                    value={reps ?? ''}
+                                    onChange={ev => updateLog(e.id, setNum, { reps: ev.target.value === '' ? null : Number(ev.target.value) })}
+                                    className={`w-full bg-transparent border rounded-md px-1.5 py-0.5 text-[11px] font-mono font-semibold text-right outline-none transition-colors ${
+                                      isCompleted ? 'border-green/20 text-green-text' : 'border-border text-text hover:border-text-3 focus:border-accent'
+                                    } ${isSaving ? 'opacity-60' : ''}`}
+                                  />
+                                </div>
+
+                                {/* Checkbox */}
+                                <button onClick={() => updateLog(e.id, setNum, { completed: !isCompleted })}
+                                  className={`w-5 h-5 rounded-md flex items-center justify-center shrink-0 border cursor-pointer transition-all duration-150 ${
+                                    isCompleted
+                                      ? 'bg-green border-green text-black'
+                                      : 'bg-transparent border-border2 text-transparent hover:border-text-3'
+                                  }`}>
+                                  {isCompleted && (
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="w-3 h-3">
+                                      <polyline points="20 6 9 17 4 12"/>
+                                    </svg>
+                                  )}
+                                </button>
+
+                                {isSaving && (
+                                  <div className="w-2.5 h-2.5 rounded-full border border-accent border-t-transparent animate-spin shrink-0" />
+                                )}
+                              </div>
+                            )
+                          })}
+                        </div>
+                      )}
+
+                      {/* Details trigger */}
+                      <button
+                        onClick={() => setSelectedExerciseId(e.id)}
+                        className="flex items-center gap-1.5 text-[11px] text-text-3 hover:text-accent transition-colors cursor-pointer bg-transparent border-none p-0 font-inherit"
+                      >
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-3 h-3">
+                          <circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>
+                        </svg>
+                        Ver detalles
+                      </button>
+                    </div>
                   </div>
                 )
               })
@@ -573,7 +577,7 @@ export default function MyPlanPage() {
 
           {/* Notes */}
           {plan.description && (
-            <div className={`bg-surface border border-border rounded-xl p-[18px] sm:p-5 mt-4 animate-slide-up ${staggerClass(4)}`}>
+            <div className={`bg-surface border border-border rounded-xl p-[18px] sm:p-5 mt-4 animate-slide-up ${staggerClass(4)} select-text`}>
               <div className="text-xs font-bold text-text-3 uppercase tracking-[0.05em] mb-2">Notas del plan</div>
               <div className="text-sm text-text-2 leading-relaxed">{plan.description}</div>
             </div>
@@ -581,6 +585,102 @@ export default function MyPlanPage() {
         </>
       )}
     </div>
+
+    {/* Exercise detail modal */}
+    {(() => {
+      const selEx = selectedExerciseId ? exercises.find(e => e.id === selectedExerciseId) : null
+      const selCatalog = selEx?.exercise_id ? catalogMap.get(selEx.exercise_id) : null
+      if (!selEx) return null
+      return (
+        <Modal
+          open={!!selectedExerciseId}
+          onClose={() => setSelectedExerciseId(null)}
+          title={selEx.exercise_name}
+          icon={
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4 text-accent">
+              <circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>
+            </svg>
+          }
+        >
+          {/* GIF */}
+          {(selCatalog?.gif_url || selCatalog?.image_url) && (
+            <div className="rounded-xl overflow-hidden bg-surface2 border border-border -mx-1">
+              <img
+                src={selCatalog.gif_url || selCatalog.image_url!}
+                alt={selEx.exercise_name}
+                className="max-h-[300px] object-contain mx-auto sm:w-full"
+              />
+            </div>
+          )}
+
+          {/* Tags */}
+          <div className="flex items-center gap-2 flex-wrap">
+            {selEx.muscle && (
+              <span className="bg-accent-dim text-accent text-[11px] font-bold uppercase px-2.5 py-[3px] rounded-md tracking-wide">{selEx.muscle}</span>
+            )}
+            {selCatalog?.equipment && selCatalog.equipment !== 'bodyweight' && (
+              <span className="bg-surface3 text-text-3 text-[11px] px-2.5 py-[3px] rounded-md">{selCatalog.equipment}</span>
+            )}
+            {selCatalog?.body_part && (
+              <span className="bg-surface3 text-text-3 text-[11px] px-2.5 py-[3px] rounded-md">{selCatalog.body_part}</span>
+            )}
+          </div>
+
+          {/* Secondary muscles */}
+          {selCatalog?.secondary_muscles && selCatalog.secondary_muscles.length > 0 && (
+            <div>
+              <div className="text-[11px] font-bold text-text-3 uppercase tracking-[0.05em] mb-1.5">Músculos secundarios</div>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                {selCatalog.secondary_muscles.map(m => (
+                  <span key={m} className="bg-surface2 text-text-2 text-[11px] px-2 py-[2px] rounded-md border border-border">{m}</span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Instructions */}
+          {selCatalog?.instructions_es && (
+            <div>
+              <div className="text-[11px] font-bold text-text-3 uppercase tracking-[0.05em] mb-2">Instrucciones</div>
+              <div className="text-[13px] text-text-2 leading-relaxed pl-3 border-l-2 border-accent/30">
+                {selCatalog.instructions_es}
+              </div>
+            </div>
+          )}
+
+          {/* Notes from trainer — solo si difieren de las instrucciones */}
+          {selEx.notes && selEx.notes !== selCatalog?.instructions_es && (
+            <div className="bg-surface2 border border-border rounded-lg p-3">
+              <div className="text-[11px] font-bold text-text-3 uppercase tracking-[0.05em] mb-1">Notas del entrenador</div>
+              <div className="text-[13px] text-text-2">{selEx.notes}</div>
+            </div>
+          )}
+
+          {/* Reference link */}
+          {selEx.reference_link && (
+            <a
+              href={selEx.reference_link}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 text-[13px] text-accent hover:text-accent/80 transition-colors no-underline"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4">
+                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+                <polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/>
+              </svg>
+              Ver referencia externa
+            </a>
+          )}
+
+          {/* Empty state */}
+          {!selCatalog?.gif_url && !selCatalog?.image_url && !selCatalog?.instructions_es && !selEx.notes && !selEx.reference_link && (
+            <div className="text-center text-[13px] text-text-3 py-4">
+              Este ejercicio no tiene información detallada en el catálogo.
+            </div>
+          )}
+        </Modal>
+      )
+    })()}
 
     <style>{`
       .timer-running {

@@ -3,8 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import { trainingService, type PlanListItem, type PlanExercise } from '@/services/training.service';
 import { membersService, type MemberListItem } from '@/services/members.service';
 import { membershipsService, type Membership, type MembershipType } from '@/services/memberships.service';
+import { exercisesService, type Exercise } from '@/services/exercises.service';
 import { Button } from '@/components/ui/atoms/Button';
 import { Badge } from '@/components/ui/atoms/Badge';
+import { MetricCard } from '@/components/ui/atoms/MetricCard';
 import { RoutineBuilder, type EditPlanData } from '@/components/routine-builder/RoutineBuilder';
 import { Modal } from '@/components/ui/molecules/Modal';
 import { IconAlert } from '@/lib/icons';
@@ -73,7 +75,7 @@ export default function TrainingPlansPage() {
   const [builderOpen, setBuilderOpen] = useState(false);
   const [builderEditPlan, setBuilderEditPlan] = useState<EditPlanData | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Plan | null>(null);
-  const [assigneeOpen, setAssigneeOpen] = useState(true);
+  const [assigneeOpen, setAssigneeOpen] = useState(false);
   const [assignModalOpen, setAssignModalOpen] = useState(false);
   const [membersList, setMembersList] = useState<MemberListItem[]>([]);
   const [selectedMemberIds, setSelectedMemberIds] = useState<string[]>([]);
@@ -81,6 +83,8 @@ export default function TrainingPlansPage() {
   const [previewMember, setPreviewMember] = useState<MemberListItem | null>(null);
   const [previewMembership, setPreviewMembership] = useState<(Membership & { membership_types: MembershipType }) | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
+  const [selectedExId, setSelectedExId] = useState<string | null>(null);
+  const [catalogMap, setCatalogMap] = useState<Map<string, Exercise>>(new Map());
 
   const navigate = useNavigate();
 
@@ -136,6 +140,20 @@ export default function TrainingPlansPage() {
           })),
         };
       }));
+
+      // Load catalog data for exercises
+      const allExercises: PlanExercise[] = data.exercises || [];
+      const catalogIds = [...new Set(allExercises.filter((e) => !!e.exercise_id).map((e) => e.exercise_id as string))];
+      if (catalogIds.length > 0) {
+        try {
+          const catalogExs = await exercisesService.getByIds(catalogIds);
+          const newMap = new Map<string, Exercise>();
+          catalogExs.forEach(ce => newMap.set(ce.id, ce));
+          setCatalogMap(newMap);
+        } catch {
+          // Silently fail - catalog data is optional
+        }
+      }
     } catch { setDetailLoading(false); }
   }, []);
 
@@ -281,15 +299,25 @@ export default function TrainingPlansPage() {
             <div className="tp-hero-title">Planes de Entrenamiento</div>
             <div className="tp-hero-desc">Crea, edita y asigna rutinas a los miembros del gym</div>
           </div>
-          <div className="tp-hero-stats">
-            <div className="tp-hero-stat">
-              <div className="tp-hero-stat-value">{metrics.total}</div>
-              <div className="tp-hero-stat-label">Planes totales</div>
-            </div>
-            <div className="tp-hero-stat">
-              <div className="tp-hero-stat-value tp-accent">{metrics.assigned}</div>
-              <div className="tp-hero-stat-label">Asignados</div>
-            </div>
+        </div>
+
+        {/* KPI Metrics */}
+        <div className="grid grid-cols-2 gap-3 mb-5">
+          <div className="animate-slide-up stagger-1">
+            <MetricCard
+              icon={<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-full h-full"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/></svg>}
+              color="blue"
+              value={metrics.total}
+              label="Planes totales"
+            />
+          </div>
+          <div className="animate-slide-up stagger-2">
+            <MetricCard
+              icon={<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-full h-full"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>}
+              color="accent"
+              value={metrics.assigned}
+              label="Asignados"
+            />
           </div>
         </div>
 
@@ -468,7 +496,12 @@ export default function TrainingPlansPage() {
                                   </div>
                                   <div className="tp-ex-idx">{i + 1}</div>
                                   <div className="tp-ex-body">
-                                    <div className="tp-ex-name">{e.exercise_name}</div>
+                                    <button className="tp-ex-name" onClick={() => setSelectedExId(e.id)}>
+                                      {e.exercise_name}
+                                    </button>
+                                    {e.muscle && (
+                                      <div className="tp-ex-muscle">{e.muscle}</div>
+                                    )}
                                   </div>
                                   <div className="tp-ex-chips">
                                     <span className="tp-chip tp-chip-accent"><span className="tp-chip-label">Series</span>{e.sets ?? 0}</span>
@@ -587,6 +620,104 @@ export default function TrainingPlansPage() {
       </Modal>
 
       <RoutineBuilder open={builderOpen} onClose={() => setBuilderOpen(false)} onSave={onBuilderSave} editPlan={builderEditPlan} />
+
+      {/* Exercise detail modal */}
+      {(() => {
+        if (!selectedExId || !selectedPlan) return null;
+        const allExercises = Object.values(selectedPlan.exercises).flat().filter(Boolean) as PlanExercise[];
+        const selEx = allExercises.find(e => e.id === selectedExId);
+        if (!selEx) return null;
+        const selCatalog = selEx.exercise_id ? catalogMap.get(selEx.exercise_id) : null;
+        return (
+          <Modal
+            open={!!selectedExId}
+            onClose={() => setSelectedExId(null)}
+            title={selEx.exercise_name}
+            icon={
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4 text-accent">
+                <circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>
+              </svg>
+            }
+          >
+            {/* GIF */}
+            {(selCatalog?.gif_url || selCatalog?.image_url) && (
+              <div className="rounded-xl overflow-hidden bg-surface2 border border-border -mx-1">
+                <img
+                  src={selCatalog.gif_url || selCatalog.image_url!}
+                  alt={selEx.exercise_name}
+                  className="max-h-[300px] object-contain mx-auto sm:w-full"
+                />
+              </div>
+            )}
+
+            {/* Tags */}
+            <div className="flex items-center gap-2 flex-wrap">
+              {selEx.muscle && (
+                <span className="bg-accent-dim text-accent text-[11px] font-bold uppercase px-2.5 py-[3px] rounded-md tracking-wide">{selEx.muscle}</span>
+              )}
+              {selCatalog?.equipment && selCatalog.equipment !== 'bodyweight' && (
+                <span className="bg-surface3 text-text-3 text-[11px] px-2.5 py-[3px] rounded-md">{selCatalog.equipment}</span>
+              )}
+              {selCatalog?.body_part && (
+                <span className="bg-surface3 text-text-3 text-[11px] px-2.5 py-[3px] rounded-md">{selCatalog.body_part}</span>
+              )}
+            </div>
+
+            {/* Secondary muscles */}
+            {selCatalog?.secondary_muscles && selCatalog.secondary_muscles.length > 0 && (
+              <div>
+                <div className="text-[11px] font-bold text-text-3 uppercase tracking-[0.05em] mb-1.5">Músculos secundarios</div>
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  {selCatalog.secondary_muscles.map(m => (
+                    <span key={m} className="bg-surface2 text-text-2 text-[11px] px-2 py-[2px] rounded-md border border-border">{m}</span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Instructions */}
+            {selCatalog?.instructions_es && (
+              <div>
+                <div className="text-[11px] font-bold text-text-3 uppercase tracking-[0.05em] mb-2">Instrucciones</div>
+                <div className="text-[13px] text-text-2 leading-relaxed pl-3 border-l-2 border-accent/30">
+                  {selCatalog.instructions_es}
+                </div>
+              </div>
+            )}
+
+            {/* Notes from trainer — solo si difieren de las instrucciones */}
+            {selEx.notes && selEx.notes !== selCatalog?.instructions_es && (
+              <div className="bg-surface2 border border-border rounded-lg p-3">
+                <div className="text-[11px] font-bold text-text-3 uppercase tracking-[0.05em] mb-1">Notas del entrenador</div>
+                <div className="text-[13px] text-text-2">{selEx.notes}</div>
+              </div>
+            )}
+
+            {/* Reference link */}
+            {selEx.reference_link && (
+              <a
+                href={selEx.reference_link}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 text-[13px] text-accent hover:text-accent/80 transition-colors no-underline"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4">
+                  <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+                  <polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/>
+                </svg>
+                Ver referencia externa
+              </a>
+            )}
+
+            {/* Empty state */}
+            {!selCatalog?.gif_url && !selCatalog?.image_url && !selCatalog?.instructions_es && !selEx.notes && !selEx.reference_link && (
+              <div className="text-center text-[13px] text-text-3 py-4">
+                Este ejercicio no tiene información detallada en el catálogo.
+              </div>
+            )}
+          </Modal>
+        );
+      })()}
     </>
   );
 }

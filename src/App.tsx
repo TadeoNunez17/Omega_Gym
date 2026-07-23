@@ -23,18 +23,17 @@ import MyMembershipPage from '@/pages/member/MyMembership'
 import MyPaymentsPage from '@/pages/member/MyPayments'
 import MyCheckinsPage from '@/pages/member/MyCheckins'
 import MyProfilePage from '@/pages/member/MyProfile'
-import TrainerPanel from '@/pages/trainer/Panel'
-import TrainerMembers from '@/pages/trainer/Members'
-import TrainerMemberships from '@/pages/trainer/Memberships'
-import TrainerPlans from '@/pages/trainer/Plans'
-import TrainerTemplates from '@/pages/trainer/Templates'
-import TrainerProfilePage from '@/pages/trainer/Profile'
+
+function AppLayout() {
+  const user = useAuthStore((s) => s.user)
+  if (user?.role === 'trainer') return <TrainerLayout />
+  return <AdminLayout />
+}
 
 function RootRedirect() {
   const user = useAuthStore((s) => s.user)
   if (!user) return <Navigate to="/login" replace />
-  if (user.role === 'admin') return <Navigate to="/dashboard" replace />
-  if (user.role === 'trainer') return <Navigate to="/trainer/panel" replace />
+  if (user.role === 'admin' || user.role === 'trainer') return <Navigate to="/dashboard" replace />
   return <Navigate to="/my-plan" replace />
 }
 
@@ -51,23 +50,19 @@ export default function App() {
 
         <Route path="/auth/callback" element={<AuthCallbackPage />} />
 
-        <Route element={<ProtectedRoute roles={['admin']}><AdminLayout /></ProtectedRoute>}>
+        {/* Shared routes — admin + trainer */}
+        <Route element={<ProtectedRoute roles={['admin', 'trainer']}><AppLayout /></ProtectedRoute>}>
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/members" element={<MembersPage />} />
-          <Route path="/members/:id" element={<MemberDetailPage />} />
           <Route path="/memberships" element={<MembershipsPage />} />
-          <Route path="/payments" element={<PaymentsPage />} />
           <Route path="/training-plans" element={<TrainingPlansPage />} />
-          {import.meta.env.DEV && <Route path="/fingerprint" element={<FingerprintPage />} />}
         </Route>
 
-        <Route element={<ProtectedRoute roles={['trainer', 'admin']}><TrainerLayout /></ProtectedRoute>}>
-          <Route path="/trainer/panel" element={<TrainerPanel />} />
-          <Route path="/trainer/members" element={<TrainerMembers />} />
-          <Route path="/trainer/memberships" element={<TrainerMemberships />} />
-          <Route path="/trainer/plans" element={<TrainerPlans />} />
-          <Route path="/trainer/templates" element={<TrainerTemplates />} />
-          <Route path="/trainer/profile" element={<TrainerProfilePage />} />
+        {/* Admin-only routes */}
+        <Route element={<ProtectedRoute roles={['admin']}><AdminLayout /></ProtectedRoute>}>
+          <Route path="/payments" element={<PaymentsPage />} />
+          <Route path="/members/:id" element={<MemberDetailPage />} />
+          {import.meta.env.DEV && <Route path="/fingerprint" element={<FingerprintPage />} />}
         </Route>
 
         <Route element={<ProtectedRoute roles={['member', 'admin', 'trainer']}><MemberLayout /></ProtectedRoute>}>

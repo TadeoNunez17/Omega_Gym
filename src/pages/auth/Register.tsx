@@ -51,7 +51,7 @@ export default function RegisterPage() {
       })
       const user = useAuthStore.getState().user
       if (user?.role === 'admin') navigate('/dashboard')
-      else if (user?.role === 'trainer') navigate('/trainer/panel')
+      else if (user?.role === 'trainer') navigate('/dashboard')
       else if (user?.role === 'member') navigate('/my-plan')
       else navigate('/')
     } catch (err: unknown) {

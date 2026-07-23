@@ -96,7 +96,7 @@ export function SettingsModal({ open, onClose }: Props) {
         <div className="h-px mx-6" style={{ background: 'var(--border)' }} />
 
         <div className="px-6 py-4 flex flex-col gap-0.5">
-          <button onClick={() => { onClose(); navigate(user?.role === 'admin' ? `/members/${user?.id}` : user?.role === 'trainer' ? '/trainer/profile' : '/my-profile') }}
+          <button onClick={() => { onClose(); navigate(user?.role === 'admin' ? `/members/${user?.id}` : '/my-profile') }}
             className="flex items-center gap-3 w-full px-3 py-[10px] rounded-sm bg-transparent border-none cursor-pointer font-sans transition-colors duration-150
               text-text-2 hover:bg-surface2 hover:text-text text-[13px]">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="text-text-3">

@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuthStore } from '@/store/auth.store';
 import { membershipsService, type MembershipListItem, type MembershipType } from '@/services/memberships.service';
 import { membersService, type MemberListItem } from '@/services/members.service';
 import { paymentsService } from '@/services/payments.service';
@@ -59,6 +60,8 @@ function toMember(item: MembershipListItem): Member {
 }
 
 export default function MembershipsPage() {
+  const user = useAuthStore((s) => s.user);
+  const isTrainer = user?.role === 'trainer';
   const [currentFilter, setCurrentFilter] = useState<'all' | MembershipStatus>('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [search, setSearch] = useState('');
@@ -327,9 +330,11 @@ export default function MembershipsPage() {
           <IconButton title="Editar" onClick={() => openEditModal(m)}>
             <IconEdit width="13" height="13" />
           </IconButton>
+          {!isTrainer && (
           <IconButton title="Eliminar" onClick={() => handleDelete(m)}>
             <IconTrash width="13" height="13" />
           </IconButton>
+          )}
         </div>
       ),
     },
@@ -471,9 +476,11 @@ export default function MembershipsPage() {
                     <IconButton title="Editar" onClick={() => openEditModal(m)}>
                       <IconEdit width="13" height="13" />
                     </IconButton>
+                    {!isTrainer && (
                     <IconButton title="Eliminar" onClick={() => handleDelete(m)}>
                       <IconTrash width="13" height="13" />
                     </IconButton>
+                    )}
                   </div>
                 </div>
               )}

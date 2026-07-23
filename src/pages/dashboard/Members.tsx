@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuthStore } from '@/store/auth.store';
 import { Button } from '@/components/ui/atoms/Button';
 import { Badge } from '@/components/ui/atoms/Badge';
 import { IconButton } from '@/components/ui/atoms/IconButton';
@@ -58,6 +59,8 @@ function toMember(item: MemberListItem): Member {
 
 export default function MembersPage() {
   const navigate = useNavigate();
+  const user = useAuthStore((s) => s.user);
+  const isTrainer = user?.role === 'trainer';
   const [members, setMembers] = useState<Member[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -557,6 +560,7 @@ export default function MembersPage() {
             </div>
           </div>
 
+          {!isTrainer && (
           <div className="flex flex-col gap-1.5">
             <label className="text-[11px] text-text-3 uppercase tracking-[0.06em] font-medium">Rol</label>
             <div className="grid grid-cols-3 gap-1.5">
@@ -592,6 +596,7 @@ export default function MembersPage() {
               })}
             </div>
           </div>
+          )}
 
           <div className="flex items-start gap-2.5 p-3 rounded-sm bg-surface2 border border-border text-[11px] text-text-3 leading-relaxed">
             <svg className="mt-0.5 shrink-0 text-accent" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -809,13 +814,19 @@ export default function MembersPage() {
                       ))}
                       <div className="flex flex-col gap-1.5 sm:col-span-2">
                         <label className="text-[10px] text-text-3 uppercase tracking-[0.06em] font-medium">Rol</label>
-                        <select value={dForm.role}
-                          onChange={(e) => setDForm((f) => ({ ...f, role: e.target.value }))}
-                          className="bg-surface border border-border text-text text-[14px] px-3 py-[9px] rounded-sm outline-none w-full font-sans focus:border-accent focus:ring-1 focus:ring-accent/40 transition-all">
-                          <option value="member">Miembro</option>
-                          <option value="trainer">Entrenador</option>
-                          <option value="admin">Admin</option>
-                        </select>
+                        {isTrainer ? (
+                          <div className="bg-surface2 border border-border text-text-2 text-[14px] px-3 py-[9px] rounded-sm w-full font-sans">
+                            {dForm.role === 'member' ? 'Miembro' : dForm.role === 'trainer' ? 'Entrenador' : 'Admin'}
+                          </div>
+                        ) : (
+                          <select value={dForm.role}
+                            onChange={(e) => setDForm((f) => ({ ...f, role: e.target.value }))}
+                            className="bg-surface border border-border text-text text-[14px] px-3 py-[9px] rounded-sm outline-none w-full font-sans focus:border-accent focus:ring-1 focus:ring-accent/40 transition-all">
+                            <option value="member">Miembro</option>
+                            <option value="trainer">Entrenador</option>
+                            <option value="admin">Admin</option>
+                          </select>
+                        )}
                       </div>
                     </div>
                   </div>

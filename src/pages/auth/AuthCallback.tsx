@@ -17,7 +17,7 @@ export default function AuthCallbackPage() {
       if (session?.user) {
         const profile = await authService.getProfile(session.user.id)
         if (profile?.role === 'admin') navigate('/dashboard', { replace: true })
-        else if (profile?.role === 'trainer') navigate('/trainer/panel', { replace: true })
+        else if (profile?.role === 'trainer') navigate('/dashboard', { replace: true })
         else if (profile?.role === 'member') navigate('/my-plan', { replace: true })
         else navigate('/', { replace: true })
       }
