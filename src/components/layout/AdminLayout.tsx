@@ -14,6 +14,7 @@ const adminNavItems: BottomNavItem[] = [
   { label: 'Miembros', href: '/members', icon: 'members' },
   { label: 'Membresías', href: '/memberships', icon: 'memberships' },
   { label: 'Pagos', href: '/payments', icon: 'payments' },
+  { label: 'Planes', href: '/training-plans', icon: 'plans' },
   { label: 'Ajustes', icon: 'settings', action: 'settings' },
 ]
 

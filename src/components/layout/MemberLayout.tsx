@@ -24,7 +24,7 @@ const navItems: NavItem[] = [
   { label: 'Mi plan', href: '/my-plan', icon: 'plan' },
   { label: 'Membresía', href: '/my-membership', icon: 'membership' },
   { label: 'Pagos', href: '/my-payments', icon: 'payment' },
-  { label: 'Asistencia', href: '/my-checkins', icon: 'checkin' },
+  ...(import.meta.env.DEV ? [{ label: 'Asistencia', href: '/my-checkins', icon: 'checkin' }] : []),
   { label: 'Perfil', href: '/my-profile', icon: 'profile' },
 ]
 
