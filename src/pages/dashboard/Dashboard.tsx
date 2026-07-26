@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { MetricCard } from '@/components/ui/atoms/MetricCard';
 import { Badge } from '@/components/ui/atoms/Badge';
 import { useAuthStore } from '@/store/auth.store';
+import { useCacheStore } from '@/store/cache.store';
 import { dashboardService, type RecentActivityItem, type PendingPaymentItem, type DashboardKPIs } from '@/services/dashboard.service';
 
 const AV_COLORS = [
@@ -55,21 +56,38 @@ export default function DashboardPage() {
   const [expiring, setExpiring] = useState<any[]>([]);
   const [activities, setActivities] = useState<RecentActivityItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const cache = useCacheStore();
 
   useEffect(() => {
     async function load() {
       setLoading(true);
       try {
-        const [k, pp, e, a] = await Promise.all([
-          dashboardService.getKPIs(),
-          dashboardService.getPendingPayments(),
-          dashboardService.getExpiringMemberships(7),
-          dashboardService.getRecentActivity(10),
-        ]);
-        setKpis(k);
-        setPendingPayments(pp);
-        setExpiring(e);
-        setActivities(a);
+        const cachedKpis = cache.get<DashboardKPIs>('dashboard_kpis');
+        const cachedPending = cache.get<PendingPaymentItem[]>('dashboard_pending');
+        const cachedExpiring = cache.get<any[]>('dashboard_expiring');
+        const cachedActivity = cache.get<RecentActivityItem[]>('dashboard_activity');
+
+        if (cachedKpis && cachedPending && cachedExpiring && cachedActivity) {
+          setKpis(cachedKpis);
+          setPendingPayments(cachedPending);
+          setExpiring(cachedExpiring);
+          setActivities(cachedActivity);
+        } else {
+          const [k, pp, e, a] = await Promise.all([
+            dashboardService.getKPIs(),
+            dashboardService.getPendingPayments(),
+            dashboardService.getExpiringMemberships(7),
+            dashboardService.getRecentActivity(10),
+          ]);
+          setKpis(k);
+          setPendingPayments(pp);
+          setExpiring(e);
+          setActivities(a);
+          cache.set('dashboard_kpis', k);
+          cache.set('dashboard_pending', pp);
+          cache.set('dashboard_expiring', e);
+          cache.set('dashboard_activity', a);
+        }
       } catch (err) {
         console.error(err);
       } finally {

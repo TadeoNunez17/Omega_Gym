@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuthStore } from '@/store/auth.store'
 import { trainingService, type TrainingPlan, type PlanExercise } from '@/services/training.service'
-import { workoutService, type WorkoutLog } from '@/services/workout.service'
+import { workoutService, type WorkoutLog, type SetInput } from '@/services/workout.service'
 import { exercisesService, type Exercise } from '@/services/exercises.service'
 
 const COMPLETION_MESSAGES = [
@@ -47,8 +47,11 @@ export default function MyPlanPage() {
   const [timerRunning, setTimerRunning] = useState(false)
   const [timerRemaining, setTimerRemaining] = useState(0)
   const timerRef = useRef<number | null>(null)
-  const debounceRef = useRef<Record<string, number>>({})
   const logsRef = useRef<LogMap>({})
+  const userRef = useRef(user)
+  const dirtyRef = useRef<Record<LogKey, SetInput>>({})
+  const flushTimerRef = useRef<number | null>(null)
+  const [isFlushing, setIsFlushing] = useState(false)
   const [lastSessionLogs, setLastSessionLogs] = useState<LogMap>({})
   const [completionMessage] = useState(() => COMPLETION_MESSAGES[Math.floor(Math.random() * COMPLETION_MESSAGES.length)])
   const [catalogMap, setCatalogMap] = useState<Map<string, Exercise>>(new Map())
@@ -126,36 +129,39 @@ export default function MyPlanPage() {
     return () => { ctrl.ignore = true }
   }, [user])
 
-  useEffect(() => {
-    return () => {
-      if (timerRef.current !== null) clearInterval(timerRef.current)
-      Object.values(debounceRef.current).forEach(id => clearTimeout(id))
+  const flushBatch = useCallback(async () => {
+    const keys = Object.keys(dirtyRef.current)
+    if (keys.length === 0) return
+    setIsFlushing(true)
+    const batchKeys = [...keys]
+    const inputs = batchKeys.map(k => dirtyRef.current[k])
+    try {
+      await workoutService.upsertBatch(userRef.current!.id, inputs)
+      for (const k of batchKeys) delete dirtyRef.current[k]
+      setSaving(prev => {
+        const next = { ...prev }
+        batchKeys.forEach(k => delete next[k])
+        return next
+      })
+    } catch (err) {
+      console.error('Error saving batch:', err)
+    } finally {
+      setIsFlushing(false)
     }
   }, [])
 
-  const scheduleSave = useCallback((exerciseId: string, setNumber: number, memberId: string, planId: string, partial: Partial<WorkoutLog>) => {
-    const key = mkKey(exerciseId, setNumber)
-    const existing = debounceRef.current[key]
-    if (existing) clearTimeout(existing)
-    debounceRef.current[key] = window.setTimeout(async () => {
-      setSaving(prev => ({ ...prev, [key]: true }))
-      try {
-        const current = logsRef.current[key]
-        await workoutService.upsertSet(memberId, {
-          plan_id: planId,
-          exercise_id: exerciseId,
-          set_number: setNumber,
-          weight: partial.weight ?? current?.weight ?? null,
-          reps: partial.reps ?? current?.reps ?? null,
-          completed: partial.completed ?? true,
-        })
-      } catch (err) {
-        console.error('Error saving set:', err)
-      } finally {
-        setSaving(prev => ({ ...prev, [key]: false }))
+  useEffect(() => {
+    flushTimerRef.current = window.setInterval(flushBatch, 3000)
+    return () => {
+      if (timerRef.current !== null) clearInterval(timerRef.current)
+      if (flushTimerRef.current !== null) clearInterval(flushTimerRef.current)
+      const keys = Object.keys(dirtyRef.current)
+      if (keys.length > 0 && userRef.current) {
+        const inputs = keys.map(k => dirtyRef.current[k])
+        workoutService.upsertBatch(userRef.current.id, inputs).catch(console.error)
       }
-    }, 500)
-  }, [])
+    }
+  }, [flushBatch])
 
   const updateLog = useCallback((exerciseId: string, setNumber: number, partial: Partial<WorkoutLog>) => {
     const key = mkKey(exerciseId, setNumber)
@@ -163,7 +169,7 @@ export default function MyPlanPage() {
       const existing = prev[key]
       const updated: WorkoutLog = {
         id: existing?.id ?? '',
-        member_id: existing?.member_id ?? user!.id,
+        member_id: existing?.member_id ?? userRef.current!.id,
         plan_id: existing?.plan_id ?? plan!.id,
         exercise_id: exerciseId,
         logged_date: existing?.logged_date ?? new Date().toISOString().split('T')[0],
@@ -176,10 +182,19 @@ export default function MyPlanPage() {
       }
       return { ...prev, [key]: updated }
     })
-    if (user && plan) {
-      scheduleSave(exerciseId, setNumber, user.id, plan.id, partial)
+    if (plan) {
+      const current = logsRef.current[key]
+      dirtyRef.current[key] = {
+        plan_id: plan.id,
+        exercise_id: exerciseId,
+        set_number: setNumber,
+        weight: partial.weight ?? current?.weight ?? null,
+        reps: partial.reps ?? current?.reps ?? null,
+        completed: partial.completed ?? current?.completed ?? true,
+      }
+      setSaving(prev => ({ ...prev, [key]: true }))
     }
-  }, [user, plan, scheduleSave])
+  }, [plan])
 
   const toggleTimer = useCallback((exerciseId: string, seconds: number) => {
     if (activeTimerId === exerciseId && timerRunning) {
@@ -219,6 +234,7 @@ export default function MyPlanPage() {
   }, [])
 
   logsRef.current = logs
+  userRef.current = user
 
   if (loading || !user) {
     return (
@@ -431,37 +447,58 @@ export default function MyPlanPage() {
                         </div>
                       </div>
 
-                      {/* Timer + First set row */}
-                      {(e.rest_seconds || setCount > 0) && (
-                        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mt-2.5">
-                          {/* Rest timer */}
-                          {e.rest_seconds && (
-                            <div className={`flex items-center gap-2 bg-surface2 border border-border rounded-lg px-3 py-2 shrink-0 self-center sm:self-auto ${
-                              isTimerActive && timerRunning ? 'timer-running' : ''
-                            }`}>
-                              <button onClick={() => toggleTimer(e.id, e.rest_seconds!)}
-                                className="bg-none border-none text-text-3 cursor-pointer flex items-center p-0 hover:text-accent transition-colors"
-                                title={isTimerActive && timerRunning ? 'Pausar' : 'Iniciar descanso'}>
-                                {isTimerActive && timerRunning ? (
-                                  <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
-                                ) : timerDone ? (
-                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>
-                                ) : (
-                                  <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-                                )}
-                              </button>
-                              <span className={`text-sm font-bold font-mono tabular-nums ${
-                                isTimerActive ? (timerRunning ? 'text-accent' : 'text-text-2') : 'text-text-2'
-                              } ${timerDone ? 'text-green-text' : ''}`}>
-                                {timerDone ? 'Listo!' : formatTime(isTimerActive ? timerRemaining : e.rest_seconds)}
-                              </span>
-                              <span className="text-[9px] text-text-3 uppercase tracking-wider font-semibold">Desc</span>
-                            </div>
+                      {/* Rest timer */}
+                      {e.rest_seconds && (
+                        <div className={`flex items-center gap-2 bg-surface2 border border-border rounded-lg px-3 py-2 shrink-0 self-start mt-2.5 ${
+                          isTimerActive && timerRunning ? 'timer-running' : ''
+                        }`}>
+                          <button onClick={() => toggleTimer(e.id, e.rest_seconds!)}
+                            className="bg-none border-none text-text-3 cursor-pointer flex items-center p-0 hover:text-accent transition-colors"
+                            title={isTimerActive && timerRunning ? 'Pausar' : 'Iniciar descanso'}>
+                            {isTimerActive && timerRunning ? (
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+                            ) : timerDone ? (
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>
+                            ) : (
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                            )}
+                          </button>
+                          <span className={`text-sm font-bold font-mono tabular-nums ${
+                            isTimerActive ? (timerRunning ? 'text-accent' : 'text-text-2') : 'text-text-2'
+                          } ${timerDone ? 'text-green-text' : ''}`}>
+                            {timerDone ? 'Listo!' : formatTime(isTimerActive ? timerRemaining : e.rest_seconds)}
+                          </span>
+                          <span className="text-[9px] text-text-3 uppercase tracking-wider font-semibold">Desc</span>
+                          {isTimerActive && (
+                            <button onClick={() => {
+                              if (timerRef.current !== null) { clearInterval(timerRef.current); timerRef.current = null; }
+                              setTimerRunning(false);
+                              setTimerRemaining(e.rest_seconds!);
+                            }}
+                              className="bg-none border-none text-text-3 cursor-pointer flex items-center p-0 hover:text-accent transition-colors"
+                              title="Reiniciar descanso">
+                              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+                            </button>
                           )}
+                          {isTimerActive && timerRemaining > 0 && (
+                            <button onClick={() => {
+                              if (timerRef.current !== null) { clearInterval(timerRef.current); timerRef.current = null; }
+                              setTimerRunning(false);
+                              setTimerRemaining(0);
+                            }}
+                              className="bg-none border-none text-text-3 cursor-pointer flex items-center p-0 hover:text-accent transition-colors"
+                              title="Saltar descanso">
+                              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg>
+                            </button>
+                          )}
+                        </div>
+                      )}
 
-                          {/* First set input */}
-                          {setCount > 0 && (() => {
-                            const setNum = 1
+                      {/* ALL sets */}
+                      {setCount > 0 && (
+                        <div className="flex flex-col gap-2 mt-3">
+                          {Array.from({ length: setCount }, (_, si) => {
+                            const setNum = si + 1
                             const key = mkKey(e.id, setNum)
                             const log = logs[key]
                             const isCompleted = log?.completed ?? false
@@ -469,56 +506,51 @@ export default function MyPlanPage() {
                             const weight = log?.weight
                             const reps = log?.reps
                             return (
-                              <div className={`flex items-center gap-1.5 rounded-lg px-2.5 py-2 border transition-all duration-150 flex-1 sm:max-w-[260px] ${
-                                isCompleted
-                                  ? 'bg-green/5 border-green/25'
-                                  : 'bg-surface2 border-border hover:border-border2'
-                              }`}>
-                                <span className={`text-[11px] font-bold w-4 shrink-0 ${isCompleted ? 'text-green-text' : 'text-text-3'}`}>
+                              <div key={setNum}
+                                className={`flex items-center gap-3 rounded-lg px-4 py-3 border transition-all duration-150 ${
+                                  isCompleted
+                                    ? 'bg-green/5 border-green/25'
+                                    : 'bg-surface2 border-border hover:border-border2'
+                                }`}>
+                                <span className={`text-sm font-bold w-6 shrink-0 ${isCompleted ? 'text-green-text' : 'text-text-2'}`}>
                                   {setNum}
                                 </span>
                                 <div className="relative flex-1 min-w-0">
-                                  <input
-                                    type="number"
-                                    inputMode="decimal"
-                                    placeholder="kg"
+                                  <input type="number" inputMode="decimal" placeholder="kg"
                                     value={weight ?? ''}
                                     onChange={ev => updateLog(e.id, setNum, { weight: ev.target.value === '' ? null : Number(ev.target.value) })}
-                                    className={`w-full bg-transparent border rounded-md px-1.5 py-0.5 text-[11px] font-mono font-semibold text-right outline-none transition-colors ${
+                                    className={`w-full bg-transparent border rounded-md px-3 py-1.5 text-sm font-mono font-semibold text-right outline-none transition-colors ${
                                       isCompleted ? 'border-green/20 text-green-text' : 'border-border text-text hover:border-text-3 focus:border-accent'
                                     } ${isSaving ? 'opacity-60' : ''}`}
                                   />
                                 </div>
                                 <div className="relative flex-1 min-w-0">
-                                  <input
-                                    type="number"
-                                    inputMode="numeric"
-                                    placeholder="rep"
+                                  <input type="number" inputMode="numeric" placeholder="rep"
                                     value={reps ?? ''}
                                     onChange={ev => updateLog(e.id, setNum, { reps: ev.target.value === '' ? null : Number(ev.target.value) })}
-                                    className={`w-full bg-transparent border rounded-md px-1.5 py-0.5 text-[11px] font-mono font-semibold text-right outline-none transition-colors ${
+                                    className={`w-full bg-transparent border rounded-md px-3 py-1.5 text-sm font-mono font-semibold text-right outline-none transition-colors ${
                                       isCompleted ? 'border-green/20 text-green-text' : 'border-border text-text hover:border-text-3 focus:border-accent'
                                     } ${isSaving ? 'opacity-60' : ''}`}
                                   />
                                 </div>
                                 <button onClick={() => updateLog(e.id, setNum, { completed: !isCompleted })}
-                                  className={`w-5 h-5 rounded-md flex items-center justify-center shrink-0 border cursor-pointer transition-all duration-150 ${
+                                  className={`w-7 h-7 rounded-md flex items-center justify-center shrink-0 border cursor-pointer transition-all duration-150 ${
                                     isCompleted
                                       ? 'bg-green border-green text-black'
                                       : 'bg-transparent border-border2 text-transparent hover:border-text-3'
                                   }`}>
                                   {isCompleted && (
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="w-3 h-3">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="w-3.5 h-3.5">
                                       <polyline points="20 6 9 17 4 12"/>
                                     </svg>
                                   )}
                                 </button>
                                 {isSaving && (
-                                  <div className="w-2.5 h-2.5 rounded-full border border-accent border-t-transparent animate-spin shrink-0" />
+                                  <div className="w-3 h-3 rounded-full border-2 border-accent border-t-transparent animate-spin shrink-0" />
                                 )}
                               </div>
                             )
-                          })()}
+                          })}
                         </div>
                       )}
 
@@ -589,80 +621,6 @@ export default function MyPlanPage() {
                           </a>
                         )}
 
-                        {/* Sets grid — starting from set #2 (set #1 is in collapsed view) */}
-                        {setCount > 1 && (
-                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-1.5 mt-4">
-                            {Array.from({ length: setCount - 1 }, (_, si) => {
-                              const setNum = si + 2
-                              const key = mkKey(e.id, setNum)
-                              const log = logs[key]
-                              const isCompleted = log?.completed ?? false
-                              const isSaving = saving[key]
-                              const weight = log?.weight
-                              const reps = log?.reps
-
-                              return (
-                                <div key={setNum}
-                                  className={`flex items-center gap-1.5 rounded-lg px-2.5 py-2 border transition-all duration-150 ${
-                                    isCompleted
-                                      ? 'bg-green/5 border-green/25'
-                                      : 'bg-surface2 border-border hover:border-border2'
-                                  }`}>
-                                  {/* Set number */}
-                                  <span className={`text-[11px] font-bold w-4 shrink-0 ${isCompleted ? 'text-green-text' : 'text-text-3'}`}>
-                                    {setNum}
-                                  </span>
-
-                                  {/* Weight input */}
-                                  <div className="relative flex-1 min-w-0">
-                                    <input
-                                      type="number"
-                                      inputMode="decimal"
-                                      placeholder="kg"
-                                      value={weight ?? ''}
-                                      onChange={ev => updateLog(e.id, setNum, { weight: ev.target.value === '' ? null : Number(ev.target.value) })}
-                                      className={`w-full bg-transparent border rounded-md px-1.5 py-0.5 text-[11px] font-mono font-semibold text-right outline-none transition-colors ${
-                                        isCompleted ? 'border-green/20 text-green-text' : 'border-border text-text hover:border-text-3 focus:border-accent'
-                                      } ${isSaving ? 'opacity-60' : ''}`}
-                                    />
-                                  </div>
-
-                                  {/* Reps input */}
-                                  <div className="relative flex-1 min-w-0">
-                                    <input
-                                      type="number"
-                                      inputMode="numeric"
-                                      placeholder="rep"
-                                      value={reps ?? ''}
-                                      onChange={ev => updateLog(e.id, setNum, { reps: ev.target.value === '' ? null : Number(ev.target.value) })}
-                                      className={`w-full bg-transparent border rounded-md px-1.5 py-0.5 text-[11px] font-mono font-semibold text-right outline-none transition-colors ${
-                                        isCompleted ? 'border-green/20 text-green-text' : 'border-border text-text hover:border-text-3 focus:border-accent'
-                                      } ${isSaving ? 'opacity-60' : ''}`}
-                                    />
-                                  </div>
-
-                                  {/* Checkbox */}
-                                  <button onClick={() => updateLog(e.id, setNum, { completed: !isCompleted })}
-                                    className={`w-5 h-5 rounded-md flex items-center justify-center shrink-0 border cursor-pointer transition-all duration-150 ${
-                                      isCompleted
-                                        ? 'bg-green border-green text-black'
-                                        : 'bg-transparent border-border2 text-transparent hover:border-text-3'
-                                    }`}>
-                                    {isCompleted && (
-                                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="w-3 h-3">
-                                        <polyline points="20 6 9 17 4 12"/>
-                                      </svg>
-                                    )}
-                                  </button>
-
-                                  {isSaving && (
-                                    <div className="w-2.5 h-2.5 rounded-full border border-accent border-t-transparent animate-spin shrink-0" />
-                                  )}
-                                </div>
-                              )
-                            })}
-                          </div>
-                        )}
                       </div>
                     </div>
                   </div>

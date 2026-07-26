@@ -82,6 +82,28 @@ export const workoutService = {
     return grouped[dates[0]] || []
   },
 
+  upsertBatch: async (memberId: string, inputs: SetInput[]): Promise<void> => {
+    if (inputs.length === 0) return
+    const today = new Date().toISOString().split('T')[0]
+    const rows = inputs.map(input => ({
+      member_id: memberId,
+      plan_id: input.plan_id,
+      exercise_id: input.exercise_id,
+      logged_date: today,
+      set_number: input.set_number,
+      weight: input.weight ?? null,
+      reps: input.reps ?? null,
+      completed: input.completed ?? true,
+      notes: input.notes ?? null,
+    }))
+    const { error } = await supabase
+      .from('workout_logs')
+      .upsert(rows, {
+        onConflict: 'member_id,exercise_id,logged_date,set_number',
+      })
+    if (error) throw error
+  },
+
   getHistory: async (memberId: string, exerciseId: string, days: number = 30): Promise<WorkoutLog[]> => {
     const from = new Date()
     from.setDate(from.getDate() - days)

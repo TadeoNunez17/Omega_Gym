@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/store/auth.store';
+import { useCacheStore } from '@/store/cache.store';
 import { membershipsService, type MembershipListItem, type MembershipType } from '@/services/memberships.service';
 import { membersService, type MemberListItem } from '@/services/members.service';
 import { paymentsService } from '@/services/payments.service';
@@ -77,6 +78,7 @@ export default function MembershipsPage() {
   const [startDate, setStartDate] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'card' | 'transfer' | 'pending' | ''>('');
   const [saving, setSaving] = useState(false);
+  const [memberPickerOpen, setMemberPickerOpen] = useState(false);
 
   const [editId, setEditId] = useState<string | null>(null);
   const [editTypeId, setEditTypeId] = useState('');
@@ -109,6 +111,8 @@ export default function MembershipsPage() {
     return () => { ctrl.cancelled = true }
   }, [previewTarget]);
 
+  const cache = useCacheStore();
+
   useEffect(() => {
     async function load() {
       setLoading(true);
@@ -116,8 +120,16 @@ export default function MembershipsPage() {
       try {
         const [result, mList, types] = await Promise.all([
           membershipsService.getAll({ pageSize: 300 }),
-          membersService.getAll({ pageSize: 200 }),
-          membershipsService.getTypes(),
+          (() => {
+            const cached = cache.get<MemberListItem[]>('member_list');
+            if (cached) return { data: cached, count: cached.length }
+            return membersService.getAll({ pageSize: 200 }).then(r => { cache.set('member_list', r.data); return r })
+          })(),
+          (() => {
+            const cached = cache.get<MembershipType[]>('membership_types');
+            if (cached) return cached
+            return membershipsService.getTypes().then(t => { cache.set('membership_types', t); return t })
+          })(),
         ]);
         setMembers(result.data.map(toMember));
         setMemberList(mList.data);
@@ -635,16 +647,34 @@ export default function MembershipsPage() {
             <>
               <div className="flex flex-col gap-1.5">
                 <label className="text-[12px] text-text-2 font-medium">Miembro *</label>
-                <select
-                  value={selMember}
-                  onChange={(e) => setSelMember(e.target.value)}
-                  className="bg-surface2 border border-border2 text-text text-[13px] px-3 py-[9px] rounded-sm outline-none w-full font-sans cursor-pointer"
-                >
-                  <option value="">Seleccionar miembro</option>
-                  {memberList.filter((m) => m.role === 'member' && !m.membership_type).map((m) => (
-                    <option key={m.id} value={m.id}>{m.full_name}</option>
-                  ))}
-                </select>
+                {selMember ? (
+                  <div className="flex items-center justify-between bg-surface2 border border-border2 rounded-sm px-3 py-[7px]">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-semibold shrink-0"
+                        style={{ background: AVATAR_COLORS[avatarIndex(selMember)].bg, color: AVATAR_COLORS[avatarIndex(selMember)].fg }}>
+                        {initials(memberList.find(m => m.id === selMember)?.full_name || '')}
+                      </div>
+                      <span className="text-[13px] font-medium text-text truncate">
+                        {memberList.find(m => m.id === selMember)?.full_name}
+                      </span>
+                    </div>
+                    <button type="button" onClick={() => setMemberPickerOpen(true)}
+                      className="text-[11px] font-semibold text-accent hover:underline shrink-0 ml-2 font-sans">
+                      Cambiar
+                    </button>
+                  </div>
+                ) : (
+                  <button type="button" onClick={() => setMemberPickerOpen(true)}
+                    className="flex items-center gap-2 w-full bg-surface2 border border-border2 text-text-3 text-[13px] px-3 py-[9px] rounded-sm hover:border-text-3 hover:text-text-2 transition-all duration-150 text-left font-sans cursor-pointer">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="shrink-0">
+                      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                      <circle cx="9" cy="7" r="4"/>
+                      <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                      <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                    </svg>
+                    Seleccionar miembro
+                  </button>
+                )}
               </div>
 
               {isVisita ? (
@@ -682,14 +712,6 @@ export default function MembershipsPage() {
                     </div>
                   )}
                 </>
-              )}
-
-              {selMember && (
-                <div className="text-[11px] text-text-3 bg-amber-bg border border-amber/20 rounded-sm p-2.5 leading-relaxed">
-                  {isVisita
-                    ? 'Se creará un pase de Visita con vencimiento hoy. El miembro podrá ingresar el día de hoy únicamente.'
-                    : 'La fecha de vencimiento se calcula automáticamente según la duración del tipo de membresía seleccionado.'}
-                </div>
               )}
 
               <div className="flex flex-col gap-2">
@@ -745,6 +767,57 @@ export default function MembershipsPage() {
           <Button variant="primary" onClick={guardarMembresia} disabled={!selMember || !selType || !startDate || saving}>
             {saving ? 'Guardando…' : 'Guardar membresía'}
           </Button>
+        </div>
+      </Modal>
+
+      <Modal open={memberPickerOpen} onClose={() => setMemberPickerOpen(false)} title="Seleccionar miembro" className="max-w-[400px]" compact icon={
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+          <circle cx="9" cy="7" r="4"/>
+          <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+          <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+        </svg>
+      }>
+        <div className="flex flex-col gap-3">
+          <div className="text-[12px] text-text-3">Elige el miembro para asignar esta membresía:</div>
+          <div className="flex flex-col max-h-[260px] overflow-y-auto" style={{ margin: '0 -24px', padding: '0 24px' }}>
+            {(() => {
+              const available = memberList.filter((m) => m.role === 'member' && !m.membership_type);
+              return available.length === 0 ? (
+                <div className="text-[12px] text-text-3 py-3">No hay miembros disponibles</div>
+              ) : available.map((m) => {
+                const isSelected = selMember === m.id;
+                const av = avatarIndex(m.id);
+                return (
+                  <div key={m.id} onClick={() => { setSelMember(m.id); setMemberPickerOpen(false); }}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 12,
+                      padding: '10px 0', cursor: 'pointer',
+                      borderBottom: '1px solid rgba(255,255,255,0.07)',
+                      background: isSelected ? 'rgba(232,93,93,0.12)' : 'transparent',
+                      transition: 'background 0.15s',
+                    }}>
+                    <div style={{
+                      width: 16, height: 16, borderRadius: 4,
+                      border: `1px solid ${isSelected ? '#e85d5d' : 'rgba(255,255,255,0.13)'}`,
+                      background: isSelected ? '#e85d5d' : 'transparent',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                    }}>
+                      {isSelected && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#000" strokeWidth="3"><polyline points="20 6 9 17 4 12" /></svg>}
+                    </div>
+                    <div className="w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-semibold shrink-0"
+                      style={{ background: AVATAR_COLORS[av].bg, color: AVATAR_COLORS[av].fg }}>
+                      {initials(m.full_name)}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="text-[13px] font-medium text-text truncate">{m.full_name}</div>
+                      {m.email && <div className="text-[11px] text-text-3 truncate">{m.email}</div>}
+                    </div>
+                  </div>
+                );
+              });
+            })()}
+          </div>
         </div>
       </Modal>
 

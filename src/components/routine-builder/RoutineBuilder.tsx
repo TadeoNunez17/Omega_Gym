@@ -66,6 +66,7 @@ export function RoutineBuilder({ open, onClose, onSave, editPlan }: Props) {
 
   const [exName, setExName] = useState('')
   const [exExerciseId, setExExerciseId] = useState<string | null>(null)
+  const [exMuscle, setExMuscle] = useState('')
   const [exSets, setExSets] = useState('')
   const [exReps, setExReps] = useState('')
   const [exRest, setExRest] = useState('')
@@ -76,6 +77,13 @@ export function RoutineBuilder({ open, onClose, onSave, editPlan }: Props) {
 
   const [saving, setSaving] = useState(false)
   const savingRef = useRef(false)
+
+  function handleNumericKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    const allowed = ['Backspace', 'Delete', 'Tab', 'ArrowLeft', 'ArrowRight', 'Home', 'End', '.']
+    if (allowed.includes(e.key)) return
+    if (e.key >= '0' && e.key <= '9') return
+    e.preventDefault()
+  }
 
   const exerciseValid = exName.trim() && exSets.trim() && exReps.trim()
 
@@ -126,6 +134,7 @@ export function RoutineBuilder({ open, onClose, onSave, editPlan }: Props) {
   function resetForm() {
     setExName('')
     setExExerciseId(null)
+    setExMuscle('')
     setExSets('')
     setExReps('')
     setExRest('')
@@ -143,9 +152,10 @@ export function RoutineBuilder({ open, onClose, onSave, editPlan }: Props) {
   function openEditForm(ex: LocalExercise) {
     setExName(ex.exercise_name)
     setExExerciseId(ex.exercise_id || null)
+    setExMuscle(ex.muscle ?? '')
     setExSets(ex.sets != null ? String(ex.sets) : '')
     setExReps(ex.reps != null ? String(ex.reps) : '')
-    setExRest(ex.rest_seconds != null ? String(ex.rest_seconds) : '')
+    setExRest(ex.rest_seconds != null ? String(Math.round(ex.rest_seconds / 60 * 10) / 10) : '')
     setExNotes(ex.notes ?? '')
     setExLink(ex.reference_link ?? '')
     setEditingId(ex._tempId)
@@ -163,10 +173,10 @@ export function RoutineBuilder({ open, onClose, onSave, editPlan }: Props) {
       _tempId: editingId || tempId(),
       exercise_id: exExerciseId || null,
       exercise_name: exName.trim(),
-      muscle: null,
+      muscle: exMuscle.trim() || null,
       sets: Number(exSets),
       reps: Number(exReps),
-      rest_seconds: exRest !== '' ? Number(exRest) : null,
+      rest_seconds: exRest !== '' ? Math.round(Number(exRest) * 60) : null,
       notes: exNotes.trim() || null,
       reference_link: normalizeUrl(exLink) || null,
       day: selectedDay,
@@ -402,7 +412,7 @@ export function RoutineBuilder({ open, onClose, onSave, editPlan }: Props) {
                         <div className="flex items-center gap-2 shrink-0 text-[10px] text-text-3 font-mono">
                           {ex.sets != null && <span>{ex.sets}s</span>}
                           {ex.reps != null && <span>{ex.reps}r</span>}
-                          {ex.rest_seconds != null && <span>{ex.rest_seconds}s</span>}
+                          {ex.rest_seconds != null && <span>{Math.round(ex.rest_seconds / 60 * 10) / 10}min</span>}
                         </div>
 
                         {/* Actions */}
@@ -447,20 +457,20 @@ export function RoutineBuilder({ open, onClose, onSave, editPlan }: Props) {
                       {/* Stats row */}
                       <div className="grid grid-cols-3 gap-2.5">
                         <div>
-                          <Input label="Series *" type="number" min="1" value={exSets} onChange={e => setExSets(e.target.value)} placeholder="3"
+                          <Input label="Series *" type="number" min="1" value={exSets} onChange={e => setExSets(e.target.value)} placeholder="3" onKeyDown={handleNumericKeyDown}
                             className={triedSubmit && !exSets.trim() ? 'border-red' : ''} />
                           {triedSubmit && !exSets.trim() && (
                             <span className="text-[9px] text-red-text mt-1 block">Requerido</span>
                           )}
                         </div>
                         <div>
-                          <Input label="Reps *" type="number" min="1" value={exReps} onChange={e => setExReps(e.target.value)} placeholder="12"
+                          <Input label="Reps *" type="number" min="1" value={exReps} onChange={e => setExReps(e.target.value)} placeholder="12" onKeyDown={handleNumericKeyDown}
                             className={triedSubmit && !exReps.trim() ? 'border-red' : ''} />
                           {triedSubmit && !exReps.trim() && (
                             <span className="text-[9px] text-red-text mt-1 block">Requerido</span>
                           )}
                         </div>
-                        <Input label="Descanso (s)" type="number" min="0" value={exRest} onChange={e => setExRest(e.target.value)} placeholder="60" />
+                         <Input label="Descanso (min)" type="number" min="0" step="0.5" value={exRest} onChange={e => setExRest(e.target.value)} placeholder="2" onKeyDown={handleNumericKeyDown} />
                       </div>
 
                       {/* Optional fields */}

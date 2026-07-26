@@ -12,6 +12,7 @@ import { IconEye, IconEdit } from '@/lib/icons';
 import { MetricCard } from '@/components/ui/atoms/MetricCard';
 import { initials, fmtDate, fmtMoney, fmtPhone, avatarIndex, AVATAR_COLORS } from '@/lib/helpers';
 import { paymentsService, type PaymentListItem } from '@/services/payments.service';
+import { useCacheStore } from '@/store/cache.store';
 import { Modal } from '@/components/ui/molecules/Modal';
 import { ResponsiveTable, type Column } from '@/components/ui/molecules/ResponsiveTable';
 import { toast } from 'sonner';
@@ -44,11 +45,14 @@ type FilterKey = 'all' | PaymentStatus;
 
 export default function PaymentsPage() {
   const [payments, setPayments] = useState<Payment[]>([]);
+  const [count, setCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentFilter, setCurrentFilter] = useState<FilterKey>('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [search, setSearch] = useState('');
+  const [searchInput, setSearchInput] = useState('');
+  const [monthRevenue, setMonthRevenue] = useState({ collected: 0, pending: 0 });
 
   const [memberList, setMemberList] = useState<MemberListItem[]>([]);
   const [receiptTarget, setReceiptTarget] = useState<Payment | null>(null);
@@ -58,6 +62,8 @@ export default function PaymentsPage() {
   const [editTarget, setEditTarget] = useState<Payment | null>(null);
   const [editStatus, setEditStatus] = useState<PaymentStatus>('paid');
   const [editSaving, setEditSaving] = useState(false);
+
+  const cache = useCacheStore();
 
   const today = new Date();
   const [viewYear, setViewYear] = useState(today.getFullYear());
@@ -74,6 +80,14 @@ export default function PaymentsPage() {
     new Date(viewYear, viewMonth).toLocaleDateString('es-MX', { month: 'long', year: 'numeric' }),
   [viewYear, viewMonth]);
 
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setSearch(searchInput)
+      setCurrentPage(1)
+    }, 400)
+    return () => clearTimeout(t)
+  }, [searchInput])
+
   const navigate = useNavigate();
 
   const handleEditSave = useCallback(async () => {
@@ -82,7 +96,14 @@ export default function PaymentsPage() {
     try {
       await paymentsService.update(editTarget.id, { status: editStatus });
       setEditTarget(null);
-      const result = await paymentsService.getAll({ pageSize: 200, dateFrom: monthRange.monthStart, dateTo: monthRange.monthEnd });
+      const result = await paymentsService.getAll({
+        page: currentPage,
+        pageSize: ROWS_PER_PAGE,
+        status: currentFilter !== 'all' ? currentFilter : undefined,
+        search: search || undefined,
+        dateFrom: monthRange.monthStart,
+        dateTo: monthRange.monthEnd,
+      });
       setPayments(result.data.map((p): Payment => ({
         id: p.id,
         member_id: p.member_id,
@@ -97,13 +118,14 @@ export default function PaymentsPage() {
         membership_id: '',
         av: avatarIndex(p.id),
       })));
+      setCount(result.count);
       toast.success('Estado actualizado correctamente');
     } catch (e: any) {
       toast.error('Error al actualizar: ' + e.message);
     } finally {
       setEditSaving(false);
     }
-  }, [editTarget, editStatus, monthRange]);
+  }, [editTarget, editStatus, monthRange, currentPage, currentFilter, search]);
 
   useEffect(() => {
     if (!previewTarget) { setPreviewMember(null); return; }
@@ -119,9 +141,24 @@ export default function PaymentsPage() {
       setLoading(true);
       setError(null);
       try {
-        const [result, mList] = await Promise.all([
-          paymentsService.getAll({ pageSize: 200, dateFrom: monthRange.monthStart, dateTo: monthRange.monthEnd }),
-          membersService.getAll({ pageSize: 200 }),
+        const [result, mList, rev] = await Promise.all([
+          paymentsService.getAll({
+            page: currentPage,
+            pageSize: ROWS_PER_PAGE,
+            status: currentFilter !== 'all' ? currentFilter : undefined,
+            search: search || undefined,
+            dateFrom: monthRange.monthStart,
+            dateTo: monthRange.monthEnd,
+          }),
+          (() => {
+            const cached = cache.get<MemberListItem[]>('member_list')
+            if (cached) return { data: cached }
+            return membersService.getAll({ pageSize: 200 }).then(r => {
+              cache.set('member_list', r.data)
+              return r
+            })
+          })(),
+          paymentsService.getRevenueInRange(monthRange.monthStart, monthRange.monthEnd),
         ]);
         setPayments(result.data.map((p): Payment => ({
           id: p.id,
@@ -137,7 +174,9 @@ export default function PaymentsPage() {
           membership_id: '',
           av: avatarIndex(p.id),
         })));
+        setCount(result.count);
         setMemberList(mList.data);
+        setMonthRevenue(rev);
       } catch (e: any) {
         setError(e.message);
       } finally {
@@ -145,26 +184,9 @@ export default function PaymentsPage() {
       }
     }
     load();
-  }, [monthRange]);
+  }, [monthRange, currentPage, currentFilter, search]);
 
-  const filtered = useMemo(() => {
-    const q = search.toLowerCase();
-    return payments.filter((p) => {
-      if (currentFilter !== 'all' && p.status !== currentFilter) return false;
-      if (q && !p.member.toLowerCase().includes(q) && !p.concept.toLowerCase().includes(q) && !p.email.toLowerCase().includes(q)) return false;
-      return true;
-    });
-  }, [currentFilter, search, payments]);
-
-  const totalPages = Math.max(1, Math.ceil(filtered.length / ROWS_PER_PAGE));
-  const safePage = Math.min(currentPage, totalPages);
-  const start = (safePage - 1) * ROWS_PER_PAGE;
-  const rows = filtered.slice(start, start + ROWS_PER_PAGE);
-
-  const revenue = useMemo(() => ({
-    total_collected: payments.reduce((s, p) => p.status === 'paid' ? s + p.amount : s, 0),
-    total_pending: payments.reduce((s, p) => p.status === 'pending' ? s + p.amount : s, 0),
-  }), [payments]);
+  const totalPages = Math.max(1, Math.ceil(count / ROWS_PER_PAGE));
 
   const filters = [
     { key: 'all' as FilterKey, label: 'Todos' },
@@ -277,12 +299,12 @@ export default function PaymentsPage() {
           <div className="animate-slide-up stagger-1">
             <MetricCard icon={
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-full h-full"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18" /><polyline points="17 6 23 6 23 12" /></svg>
-            } color="green" value={fmtMoney(revenue.total_collected)} label="Recaudado" delta={`Recaudado en ${monthLabel}`} deltaType="up" />
+            } color="green" value={fmtMoney(monthRevenue.collected)} label="Recaudado" delta={`Recaudado en ${monthLabel}`} deltaType="up" />
           </div>
           <div className="animate-slide-up stagger-2">
             <MetricCard icon={
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-full h-full"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></svg>
-            } color="amber" value={fmtMoney(revenue.total_pending)} label="Pendiente" delta={`Pendiente en ${monthLabel}`} deltaType="down" />
+            } color="amber" value={fmtMoney(monthRevenue.pending)} label="Pendiente" delta={`Pendiente en ${monthLabel}`} deltaType="down" />
           </div>
         </div>
 
@@ -306,7 +328,7 @@ export default function PaymentsPage() {
         </div>
 
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 mb-4">
-          <SearchInput value={search} onChange={(v) => { setSearch(v); setCurrentPage(1); }} placeholder="Buscar miembro, concepto o email..." />
+          <SearchInput value={searchInput} onChange={setSearchInput} placeholder="Buscar miembro, concepto o email..." />
           <TabBar tabs={filters} active={currentFilter} onChange={(k) => { setCurrentFilter(k as FilterKey); setCurrentPage(1); }} />
         </div>
 
@@ -331,7 +353,7 @@ export default function PaymentsPage() {
             </div>
             <ResponsiveTable
               columns={paymentColumns}
-              data={rows}
+              data={payments}
               keyExtractor={(p) => p.id}
               cardTitle={(p) => p.member}
               cardSubtitle={(p) => p.email}
@@ -381,11 +403,11 @@ export default function PaymentsPage() {
             />
 
             <Pagination
-              current={safePage}
+              current={currentPage}
               total={totalPages}
-              start={start}
-              end={Math.min(start + ROWS_PER_PAGE, filtered.length)}
-              totalItems={filtered.length}
+              start={(currentPage - 1) * ROWS_PER_PAGE + 1}
+              end={Math.min(currentPage * ROWS_PER_PAGE, count)}
+              totalItems={count}
               label="pagos"
               onChange={setCurrentPage}
             />

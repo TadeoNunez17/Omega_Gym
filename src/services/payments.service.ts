@@ -1,5 +1,9 @@
 import { supabase } from '@/lib/supabase'
 
+function escapeSearch(s: string): string {
+  return s.replace(/[%_\\]/g, '\\$&')
+}
+
 export interface Payment {
   id: string
   membership_id: string
@@ -44,6 +48,24 @@ export interface RevenueSummary {
 
 export const paymentsService = {
   getAll: async (filters?: PaymentFilters): Promise<{ data: PaymentListItem[]; count: number }> => {
+    let membershipFilter: string[] | null = null
+
+    if (filters?.search) {
+      const escaped = escapeSearch(filters.search)
+      const { data: matchingMembers } = await supabase
+        .from('profiles')
+        .select('id')
+        .or(`full_name.ilike.%${escaped}%,email.ilike.%${escaped}%`)
+      const memberIds = (matchingMembers || []).map(m => m.id)
+      if (memberIds.length === 0) return { data: [], count: 0 }
+      const { data: matchingMemberships } = await supabase
+        .from('memberships')
+        .select('id')
+        .in('member_id', memberIds)
+      membershipFilter = (matchingMemberships || []).map(m => m.id)
+      if (membershipFilter.length === 0) return { data: [], count: 0 }
+    }
+
     let query = supabase
       .from('payments')
       .select(`
@@ -54,6 +76,10 @@ export const paymentsService = {
           membership_types(name, price)
         )
       `, { count: 'exact' })
+
+    if (membershipFilter) {
+      query = query.in('membership_id', membershipFilter)
+    }
 
     if (filters?.status) {
       query = query.eq('status', filters.status)
@@ -71,8 +97,9 @@ export const paymentsService = {
       query = query.lte('payment_date', filters.dateTo)
     }
 
-    const from = ((filters?.page ?? 1) - 1) * (filters?.pageSize ?? 20)
-    const to = from + (filters?.pageSize ?? 20) - 1
+    const pageSize = filters?.pageSize ?? 20
+    const from = ((filters?.page ?? 1) - 1) * pageSize
+    const to = from + pageSize - 1
 
     const { data, error, count } = await query
       .order('payment_date', { ascending: false })
@@ -97,6 +124,29 @@ export const paymentsService = {
         }
       }),
       count: count ?? 0,
+    }
+  },
+
+  getRevenueInRange: async (dateFrom: string, dateTo: string): Promise<{ collected: number; pending: number }> => {
+    const [paid, pending] = await Promise.all([
+      supabase
+        .from('payments')
+        .select('amount')
+        .eq('status', 'paid')
+        .gte('payment_date', dateFrom)
+        .lte('payment_date', dateTo),
+      supabase
+        .from('payments')
+        .select('amount')
+        .eq('status', 'pending')
+        .gte('payment_date', dateFrom)
+        .lte('payment_date', dateTo),
+    ])
+    const sum = (arr: any[] | null) =>
+      (arr || []).reduce((acc: number, p: any) => acc + Number(p.amount), 0)
+    return {
+      collected: sum(paid.data),
+      pending: sum(pending.data),
     }
   },
 
