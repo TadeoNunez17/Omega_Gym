@@ -139,6 +139,39 @@ No se agregaron dependencias nuevas. Todo usa:
 
 ## 10. Proximo paso sugerido
 
-- Agregar mas ejercicios al catalogo (actualmente 50 de 1,324 disponibles)
 - Filtro por nivel de dificultad
 - Busqueda por musculo secundario
+
+---
+
+## ACTUALIZACION 2026-08-03: Catalogo Completo (1,324)
+
+### Resumen
+
+Se completo la migracion de los 1,274 ejercicios restantes del dataset (total: 1,324). No se requiere ningun cambio de codigo: `exercisesService.getAll`/`getByIds` y la UI (ExercisePicker, MyPlan, TrainingPlans) funcionan contra la misma tabla `exercises`.
+
+### BD
+
+- **Seed**: `data/seed/009_exercises_full_seed.sql` — 1,274 filas `ON CONFLICT (external_id) DO NOTHING`
+- **Migracion espejo**: `supabase/migrations/20260803000002_seed_exercises_full.sql`
+- **Insercion**: via Supabase Management API en chunks de 40 filas con pausa de 2s entre requests (evita `ThrottlerException`), con reintentos en backoff
+- **Total final**: 1,324 filas; todos con `gif_url`, `image_url` e `instructions_es`
+
+### Media
+
+- 1,324 GIFs en `public/exercises/gifs/`
+- 1,324 thumbnails en `public/exercises/images/`
+- Descargada con 12 concurrencia y 3 reintentos, sin fallos (~131 MB)
+
+### Datos nuevos vs iniciales
+
+| Campo | 50 iniciales | 1,274 nuevos |
+|-------|-------------|--------------|
+| `name_es` | traducido | NULL (fallback UI a ingles) |
+| `instructions_es` | traducido | `instructions.es` del dataset |
+| `muscle_group` | espanol | ingles del dataset |
+| `gif_url`/`image_url` | relativa | relativa |
+
+### Leccion: comas dobles al re-empaquetar seed
+
+Al reconstruir statements a partir de un archivo de seed multi-fila, cada fila del archivo termina en `,` (separador inter-fila). Un `join(',\n')` sin limpiar produce `),,` y `syntax error at or near ","`. Solucion: `.map(l => l.trim().replace(/,$/, ''))` antes de re-unir.

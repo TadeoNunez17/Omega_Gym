@@ -10,7 +10,6 @@ export interface TrainingPlan {
   description: string | null
   assigned_to: string | null
   created_by: string
-  is_template: boolean
   created_at: string
   updated_at: string
 }
@@ -169,7 +168,6 @@ export const trainingService = {
   create: async (input: {
     name: string
     description?: string
-    is_template?: boolean
     created_by: string
     assigned_to?: string
   }) => {
@@ -178,7 +176,6 @@ export const trainingService = {
       .insert({
         name: input.name,
         description: input.description || null,
-        is_template: input.is_template ?? false,
         created_by: input.created_by,
         assigned_to: input.assigned_to || null,
       })
@@ -187,35 +184,6 @@ export const trainingService = {
 
     if (error) throw error
     return data as TrainingPlan
-  },
-
-  getTemplates: async (): Promise<PlanListItem[]> => {
-    const { data, error } = await supabase
-      .from('training_plans')
-      .select(`
-        *,
-        creator:profiles!training_plans_created_by_fkey(full_name),
-        plan_exercises(count)
-      `)
-      .eq('is_template', true)
-      .order('name')
-
-    if (error) throw error
-
-    return (data || []).map((p: any): PlanListItem => ({
-      id: p.id,
-      name: p.name,
-      description: p.description,
-      type: 'draft',
-      trainer_name: p.creator?.full_name ?? '—',
-      member_name: null,
-      member_names: [],
-      member_count: 0,
-      assigned_to: null,
-      exercise_count: p.plan_exercises?.[0]?.count ?? 0,
-      days: 0,
-      created_at: p.created_at,
-    }))
   },
 
   delete: async (id: string): Promise<void> => {
@@ -263,7 +231,6 @@ export const trainingService = {
       .insert({
         name: plan.name + ' (copia)',
         description: plan.description,
-        is_template: plan.is_template,
         created_by: plan.created_by,
         assigned_to: null,
       })

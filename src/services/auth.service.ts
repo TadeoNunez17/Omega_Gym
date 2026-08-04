@@ -68,6 +68,21 @@ export const authService = {
     if (error) throw error
     return data as Profile | null
   },
+
+  updateProfile: async (userId: string, updates: {
+    full_name: string
+    phone: string | null
+    alias: string | null
+  }) => {
+    const { data, error } = await supabase
+      .from('profiles')
+      .update(updates)
+      .eq('auth_user_id', userId)
+      .select()
+      .single()
+    if (error) throw error
+    return data as Profile
+  },
 }
 
 export interface Profile {

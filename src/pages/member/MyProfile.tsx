@@ -15,6 +15,8 @@ const staggerClass = (i: number) => {
   return map[i] || ''
 }
 
+const SHOW_DELETE_ACCOUNT = false
+
 function IconMember() {
   return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
 }
@@ -32,6 +34,12 @@ export default function MyProfilePage() {
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [confirmName, setConfirmName] = useState('')
   const [deleting, setDeleting] = useState(false)
+
+  const [editOpen, setEditOpen] = useState(false)
+  const [editName, setEditName] = useState('')
+  const [editPhone, setEditPhone] = useState('')
+  const [editAlias, setEditAlias] = useState('')
+  const [editSaving, setEditSaving] = useState(false)
 
   useEffect(() => {
     if (!user) return
@@ -94,6 +102,49 @@ export default function MyProfilePage() {
     }
   }
 
+  const openEdit = () => {
+    setEditName(user.full_name)
+    setEditPhone(user.phone || '')
+    setEditAlias(user.alias || '')
+    setEditOpen(true)
+  }
+
+  const handleSaveProfile = async () => {
+    if (!editName.trim()) {
+      toast.error('El nombre es obligatorio')
+      return
+    }
+    if (editPhone.trim() && !isValidPhone(editPhone)) {
+      toast.error('Ingresa un teléfono válido de 10 dígitos')
+      return
+    }
+    setEditSaving(true)
+    try {
+      await useAuthStore.getState().updateProfile({
+        full_name: editName.trim(),
+        phone: editPhone.replace(/[\s\-()]/g, '') || null,
+        alias: editAlias.trim() || null,
+      })
+      toast.success('Perfil actualizado')
+      setEditOpen(false)
+    } catch (err: any) {
+      toast.error(err.message || 'Error al actualizar el perfil')
+    } finally {
+      setEditSaving(false)
+    }
+  }
+
+  function formatPhone(v: string) {
+    const d = v.replace(/\D/g, '').slice(0, 10)
+    if (d.length <= 3) return d
+    if (d.length <= 6) return `${d.slice(0, 3)}-${d.slice(3)}`
+    return `${d.slice(0, 3)}-${d.slice(3, 6)}-${d.slice(6)}`
+  }
+
+  function isValidPhone(v: string) {
+    return /^\d{10}$/.test(v.replace(/[\s\-()]/g, ''))
+  }
+
   const nameMatches = confirmName.trim() === user.full_name
 
   return (<>
@@ -123,6 +174,14 @@ export default function MyProfilePage() {
             <Badge variant="green" dot>{membership.membership_types?.name || 'Activo'}</Badge>
           )}
         </div>
+        <button onClick={openEdit}
+          className="mt-4 inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-[12px] font-semibold cursor-pointer transition-all duration-150"
+          style={{ background: 'rgba(59,130,246,0.1)', color: '#60a5fa', border: '1px solid rgba(59,130,246,0.25)' }}>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/>
+          </svg>
+          Editar
+        </button>
       </div>
 
       <div className={`grid grid-cols-2 gap-2.5 mt-4 animate-slide-up ${staggerClass(2)}`}>
@@ -181,16 +240,18 @@ export default function MyProfilePage() {
         </button>
       </div>
 
-      <div className={`mt-3 animate-slide-up ${staggerClass(5)}`}>
-        <button onClick={() => setShowDeleteModal(true)}
-          className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-[13px] font-medium cursor-pointer transition-all duration-150"
-          style={{ background: 'rgba(220,38,38,0.06)', color: 'rgba(248,113,113,0.7)', border: '1px solid rgba(220,38,38,0.12)' }}>
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-            <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
-          </svg>
-          Eliminar cuenta
-        </button>
-      </div>
+      {SHOW_DELETE_ACCOUNT && (
+        <div className={`mt-3 animate-slide-up ${staggerClass(5)}`}>
+          <button onClick={() => setShowDeleteModal(true)}
+            className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-[13px] font-medium cursor-pointer transition-all duration-150"
+            style={{ background: 'rgba(220,38,38,0.06)', color: 'rgba(248,113,113,0.7)', border: '1px solid rgba(220,38,38,0.12)' }}>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+            </svg>
+            Eliminar cuenta
+          </button>
+        </div>
+      )}
     </div>
 
     <Modal
@@ -245,6 +306,87 @@ export default function MyProfilePage() {
         }}>
         {deleting ? 'Eliminando...' : 'Eliminar mi cuenta'}
       </button>
+    </Modal>
+
+    <Modal
+      open={editOpen}
+      onClose={() => { if (!editSaving) setEditOpen(false) }}
+      title="Editar perfil"
+      compact
+      icon={
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--accent)' }}>
+          <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/>
+        </svg>
+      }
+    >
+      <div className="flex flex-col gap-4">
+        <div>
+          <label className="text-[11px] text-text-3 font-semibold mb-1.5 block">Nombre completo</label>
+          <input
+            type="text"
+            value={editName}
+            onChange={e => setEditName(e.target.value)}
+            disabled={editSaving}
+            className="w-full bg-transparent border border-border rounded-lg px-4 py-3 text-sm font-medium text-text-1 outline-none transition-all duration-150 placeholder:text-text-4 disabled:opacity-40 focus:border-accent"
+          />
+        </div>
+
+        <div>
+          <label className="text-[11px] text-text-3 font-semibold mb-1.5 block">Teléfono</label>
+          <input
+            type="text"
+            inputMode="numeric"
+            value={editPhone}
+            onChange={e => setEditPhone(formatPhone(e.target.value))}
+            disabled={editSaving}
+            placeholder="10 dígitos"
+            className="w-full bg-transparent border border-border rounded-lg px-4 py-3 text-sm font-medium text-text-1 outline-none transition-all duration-150 placeholder:text-text-4 disabled:opacity-40 focus:border-accent"
+          />
+        </div>
+
+        <div>
+          <label className="text-[11px] text-text-3 font-semibold mb-1.5 block">Alias <span className="font-normal normal-case">(opcional)</span></label>
+          <input
+            type="text"
+            value={editAlias}
+            onChange={e => setEditAlias(e.target.value)}
+            disabled={editSaving}
+            className="w-full bg-transparent border border-border rounded-lg px-4 py-3 text-sm font-medium text-text-1 outline-none transition-all duration-150 placeholder:text-text-4 disabled:opacity-40 focus:border-accent"
+          />
+        </div>
+
+        <div>
+          <label className="text-[11px] text-text-3 font-semibold mb-1.5 block">Email</label>
+          <input
+            type="email"
+            value={user.email || ''}
+            disabled
+            className="w-full bg-surface2 border border-border rounded-lg px-4 py-3 text-sm font-medium text-text-3 outline-none disabled:opacity-60"
+          />
+          <p className="text-[11px] text-text-4 mt-1.5">El correo no se puede editar desde aquí.</p>
+        </div>
+
+        <div className="h-px bg-border" />
+
+        <div className="flex gap-2.5">
+          <button
+            onClick={() => setEditOpen(false)}
+            disabled={editSaving}
+            className="flex-1 py-3 rounded-xl text-[13px] font-semibold cursor-pointer transition-all duration-150 disabled:opacity-40"
+            style={{ background: 'var(--surface2)', color: 'var(--text-2)', border: '1px solid var(--border)' }}
+          >
+            Cancelar
+          </button>
+          <button
+            onClick={handleSaveProfile}
+            disabled={editSaving}
+            className="flex-1 py-3 rounded-xl text-[13px] font-bold cursor-pointer transition-all duration-150 disabled:opacity-40"
+            style={{ background: 'var(--accent)', color: '#000' }}
+          >
+            {editSaving ? 'Guardando...' : 'Guardar'}
+          </button>
+        </div>
+      </div>
     </Modal>
     </>
   )

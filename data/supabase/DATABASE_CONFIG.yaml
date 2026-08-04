@@ -16,9 +16,9 @@ mcp:
 
 model_status:
   overall: active
-  last_reviewed: 2026-07-04
+  last_reviewed: 2026-08-03
   approved_by: "admin"
-  notes: "Schema aplicado y en producción. Migración 005: RLS en training_plans y plan_exercises ahora cubre plan_assignments. Migración 006: fix RLS en plan_assignments (member_id IN profiles WHERE auth_user_id = auth.uid() en vez de member_id = auth.uid()). Migración 007: tabla workout_logs para registro de series completadas por miembros."
+  notes: "Schema aplicado y en producción. Migración 009: cleanup — Drop tabla workout_logs (sin uso), Drop columna is_template de training_plans, borrado de plan de prueba 'si' y tips inactivos 'Anual'/'Trimestral'. Migración 010: catálogo de ejercicios completo — 1,324 filas en exercises (seed 009), media en public/exercises/ (~131 MB). Migración 010 (seed 010): 5 planes famosos (Push/Pull/Legs, Upper/Lower, Full Body, Bro Split, StrongLifts 5x5) con 90 ejercicios enlazados al catálogo; planes de prueba borrados. Migración 011 (seed 011): 3 rutinas de mujer (Strong Curves, Glute Focus, Thinner Leaner Stronger) con 58 ejercicios enlazados. Total: 8 planes, 148 ejercicios, 0 asignaciones."
 
 tables:
   - name: profiles
@@ -42,10 +42,10 @@ tables:
   - name: plan_assignments
     status: active
     rls_enabled: true
-  - name: workout_logs
+  - name: check_ins
     status: active
     rls_enabled: true
-  - name: check_ins
+  - name: exercises
     status: active
     rls_enabled: true
 

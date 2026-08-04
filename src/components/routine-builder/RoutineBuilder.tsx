@@ -69,7 +69,6 @@ export function RoutineBuilder({ open, onClose, onSave, editPlan }: Props) {
   const [exMuscle, setExMuscle] = useState('')
   const [exSets, setExSets] = useState('')
   const [exReps, setExReps] = useState('')
-  const [exRest, setExRest] = useState('')
   const [exNotes, setExNotes] = useState('')
   const [exLink, setExLink] = useState('')
 
@@ -135,9 +134,8 @@ export function RoutineBuilder({ open, onClose, onSave, editPlan }: Props) {
     setExName('')
     setExExerciseId(null)
     setExMuscle('')
-    setExSets('')
-    setExReps('')
-    setExRest('')
+    setExSets('3')
+    setExReps('12')
     setExNotes('')
     setExLink('')
     setEditingId(null)
@@ -153,9 +151,8 @@ export function RoutineBuilder({ open, onClose, onSave, editPlan }: Props) {
     setExName(ex.exercise_name)
     setExExerciseId(ex.exercise_id || null)
     setExMuscle(ex.muscle ?? '')
-    setExSets(ex.sets != null ? String(ex.sets) : '')
-    setExReps(ex.reps != null ? String(ex.reps) : '')
-    setExRest(ex.rest_seconds != null ? String(Math.round(ex.rest_seconds / 60 * 10) / 10) : '')
+    setExSets(ex.sets != null ? String(ex.sets) : '3')
+    setExReps(ex.reps != null ? String(ex.reps) : '12')
     setExNotes(ex.notes ?? '')
     setExLink(ex.reference_link ?? '')
     setEditingId(ex._tempId)
@@ -176,7 +173,7 @@ export function RoutineBuilder({ open, onClose, onSave, editPlan }: Props) {
       muscle: exMuscle.trim() || null,
       sets: Number(exSets),
       reps: Number(exReps),
-      rest_seconds: exRest !== '' ? Math.round(Number(exRest) * 60) : null,
+      rest_seconds: null,
       notes: exNotes.trim() || null,
       reference_link: normalizeUrl(exLink) || null,
       day: selectedDay,
@@ -412,7 +409,6 @@ export function RoutineBuilder({ open, onClose, onSave, editPlan }: Props) {
                         <div className="flex items-center gap-2 shrink-0 text-[10px] text-text-3 font-mono">
                           {ex.sets != null && <span>{ex.sets}s</span>}
                           {ex.reps != null && <span>{ex.reps}r</span>}
-                          {ex.rest_seconds != null && <span>{Math.round(ex.rest_seconds / 60 * 10) / 10}min</span>}
                         </div>
 
                         {/* Actions */}
@@ -455,7 +451,7 @@ export function RoutineBuilder({ open, onClose, onSave, editPlan }: Props) {
                       />
 
                       {/* Stats row */}
-                      <div className="grid grid-cols-3 gap-2.5">
+                      <div className="grid grid-cols-2 gap-2.5">
                         <div>
                           <Input label="Series *" type="number" min="1" value={exSets} onChange={e => setExSets(e.target.value)} placeholder="3" onKeyDown={handleNumericKeyDown}
                             className={triedSubmit && !exSets.trim() ? 'border-red' : ''} />
@@ -470,7 +466,6 @@ export function RoutineBuilder({ open, onClose, onSave, editPlan }: Props) {
                             <span className="text-[9px] text-red-text mt-1 block">Requerido</span>
                           )}
                         </div>
-                         <Input label="Descanso (min)" type="number" min="0" step="0.5" value={exRest} onChange={e => setExRest(e.target.value)} placeholder="2" onKeyDown={handleNumericKeyDown} />
                       </div>
 
                       {/* Optional fields */}

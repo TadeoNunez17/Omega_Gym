@@ -94,6 +94,44 @@
 
 ---
 
+## ACTUALIZACION 2026-08-03: Catalogo Completo (1,324)
+
+Meses despues del seed inicial, se migro el catalogo completo del dataset.
+
+- **Total integrado**: 1,324 de 1,324 (100%)
+- **Fuente**: mismo dataset `hasaneyldrm/exercises-dataset`
+- **Media**: 1,324 GIFs + 1,324 thumbnails en `public/exercises/` (~131 MB)
+- **Seed**: `data/seed/009_exercises_full_seed.sql` (1,274 filas nuevas vía ON CONFLICT)
+- **Migracion espejo**: `supabase/migrations/20260803000002_seed_exercises_full.sql`
+
+### Distribucion por Categoria (final)
+
+| Categoria | Cantidad |
+|-----------|----------|
+| Brazo | 292 |
+| Pierna | 227 |
+| Espalda | 203 |
+| Core | 169 |
+| Pecho | 163 |
+| Hombro | 143 |
+| Pantorrilla | 59 |
+| Antebrazo | 37 |
+| Cardio | 29 |
+| Cuello | 2 |
+| **Total** | **1,324** |
+
+### Refinamientos de la transformacion
+
+1. `instructions_es = instructions.es` (espanol)
+2. `name_es` = NULL en filas nuevas (UI usa fallback `name_es || name` → muestra ingles)
+3. Categorias mapeadas a espanol; `muscle_group`/`secondary_muscles` en ingles
+4. `gif_url`/`image_url` como rutas relativas servidas desde `public/` (la media NUNCA va a BD)
+5. Inyeccion por API de management en chunks de 40 con pausa de 2s para no exceder el rate-limit
+
+> **Leccion**: al re-empaquetar filas de un seed multi-fila, cada linea del archivo ya trae coma final; al hacer `join(',\n')` se generan comas dobles (`),,`). Quitar la coma final de cada fila antes de re-unirla.
+
+---
+
 ## Decisiones
 
 1. **50 ejercicios iniciales**: suficiente para probar, expandible despues

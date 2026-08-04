@@ -57,6 +57,12 @@ function avatarClass(id: string): string {
   return AVATAR_CSS[hash % AVATAR_CSS.length];
 }
 
+function memberClass(name: string): string {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) hash = (hash * 31 + name.charCodeAt(i)) >>> 0;
+  return AVATAR_CSS[hash % AVATAR_CSS.length];
+}
+
 const FILTER_TABS = [
   { key: 'all', label: 'Todos' },
   { key: 'assigned', label: 'Asignados' },
@@ -345,28 +351,45 @@ export default function TrainingPlansPage() {
                   const isSel = selectedPlan?.id === p.id;
                   const badgeCls = p.type === 'assigned' ? 'tp-badge-green' : 'tp-badge-gray';
                   const badgeLabel = p.type === 'assigned' ? 'Asignado' : 'Sin asignar';
+                  const planIni = p.name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
+                  const shownMembers = p.members.slice(0, 3);
+                  const extra = p.members.length - shownMembers.length;
                   return (
                     <div key={p.id} className={`tp-plan-item ${isSel ? 'selected' : ''}`}
-                      onClick={() => { setSelectedId(p.id); setSelectedDay(0); }}>
-                      <div className="tp-plan-top">
-                        <div>
+                      onClick={() => {
+                        if (selectedPlan?.id === p.id) setSelectedId(null);
+                        else { setSelectedId(p.id); setSelectedDay(0); }
+                      }}>
+                      <div className={`tp-avatar ${p.avClass} tp-plan-avatar`}>{planIni}</div>
+                      <div className="tp-plan-body">
+                        <div className="tp-plan-top">
                           <div className="tp-plan-name">{p.name}</div>
-                          <div className="tp-plan-meta">
-                            {p.members.length > 0
-                              ? `\u2192 ${p.members.slice(0, 2).map(m => m.name).join(', ')}${p.members.length > 2 ? ` +${p.members.length - 2}` : ''}`
-                              : p.trainer}
+                          <span className={`tp-badge ${badgeCls}`}>{badgeLabel}</span>
+                        </div>
+                        {p.members.length > 0 ? (
+                          <div className="tp-plan-meta-row">
+                            <div className="tp-stack">
+                              {shownMembers.map((m, i) => (
+                                <span key={i} className={`tp-avatar tp-member-avatar ${memberClass(m.name)}`} title={m.name}>{m.initials}</span>
+                              ))}
+                              {extra > 0 && <span className="tp-avatar tp-member-avatar tp-member-more">+{extra}</span>}
+                            </div>
                           </div>
-                        </div>
-                        <span className={`tp-badge ${badgeCls}`}>{badgeLabel}</span>
-                      </div>
-                      <div className="tp-plan-chips">
-                        <div className="tp-chip-sm">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="11" height="11"><path d="M9 11l3 3L22 4"/></svg>
-                          {p.exerciseCount} ejercicios
-                        </div>
-                        <div className="tp-chip-sm">
-                          {weekBar(p.days, p.exercises)}
-                          {p.days} días
+                        ) : (
+                          <div className="tp-plan-meta-row">
+                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="tp-creator-icon"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                            <span className="tp-plan-meta">Por {p.trainer}</span>
+                          </div>
+                        )}
+                        <div className="tp-plan-chips">
+                          <div className="tp-chip-sm">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="11" height="11"><path d="M9 11l3 3L22 4"/></svg>
+                            {p.exerciseCount} ejercicios
+                          </div>
+                          <div className="tp-chip-sm tp-days-chip">
+                            {weekBar(p.days, p.exercises)}
+                            {p.days} días
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -401,6 +424,10 @@ export default function TrainingPlansPage() {
                         </div>
                       </div>
                       <div className="tp-detail-actions">
+                        <button className="tp-icon-btn" title="Cerrar" onClick={() => setSelectedId(null)}>
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                        </button>
+                        <span className="tp-detail-actions-sep" />
                         <button className="tp-icon-btn" title="Duplicar" onClick={() => handleDuplicate(selectedPlan.id)}>
                           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
                         </button>

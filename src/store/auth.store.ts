@@ -11,10 +11,11 @@ interface AuthState {
   loginWithGoogle: () => Promise<void>
   logout: () => Promise<void>
   deleteAccount: () => Promise<void>
+  updateProfile: (payload: { full_name: string; phone: string | null; alias: string | null }) => Promise<void>
   initialize: () => Promise<void>
 }
 
-export const useAuthStore = create<AuthState>((set) => ({
+export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   loading: true,
   initialized: false,
@@ -65,5 +66,14 @@ export const useAuthStore = create<AuthState>((set) => ({
     await authService.deleteAccount()
     await authService.logout()
     set({ user: null })
+  },
+
+  updateProfile: async (payload) => {
+    const current = get().user
+    if (!current) throw new Error('No hay sesión activa')
+    const userId = current.auth_user_id || current.id
+    await authService.updateProfile(userId, payload)
+    const profile = await authService.getProfile(userId)
+    set({ user: profile })
   },
 }))
