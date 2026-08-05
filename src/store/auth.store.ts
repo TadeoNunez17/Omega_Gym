@@ -2,12 +2,14 @@ import { create } from 'zustand'
 import { authService } from '@/services/auth.service'
 import type { Profile } from '@/services/auth.service'
 
+export type RegisterResult = { requiresConfirmation: boolean }
+
 interface AuthState {
   user: Profile | null
   loading: boolean
   initialized: boolean
   login: (email: string, password: string) => Promise<void>
-  register: (params: { email?: string; phone?: string; password: string; fullName: string }) => Promise<void>
+  register: (params: { email?: string; phone?: string; password: string; fullName: string }) => Promise<RegisterResult>
   loginWithGoogle: () => Promise<void>
   logout: () => Promise<void>
   deleteAccount: () => Promise<void>
@@ -45,12 +47,18 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   register: async (params: { email?: string; phone?: string; password: string; fullName: string }) => {
-    await authService.register(params)
-    const session = await authService.getSession()
+    const { session, requiresConfirmation } = await authService.register(params)
+    if (requiresConfirmation) {
+      set({ user: null })
+      return { requiresConfirmation }
+    }
     if (session?.user) {
       const profile = await authService.getProfile(session.user.id)
       set({ user: profile })
+    } else {
+      set({ user: null })
     }
+    return { requiresConfirmation: false }
   },
 
   loginWithGoogle: async () => {

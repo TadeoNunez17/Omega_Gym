@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useAuthStore } from '@/store/auth.store'
+import { authService } from '@/services/auth.service'
+import { GoogleButton } from '@/components/ui/atoms/GoogleButton'
 import { toast } from 'sonner'
 
 export default function RegisterPage() {
@@ -11,6 +13,8 @@ export default function RegisterPage() {
   const [phone, setPhone] = useState('')
   const [password, setPassword] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [verifyPending, setVerifyPending] = useState<string | null>(null)
+  const [resending, setResending] = useState(false)
 
   function formatPhone(v: string) {
     const d = v.replace(/\D/g, '').slice(0, 10)
@@ -43,12 +47,16 @@ export default function RegisterPage() {
     }
     setSubmitting(true)
     try {
-      await register({
+      const result = await register({
         email: email.trim() || undefined,
         phone: phone.replace(/[\s\-()]/g, '') || undefined,
         password,
         fullName: name.trim(),
       })
+      if (result.requiresConfirmation) {
+        setVerifyPending(email.trim())
+        return
+      }
       const user = useAuthStore.getState().user
       if (user?.role === 'admin') navigate('/dashboard')
       else if (user?.role === 'trainer') navigate('/dashboard')
@@ -63,11 +71,60 @@ export default function RegisterPage() {
     }
   }
 
+  async function handleResend() {
+    if (!verifyPending) return
+    setResending(true)
+    try {
+      await authService.resendConfirmation(verifyPending)
+      toast.success('Correo de confirmación reenviado. Revisa tu bandeja de entrada.')
+    } catch (err: unknown) {
+      const msg = (err as any)?.message || 'No se pudo reenviar el correo'
+      console.error('Resend error:', err)
+      toast.error(msg)
+    } finally {
+      setResending(false)
+    }
+  }
+
+  if (verifyPending) {
+    return (
+      <div className="bg-surface border border-border rounded p-8">
+        <div className="mb-6">
+          <div className="text-[18px] font-semibold">Revisa tu bandeja de entrada</div>
+          <div className="text-[12px] text-text-3 mt-1">Verificación de correo pendiente</div>
+        </div>
+        <div className="text-[13px] text-text-2 leading-relaxed">
+          Te enviamos un link de confirmación a{' '}
+          <span className="font-medium text-text">{verifyPending}</span>.
+          Ábrelo para activar tu cuenta y poder iniciar sesión.
+        </div>
+        <div className="flex flex-col gap-3 mt-6">
+          <button type="button" onClick={handleResend} disabled={resending}
+            className="w-full py-[11px] rounded-sm border-none text-[14px] font-semibold cursor-pointer font-sans bg-accent text-black disabled:opacity-60">
+            {resending ? 'Reenviando...' : 'Reenviar correo'}
+          </button>
+          <Link to="/login"
+            className="text-center text-[12px] text-accent-text no-underline font-medium">
+            Volver a iniciar sesión
+          </Link>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="bg-surface border border-border rounded p-8">
       <div className="mb-6">
         <div className="text-[18px] font-semibold">Crear cuenta</div>
         <div className="text-[12px] text-text-3 mt-1">Regístrate en el sistema del gimnasio</div>
+      </div>
+
+      <GoogleButton />
+
+      <div className="flex items-center gap-3 my-5">
+        <div className="flex-1 h-[1px] bg-border" />
+        <span className="text-[11px] text-text-3 uppercase tracking-[0.06em] font-medium">o con tu correo</span>
+        <div className="flex-1 h-[1px] bg-border" />
       </div>
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">

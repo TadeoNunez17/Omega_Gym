@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase'
+import type { Session as SupabaseSession } from '@supabase/supabase-js'
 
 export const authService = {
   login: async (email: string, password: string) => {
@@ -12,15 +13,18 @@ export const authService = {
     phone?: string
     password: string
     fullName: string
-  }) => {
+  }): Promise<{ session: SupabaseSession | null; requiresConfirmation: boolean }> => {
     if (params.email) {
       const { data, error } = await supabase.auth.signUp({
         email: params.email,
         password: params.password,
-        options: { data: { full_name: params.fullName, phone: params.phone } },
+        options: {
+          data: { full_name: params.fullName, phone: params.phone },
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
+        },
       })
       if (error) throw error
-      return data
+      return { session: data.session, requiresConfirmation: !data.session }
     }
     if (params.phone) {
       const { data, error } = await supabase.auth.signUp({
@@ -29,9 +33,18 @@ export const authService = {
         options: { data: { full_name: params.fullName } },
       })
       if (error) throw error
-      return data
+      return { session: data.session, requiresConfirmation: false }
     }
     throw new Error('Se requiere correo electrónico o teléfono')
+  },
+
+  resendConfirmation: async (email: string) => {
+    const { error } = await supabase.auth.resend({
+      type: 'signup',
+      email,
+      options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
+    })
+    if (error) throw error
   },
 
   logout: async () => {

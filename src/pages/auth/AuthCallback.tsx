@@ -1,36 +1,53 @@
 import { useEffect, useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
-import { useAuthStore } from '@/store/auth.store'
 import { authService } from '@/services/auth.service'
+import { toast } from 'sonner'
 
 export default function AuthCallbackPage() {
   const navigate = useNavigate()
-  const setUser = useAuthStore((s) => s.user)
-  const mounted = useRef(false)
+  const [searchParams] = useSearchParams()
+  const handled = useRef(false)
 
   useEffect(() => {
-    if (mounted.current) return
-    mounted.current = true
+    if (handled.current) return
+    handled.current = true
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      if (session?.user) {
-        const profile = await authService.getProfile(session.user.id)
-        if (profile?.role === 'admin') navigate('/dashboard', { replace: true })
-        else if (profile?.role === 'trainer') navigate('/dashboard', { replace: true })
-        else if (profile?.role === 'member') navigate('/my-plan', { replace: true })
-        else navigate('/', { replace: true })
+    async function finish() {
+      let session = (await supabase.auth.getSession()).data.session
+
+      const code = searchParams.get('code')
+      if (!session && code) {
+        const { data, error } = await supabase.auth.exchangeCodeForSession(code)
+        if (error) {
+          console.error('Auth callback exchange error:', error)
+          toast.error('El link de confirmación es inválido o ha expirado.')
+          navigate('/login', { replace: true })
+          return
+        }
+        session = data.session
       }
-    })
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
       if (!session) {
         navigate('/login', { replace: true })
+        return
       }
-    })
 
-    return () => { subscription.unsubscribe() }
-  }, [navigate])
+      const profile = await authService.getProfile(session.user.id).catch(() => null)
+      if (profile?.role === 'admin' || profile?.role === 'trainer') {
+        navigate('/dashboard', { replace: true })
+        return
+      }
+      if (profile?.role === 'member') {
+        navigate('/my-plan', { replace: true })
+        return
+      }
+      toast.success('Correo confirmado. Inicia sesión para continuar.')
+      navigate('/login', { replace: true })
+    }
+
+    finish()
+  }, [navigate, searchParams])
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-bg">
