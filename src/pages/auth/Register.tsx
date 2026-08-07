@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useAuthStore } from '@/store/auth.store'
 import { authService } from '@/services/auth.service'
+import { translateAuthError } from '@/services/auth-error'
 import { GoogleButton } from '@/components/ui/atoms/GoogleButton'
 import { toast } from 'sonner'
 
@@ -10,22 +11,13 @@ export default function RegisterPage() {
   const register = useAuthStore((s) => s.register)
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
-  const [phone, setPhone] = useState('')
   const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [showPw, setShowPw] = useState(false)
+  const [showConfirmPw, setShowConfirmPw] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [verifyPending, setVerifyPending] = useState<string | null>(null)
   const [resending, setResending] = useState(false)
-
-  function formatPhone(v: string) {
-    const d = v.replace(/\D/g, '').slice(0, 10)
-    if (d.length <= 3) return d
-    if (d.length <= 6) return `${d.slice(0, 3)}-${d.slice(3)}`
-    return `${d.slice(0, 3)}-${d.slice(3, 6)}-${d.slice(6)}`
-  }
-
-  function isValidPhone(v: string) {
-    return /^\d{10}$/.test(v.replace(/[\s\-()]/g, ''))
-  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -37,19 +29,18 @@ export default function RegisterPage() {
       toast.error('La contraseña debe tener al menos 6 caracteres')
       return
     }
-    if (!email.trim() && !phone.trim()) {
-      toast.error('Ingresa al menos correo electrónico o teléfono')
+    if (password !== confirmPassword) {
+      toast.error('Las contraseñas no coinciden')
       return
     }
-    if (phone.trim() && !isValidPhone(phone)) {
-      toast.error('Ingresa un teléfono válido de 10 dígitos')
+    if (!email.trim()) {
+      toast.error('Ingresa tu correo electrónico')
       return
     }
     setSubmitting(true)
     try {
       const result = await register({
-        email: email.trim() || undefined,
-        phone: phone.replace(/[\s\-()]/g, '') || undefined,
+        email: email.trim(),
         password,
         fullName: name.trim(),
       })
@@ -63,9 +54,8 @@ export default function RegisterPage() {
       else if (user?.role === 'member') navigate('/my-plan')
       else navigate('/')
     } catch (err: unknown) {
-      const msg = (err as any)?.message || (err as any)?.error_description || 'Error al registrarse'
       console.error('Register error:', err)
-      toast.error(msg)
+      toast.error(translateAuthError(err))
     } finally {
       setSubmitting(false)
     }
@@ -78,9 +68,8 @@ export default function RegisterPage() {
       await authService.resendConfirmation(verifyPending)
       toast.success('Correo de confirmación reenviado. Revisa tu bandeja de entrada.')
     } catch (err: unknown) {
-      const msg = (err as any)?.message || 'No se pudo reenviar el correo'
       console.error('Resend error:', err)
-      toast.error(msg)
+      toast.error(translateAuthError(err))
     } finally {
       setResending(false)
     }
@@ -134,22 +123,31 @@ export default function RegisterPage() {
             className="w-full bg-bg border border-border text-text text-[13px] px-3.5 py-2.5 rounded-sm outline-none font-sans" />
         </div>
         <div>
-          <div className="flex items-center justify-between mb-1.5">
-            <label className="block text-[12px] font-medium text-text-2">Correo electrónico</label>
-            <span className="text-[10px] text-text-3">o teléfono</span>
-          </div>
+          <label className="block text-[12px] font-medium text-text-2 mb-1.5">Correo electrónico</label>
           <input type="email" placeholder="tu@correo.com" value={email} onChange={(e) => setEmail(e.target.value)}
             className="w-full bg-bg border border-border text-text text-[13px] px-3.5 py-2.5 rounded-sm outline-none font-sans" />
         </div>
         <div>
-          <label className="block text-[12px] font-medium text-text-2 mb-1.5">Teléfono <span className="text-text-3 font-normal">(opcional si tienes correo)</span></label>
-          <input type="tel" placeholder="311-234-5678" value={phone} onChange={(e) => setPhone(formatPhone(e.target.value))}
-            className="w-full bg-bg border border-border text-text text-[13px] px-3.5 py-2.5 rounded-sm outline-none font-sans" />
+          <label className="block text-[12px] font-medium text-text-2 mb-1.5">Contraseña</label>
+          <div className="relative">
+            <input type={showPw ? 'text' : 'password'} placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)}
+              className="w-full bg-bg border border-border text-text text-[13px] px-3.5 py-2.5 rounded-sm outline-none font-sans" />
+            <button type="button" onClick={() => setShowPw(!showPw)}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 bg-none border-none text-text-3 cursor-pointer text-[11px] font-sans">
+              {showPw ? 'Ocultar' : 'Mostrar'}
+            </button>
+          </div>
         </div>
         <div>
-          <label className="block text-[12px] font-medium text-text-2 mb-1.5">Contraseña</label>
-          <input type="password" placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)}
-            className="w-full bg-bg border border-border text-text text-[13px] px-3.5 py-2.5 rounded-sm outline-none font-sans" />
+          <label className="block text-[12px] font-medium text-text-2 mb-1.5">Confirmar contraseña</label>
+          <div className="relative">
+            <input type={showConfirmPw ? 'text' : 'password'} placeholder="••••••••" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)}
+              className="w-full bg-bg border border-border text-text text-[13px] px-3.5 py-2.5 rounded-sm outline-none font-sans" />
+            <button type="button" onClick={() => setShowConfirmPw(!showConfirmPw)}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 bg-none border-none text-text-3 cursor-pointer text-[11px] font-sans">
+              {showConfirmPw ? 'Ocultar' : 'Mostrar'}
+            </button>
+          </div>
         </div>
         <button type="submit" disabled={submitting}
           className={`w-full py-[11px] rounded-sm border-none text-[14px] font-semibold cursor-pointer font-sans mt-1

@@ -42,7 +42,8 @@ export default function MemberDetailPage() {
   const [payments, setPayments] = useState<Payment[]>([]);
   const [paymentsLoading, setPaymentsLoading] = useState(false);
 
-  const [plan, setPlan] = useState<(TrainingPlan & { creator: { id: string; full_name: string } | null }) | null>(null);
+  const [plans, setPlans] = useState<(TrainingPlan & { creator: { id: string; full_name: string } | null })[]>([]);
+  const [activePlanIdx, setActivePlanIdx] = useState(0);
   const [exercises, setExercises] = useState<PlanExercise[]>([]);
   const [planLoading, setPlanLoading] = useState(false);
 
@@ -115,21 +116,37 @@ export default function MemberDetailPage() {
     if (!member || activeTab !== 'plan') return;
     const ctrl = { cancelled: false }
     setPlanLoading(true);
-    trainingService.getByMember(member.id)
-      .then(async (p) => {
+    trainingService.getByMemberAll(member.id)
+      .then(async (allPlans) => {
         if (ctrl.cancelled) return
-        setPlan(p);
-        if (p) {
-          const ex = await trainingService.getExercises(p.id);
+        setPlans(allPlans);
+        setActivePlanIdx(0);
+        if (allPlans[0]) {
+          const ex = await trainingService.getExercises(allPlans[0].id);
           if (!ctrl.cancelled) setExercises(ex);
         } else {
           setExercises([]);
         }
       })
-      .catch(() => { if (!ctrl.cancelled) toast.error('Error al cargar plan') })
+      .catch(() => { if (!ctrl.cancelled) toast.error('Error al cargar planes') })
       .finally(() => { if (!ctrl.cancelled) setPlanLoading(false) })
     return () => { ctrl.cancelled = true }
   }, [activeTab, member]);
+
+  const selectPlan = useCallback(async (idx: number) => {
+    const selected = plans[idx];
+    if (!selected) return;
+    setActivePlanIdx(idx);
+    setPlanLoading(true);
+    try {
+      const ex = await trainingService.getExercises(selected.id);
+      setExercises(ex);
+    } catch {
+      toast.error('Error al cargar ejercicios');
+    } finally {
+      setPlanLoading(false);
+    }
+  }, [plans]);
 
   useEffect(() => {
     if (!member) return;
@@ -231,6 +248,7 @@ export default function MemberDetailPage() {
   }).length;
 
   const muscles = [...new Set(exercises.map((e) => e.muscle).filter(Boolean))];
+  const currentPlan = plans[activePlanIdx] ?? null;
 
   function roleBadge(role: string) {
     if (role === 'admin') return <Badge variant="accent" dot>Admin</Badge>;
@@ -408,13 +426,16 @@ export default function MemberDetailPage() {
                 <h3 className="text-[11px] text-text-3 uppercase tracking-[0.08em] mb-4 flex items-center gap-2">
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--purple-text)" strokeWidth="2" style={{color:'var(--purple-text)'}}><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
                   Plan de entrenamiento</h3>
-                {m.plan_name ? (
+                {m.plan_names.length > 0 ? (
                   <div>
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="text-[15px] font-medium">{m.plan_name}</span>
+                    <div className="flex flex-wrap items-center gap-2 mb-2">
+                      <span className="text-[15px] font-medium">{m.plan_names[0]}</span>
+                      {m.plan_names.length > 1 && (
+                        <span className="inline-flex items-center px-[6px] py-[1px] rounded-sm text-[10px] font-semibold bg-accent-dim text-accent border border-accent/30">+{m.plan_names.length - 1}</span>
+                      )}
                     </div>
                     <div className="text-[11px] text-text-3">
-                      {plan?.description || 'Sin descripción'}
+                      {currentPlan?.description || 'Sin descripción'}
                     </div>
                     <div className="mt-3">
                       <Button variant="ghost" size="sm" onClick={() => setActiveTab('plan')}>
@@ -562,20 +583,43 @@ export default function MemberDetailPage() {
           <div>
             {planLoading ? (
               <LoadingSpinner text="Cargando plan…" />
-            ) : plan ? (
+            ) : plans.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-[60px] text-text-3">
+                <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="mb-3 opacity-40">
+                  <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
+                </svg>
+                <span className="text-[14px]">Sin plan asignado</span>
+                <span className="text-[12px] mt-1">Este miembro no tiene un plan de entrenamiento asignado.</span>
+              </div>
+            ) : currentPlan && (
               <div className="space-y-5">
+                {plans.length > 1 && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {plans.map((p, idx) => (
+                      <button key={p.id} onClick={() => selectPlan(idx)}
+                        className={`px-3 py-1.5 rounded text-xs font-semibold cursor-pointer border transition-colors font-inherit ${
+                          idx === activePlanIdx
+                            ? 'bg-accent text-black border-accent'
+                            : 'bg-transparent text-text-2 border-border hover:border-accent/40'
+                        }`}>
+                        {p.name}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
                 <div className="bg-surface border border-border rounded p-5">
                   <div className="flex items-start justify-between mb-4">
                     <div>
-                      <h3 className="text-[17px] font-semibold">{plan.name}</h3>
-                      {plan.description && (
-                        <p className="text-[12px] text-text-3 mt-1">{plan.description}</p>
+                      <h3 className="text-[17px] font-semibold">{currentPlan.name}</h3>
+                      {currentPlan.description && (
+                        <p className="text-[12px] text-text-3 mt-1">{currentPlan.description}</p>
                       )}
                     </div>
                   </div>
                   <div className="flex items-center gap-4 text-[11px] text-text-3">
-                    {plan.creator && (
-                      <span>Creado por <span className="text-text-2">{plan.creator.full_name}</span></span>
+                    {currentPlan.creator && (
+                      <span>Creado por <span className="text-text-2">{currentPlan.creator.full_name}</span></span>
                     )}
                     <span>{exercises.length} ejercicio{exercises.length !== 1 ? 's' : ''}</span>
                     {muscles.length > 0 && <span>{muscles.length} grupo{muscles.length !== 1 ? 's' : ''} muscular{muscles.length !== 1 ? 'es' : ''}</span>}
@@ -612,12 +656,7 @@ export default function MemberDetailPage() {
                               <span className="font-mono font-semibold">{ex.reps}</span>
                             </div>
                           )}
-                          {ex.rest_seconds != null && (
-                            <div className="flex items-center gap-1">
-                              <span className="text-text-3">Descanso</span>
-                              <span className="font-mono font-semibold">{ex.rest_seconds}s</span>
-                            </div>
-                          )}
+                          
                         </div>
                         {ex.notes && (
                           <div className="mt-2 text-[11px] text-text-3 italic">{ex.notes}</div>
@@ -626,14 +665,6 @@ export default function MemberDetailPage() {
                     ))}
                   </div>
                 )}
-              </div>
-            ) : (
-              <div className="flex flex-col items-center justify-center py-[60px] text-text-3">
-                <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="mb-3 opacity-40">
-                  <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
-                </svg>
-                <span className="text-[14px]">Sin plan asignado</span>
-                <span className="text-[12px] mt-1">Este miembro no tiene un plan de entrenamiento asignado.</span>
               </div>
             )}
           </div>

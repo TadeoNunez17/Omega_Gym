@@ -533,7 +533,7 @@ export default function TrainingPlansPage() {
                                   <div className="tp-ex-chips">
                                     <span className="tp-chip tp-chip-accent"><span className="tp-chip-label">Series</span>{e.sets ?? 0}</span>
                                     <span className="tp-chip tp-chip-default"><span className="tp-chip-label">Reps</span>{e.reps ?? 0}</span>
-                                    <span className="tp-chip tp-chip-default"><span className="tp-chip-label">Desc.</span>{Math.round((e.rest_seconds ?? 0) / 60 * 10) / 10}min</span>
+                                    
                                   </div>
                                 </div>
                               </div>

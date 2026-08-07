@@ -1,12 +1,11 @@
 import { useEffect, useRef } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 import { authService } from '@/services/auth.service'
 import { toast } from 'sonner'
 
 export default function AuthCallbackPage() {
   const navigate = useNavigate()
-  const [searchParams] = useSearchParams()
   const handled = useRef(false)
 
   useEffect(() => {
@@ -14,22 +13,50 @@ export default function AuthCallbackPage() {
     handled.current = true
 
     async function finish() {
+      const url = new URL(window.location.href)
+      const query = url.searchParams
+      const hash = new URLSearchParams(url.hash ? url.hash.slice(1) : '')
+
+      const type = query.get('type') || hash.get('type')
+      const code = query.get('code')
+
       let session = (await supabase.auth.getSession()).data.session
 
-      const code = searchParams.get('code')
-      if (!session && code) {
+      if (code) {
         const { data, error } = await supabase.auth.exchangeCodeForSession(code)
         if (error) {
           console.error('Auth callback exchange error:', error)
-          toast.error('El link de confirmación es inválido o ha expirado.')
+          toast.error('El enlace de confirmación es inválido o ya fue usado.')
           navigate('/login', { replace: true })
           return
         }
         session = data.session
+      } else {
+        const accessToken = hash.get('access_token')
+        const refreshToken = hash.get('refresh_token')
+        if (accessToken && refreshToken) {
+          const { data, error } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken,
+          })
+          if (error) {
+            console.error('Auth callback setSession error:', error)
+            toast.error('El enlace es inválido o ya fue usado.')
+            navigate('/login', { replace: true })
+            return
+          }
+          session = data.session
+        }
       }
 
       if (!session) {
+        toast.error('No se pudo completar el inicio de sesión. Intenta de nuevo.')
         navigate('/login', { replace: true })
+        return
+      }
+
+      if (type === 'recovery') {
+        navigate('/reset-password', { replace: true })
         return
       }
 
@@ -47,7 +74,7 @@ export default function AuthCallbackPage() {
     }
 
     finish()
-  }, [navigate, searchParams])
+  }, [navigate])
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-bg">

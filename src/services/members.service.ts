@@ -30,7 +30,7 @@ export interface MemberListItem {
   registration_status: 'pending' | 'claimed' | 'registered'
   membership_type: string | null
   membership_end: string | null
-  plan_name: string | null
+  plan_names: string[]
   created_at: string
 }
 
@@ -46,7 +46,7 @@ export interface MemberFilters {
 function toMemberListItem(raw: any): MemberListItem {
   const valid = (raw.memberships ?? []).filter((m: any) => m.membership_types?.name !== 'Visita')
   const membership = valid.find((m: any) => m.status === 'active') ?? null
-  const plan = raw.training_plans?.length > 0 ? raw.training_plans[0] : null
+  const legacyPlans = (raw.training_plans ?? []).map((p: any) => p.name).filter(Boolean)
   return {
     id: raw.id,
     full_name: raw.full_name,
@@ -58,7 +58,7 @@ function toMemberListItem(raw: any): MemberListItem {
     registration_status: raw.registration_status ?? 'registered',
     membership_type: membership?.membership_types?.name ?? null,
     membership_end: membership?.end_date ?? null,
-    plan_name: plan?.name ?? null,
+    plan_names: Array.from(new Set(legacyPlans)),
     created_at: raw.created_at,
   }
 }
@@ -123,7 +123,7 @@ export const membersService = {
     const deduped = deduplicateProfiles(data || [])
 
     const memberIds = deduped.map(d => d.id).filter(Boolean)
-    let planAssignmentNames: Record<string, string> = {}
+    let planAssignmentNames: Record<string, string[]> = {}
     if (memberIds.length > 0) {
       const { data: planAssignments } = await supabase
         .from('plan_assignments')
@@ -131,8 +131,11 @@ export const membersService = {
         .in('member_id', memberIds)
       for (const pa of planAssignments || []) {
         const name = (pa.plan as any)?.name
-        if (name && !planAssignmentNames[pa.member_id]) {
-          planAssignmentNames[pa.member_id] = name
+        if (name) {
+          if (!planAssignmentNames[pa.member_id]) planAssignmentNames[pa.member_id] = []
+          if (!planAssignmentNames[pa.member_id].includes(name)) {
+            planAssignmentNames[pa.member_id].push(name)
+          }
         }
       }
     }
@@ -140,9 +143,8 @@ export const membersService = {
     const sorted = deduped
       .map((raw) => {
         const item = toMemberListItem(raw)
-        if (!item.plan_name && planAssignmentNames[raw.id]) {
-          item.plan_name = planAssignmentNames[raw.id]
-        }
+        const merged = Array.from(new Set([...item.plan_names, ...(planAssignmentNames[raw.id] || [])]))
+        item.plan_names = merged
         return item
       })
       .sort((a, b) =>
@@ -172,15 +174,12 @@ export const membersService = {
 
     if (error) throw error
     const item = toMemberListItem(data)
-    if (!item.plan_name) {
-      const { data: pa } = await supabase
-        .from('plan_assignments')
-        .select('plan:training_plans(name)')
-        .eq('member_id', id)
-        .maybeSingle()
-      const name = (pa as any)?.plan?.name
-      if (name) item.plan_name = name
-    }
+    const { data: pa } = await supabase
+      .from('plan_assignments')
+      .select('plan:training_plans(name)')
+      .eq('member_id', id)
+    const extra = (pa || []).map((p: any) => (p.plan as any)?.name).filter(Boolean)
+    item.plan_names = Array.from(new Set([...item.plan_names, ...extra]))
     return item
   },
 

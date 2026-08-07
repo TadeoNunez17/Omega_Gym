@@ -15,39 +15,44 @@ export default function MyPlanPage() {
   const user = useAuthStore(s => s.user)
   const [day, setDay] = useState(new Date().getDay() === 0 ? 6 : new Date().getDay() - 1);
   const [loading, setLoading] = useState(true);
-  const [plan, setPlan] = useState<(TrainingPlan & { creator: { id: string; full_name: string } | null }) | null>(null)
+  const [plans, setPlans] = useState<(TrainingPlan & { creator: { id: string; full_name: string } | null })[]>([])
+  const [activePlanIdx, setActivePlanIdx] = useState(0)
   const [exercises, setExercises] = useState<PlanExercise[]>([])
   const [catalogMap, setCatalogMap] = useState<Map<string, Exercise>>(new Map())
   const [expandedExercises, setExpandedExercises] = useState<Set<string>>(new Set())
+
+  const loadPlan = useCallback(async (idx: number, allPlans: (TrainingPlan & { creator: { id: string; full_name: string } | null })[]) => {
+    const target = allPlans[idx]
+    setActivePlanIdx(idx)
+    setExercises([])
+    setCatalogMap(new Map())
+    if (!target) return
+    const exs = await trainingService.getExercises(target.id)
+    setExercises(exs)
+
+    const catalogIds = [...new Set(exs.filter(e => e.exercise_id).map(e => e.exercise_id!))]
+    if (catalogIds.length > 0) {
+      try {
+        const catalogExs = await exercisesService.getByIds(catalogIds)
+        const newMap = new Map<string, Exercise>()
+        catalogExs.forEach(ce => newMap.set(ce.id, ce))
+        setCatalogMap(newMap)
+      } catch {
+        // Silently fail - catalog data is optional
+      }
+    }
+  }, [])
 
   useEffect(() => {
     if (!user) return;
     const ctrl = { ignore: false }
     ;(async () => {
       try {
-        const planResult = await trainingService.getByMember(user.id)
+        const allPlans = await trainingService.getByMemberAll(user.id)
         if (ctrl.ignore) return
-        if (planResult) {
-          setPlan(planResult)
-          const exs = await trainingService.getExercises(planResult.id)
-          if (!ctrl.ignore) {
-            setExercises(exs)
-
-            // Load catalog data for exercises linked to catalog
-            const catalogIds = [...new Set(exs.filter(e => e.exercise_id).map(e => e.exercise_id!))]
-            if (catalogIds.length > 0) {
-              try {
-                const catalogExs = await exercisesService.getByIds(catalogIds)
-                if (!ctrl.ignore) {
-                  const newMap = new Map<string, Exercise>()
-                  catalogExs.forEach(ce => newMap.set(ce.id, ce))
-                  setCatalogMap(newMap)
-                }
-              } catch {
-                // Silently fail - catalog data is optional
-              }
-            }
-          }
+        setPlans(allPlans)
+        if (allPlans.length > 0) {
+          await loadPlan(0, allPlans)
         }
       } catch (err) {
         console.error('Error loading plan:', err)
@@ -65,6 +70,10 @@ export default function MyPlanPage() {
       return next
     })
   }, [])
+
+  const selectPlan = useCallback(async (idx: number) => {
+    await loadPlan(idx, plans)
+  }, [loadPlan, plans])
 
   if (loading || !user) {
     return (
@@ -84,6 +93,7 @@ export default function MyPlanPage() {
   const todayExs = exsByDay[day] || []
   const isRest = todayExs.length === 0 && exercises.length > 0
   const hasExercises = exercises.length > 0
+  const currentPlan = plans[activePlanIdx] ?? null
 
   const initials = user.full_name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2) || '??'
   const memberSince = new Date(user.created_at)
@@ -137,19 +147,19 @@ export default function MyPlanPage() {
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="w-4 h-4"><polyline points="20 6 9 17 4 12"/></svg>
         </div>
         <div className="min-w-0">
-          <div className="text-sm font-bold">{plan ? plan.name : 'Mi plan de entrenamiento'}</div>
-          {plan && plan.creator && (
-            <div className="text-xs text-text-3 mt-0.5">{plan.creator.full_name}</div>
+          <div className="text-sm font-bold">{currentPlan ? currentPlan.name : 'Mi plan de entrenamiento'}</div>
+          {currentPlan && currentPlan.creator && (
+            <div className="text-xs text-text-3 mt-0.5">{currentPlan.creator.full_name}</div>
           )}
         </div>
-        {plan && (
+        {currentPlan && (
           <div className="ml-auto text-[11px] font-bold text-accent bg-accent-dim border border-accent/40 px-2.5 py-[3px] rounded-full whitespace-nowrap">
             Activo
           </div>
         )}
       </div>
 
-      {!plan ? (
+      {plans.length === 0 ? (
         <div className={`bg-surface border border-border rounded-xl p-12 text-center flex flex-col items-center gap-3 animate-slide-up ${staggerClass(3)}`}>
           <div className="w-14 h-14 rounded-full flex items-center justify-center" style={{ background: 'var(--amber-bg)', color: 'var(--amber-text)' }}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-7 h-7"><circle cx="12" cy="12" r="10"/><path d="M16 16s-1.5-2-4-2-4 2-4 2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>
@@ -159,6 +169,22 @@ export default function MyPlanPage() {
         </div>
       ) : (
         <>
+          {/* Plan tabs */}
+          {plans.length > 1 && (
+            <div className="flex gap-1.5 mb-[18px] overflow-x-auto animate-slide-up" style={{ animationDelay: '60ms' }}>
+              {plans.map((p, idx) => (
+                <button key={p.id} onClick={() => selectPlan(idx)}
+                  className={`shrink-0 px-3.5 py-2 rounded-lg text-xs font-bold cursor-pointer transition-all duration-150 font-inherit border ${
+                    idx === activePlanIdx
+                      ? 'bg-accent text-black border-accent'
+                      : 'bg-transparent text-text-2 border-border'
+                  }`}>
+                  {p.name}
+                </button>
+              ))}
+            </div>
+          )}
+
           {/* Day tabs */}
           <div className="flex gap-1.5 mb-[18px] overflow-x-auto animate-slide-up" style={{ animationDelay: '120ms' }}>
             {DAY_NAMES.map((d, i) => {
@@ -321,10 +347,10 @@ export default function MyPlanPage() {
           </div>
 
           {/* Notes */}
-          {plan.description && (
+          {currentPlan.description && (
             <div className={`bg-surface border border-border rounded-xl p-[18px] sm:p-5 mt-4 animate-slide-up ${staggerClass(4)} select-text`}>
               <div className="text-xs font-bold text-text-3 uppercase tracking-[0.05em] mb-2">Notas del plan</div>
-              <div className="text-sm text-text-2 leading-relaxed">{plan.description}</div>
+              <div className="text-sm text-text-2 leading-relaxed">{currentPlan.description}</div>
             </div>
           )}
         </>

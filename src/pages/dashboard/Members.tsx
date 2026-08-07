@@ -34,7 +34,7 @@ interface Member {
   registration_status: 'pending' | 'claimed' | 'registered';
   membresia: string | null;
   vence: string | null;
-  plan: string | null;
+  plan_names: string[];
   av: number;
   joinedAt: string;
 }
@@ -51,7 +51,7 @@ function toMember(item: MemberListItem): Member {
     registration_status: item.registration_status ?? 'registered',
     membresia: item.membership_type,
     vence: item.membership_end,
-    plan: item.plan_name,
+    plan_names: item.plan_names,
     av: avatarIndex(item.id),
     joinedAt: item.created_at,
   };
@@ -347,14 +347,20 @@ export default function MembersPage() {
       label: 'Plan asignado',
       hide: 'lg',
       render: (m) => (
-        m.plan ? (
+        m.plan_names.length > 0 ? (
           <span className="inline-flex items-center gap-1 px-[9px] py-[3px] rounded-sm text-[11px] font-medium"
             style={{
               background: 'rgba(129, 140, 248, 0.10)',
               color: '#818cf8',
               border: '1px solid rgba(129, 140, 248, 0.22)',
             }}>
-            {m.plan}
+            {m.plan_names[0]}
+            {m.plan_names.length > 1 && (
+              <span className="inline-flex items-center px-[5px] py-[1px] rounded-sm text-[9px] font-bold leading-none"
+                style={{ background: 'rgba(129, 140, 248, 0.18)', color: '#818cf8' }}>
+                +{m.plan_names.length - 1}
+              </span>
+            )}
           </span>
         ) : (
           <span className="inline-flex items-center gap-1 px-[9px] py-[3px] rounded-sm text-[11px]"
@@ -501,8 +507,13 @@ export default function MembersPage() {
                 { label: 'Teléfono', value: (m: Member) => fmtPhone(m.phone) },
                 { label: 'Membresía', value: (m: Member) => renderMembership(m) },
                 { label: 'Plan', value: (m: Member) => (
-                  m.plan ? (
-                    <span className="inline-flex items-center gap-1 px-[9px] py-[3px] rounded-sm text-[11px] bg-surface2 text-text-2 border border-border">{m.plan}</span>
+                  m.plan_names.length > 0 ? (
+                    <span className="inline-flex items-center gap-1.5 px-[9px] py-[3px] rounded-sm text-[11px] bg-surface2 text-text-2 border border-border">
+                      {m.plan_names[0]}
+                      {m.plan_names.length > 1 && (
+                        <span className="inline-flex items-center px-[5px] py-[1px] rounded-sm text-[9px] font-bold leading-none bg-accent-dim text-accent border border-accent/30">+{m.plan_names.length - 1}</span>
+                      )}
+                    </span>
                   ) : (
                     <span className="inline-flex items-center gap-1 px-[9px] py-[3px] rounded-sm text-[11px] text-text-3 border border-dashed border-border">Sin plan</span>
                   )
@@ -685,12 +696,15 @@ export default function MembersPage() {
 
               <div className="mt-4 pt-4 border-t border-border">
                 <div className="text-[11px] text-text-3 uppercase tracking-[0.08em] mb-3">Plan de entrenamiento</div>
-                {m.plan ? (
-                  <div className="flex items-center gap-2 bg-surface2 rounded px-3 py-2.5 border border-border">
+                {m.plan_names.length > 0 ? (
+                  <div className="flex items-center gap-2 bg-surface2 rounded px-3 py-2.5 border border-border w-fit">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-text-3 shrink-0">
                       <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
                     </svg>
-                    <span className="text-[13px] text-text-2">{m.plan}</span>
+                    <span className="text-[13px] text-text-2">{m.plan_names[0]}</span>
+                    {m.plan_names.length > 1 && (
+                      <span className="inline-flex items-center px-[6px] py-[1px] rounded-sm text-[10px] font-semibold bg-accent-dim text-accent border border-accent/30">+{m.plan_names.length - 1}</span>
+                    )}
                   </div>
                 ) : (
                   <div className="text-[13px] text-text-3">Sin plan asignado</div>

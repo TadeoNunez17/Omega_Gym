@@ -47,6 +47,18 @@ export const authService = {
     if (error) throw error
   },
 
+  requestPasswordReset: async (email: string) => {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/auth/callback`,
+    })
+    if (error) throw error
+  },
+
+  updatePassword: async (newPassword: string) => {
+    const { error } = await supabase.auth.updateUser({ password: newPassword })
+    if (error) throw error
+  },
+
   logout: async () => {
     const { error } = await supabase.auth.signOut()
     if (error) throw error

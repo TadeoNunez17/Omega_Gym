@@ -293,31 +293,39 @@ export const trainingService = {
     if (aError && aError.code !== '23505') throw aError
   },
 
-  getByMember: async (memberId: string) => {
-    const { data: assignment } = await supabase
-      .from('plan_assignments')
-      .select('plan_id')
-      .eq('member_id', memberId)
-      .maybeSingle()
-
-    const planId = assignment?.plan_id
-    if (!planId) {
-      const { data } = await supabase
+  getByMemberAll: async (memberId: string) => {
+    const [assignmentsRes, legacyRes] = await Promise.all([
+      supabase
+        .from('plan_assignments')
+        .select('plan_id')
+        .eq('member_id', memberId),
+      supabase
         .from('training_plans')
-        .select(`*, creator:profiles!training_plans_created_by_fkey(id, full_name)`)
-        .eq('assigned_to', memberId)
-        .maybeSingle()
-      return data as (TrainingPlan & { creator: { id: string; full_name: string } | null }) | null
-    }
+        .select('id')
+        .eq('assigned_to', memberId),
+    ])
+
+    if (assignmentsRes.error) throw assignmentsRes.error
+    if (legacyRes.error) throw legacyRes.error
+
+    const ids = new Set<string>()
+    for (const a of assignmentsRes.data || []) ids.add(a.plan_id)
+    for (const l of legacyRes.data || []) ids.add(l.id)
+
+    if (ids.size === 0) return []
 
     const { data, error } = await supabase
       .from('training_plans')
       .select(`*, creator:profiles!training_plans_created_by_fkey(id, full_name)`)
-      .eq('id', planId)
-      .single()
+      .in('id', [...ids])
 
     if (error) throw error
-    return data as (TrainingPlan & { creator: { id: string; full_name: string } | null }) | null
+    return (data || []) as (TrainingPlan & { creator: { id: string; full_name: string } | null })[]
+  },
+
+  getByMember: async (memberId: string) => {
+    const plans = await trainingService.getByMemberAll(memberId)
+    return plans[0] ?? null
   },
 
   assignMultiple: async (planId: string, memberIds: string[]): Promise<void> => {

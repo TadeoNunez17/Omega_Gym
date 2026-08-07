@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useAuthStore } from '@/store/auth.store'
 import { GoogleButton } from '@/components/ui/atoms/GoogleButton'
+import { translateAuthError } from '@/services/auth-error'
 import { toast } from 'sonner'
 
 export default function LoginPage() {
@@ -23,8 +24,7 @@ export default function LoginPage() {
       else if (user?.role === 'member') navigate('/my-plan')
       else navigate('/')
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Error al iniciar sesión'
-      toast.error(msg)
+      toast.error(translateAuthError(err))
     } finally {
       setSubmitting(false)
     }
@@ -63,9 +63,9 @@ export default function LoginPage() {
           </div>
         </div>
         <div className="flex justify-end">
-          <button type="button" className="bg-none border-none text-accent-text text-[12px] cursor-pointer font-sans">
+          <Link to="/forgot-password" className="bg-none border-none text-accent-text text-[12px] cursor-pointer font-sans no-underline">
             ¿Olvidaste tu contraseña?
-          </button>
+          </Link>
         </div>
         <button type="submit" disabled={submitting}
           className={`w-full py-[11px] rounded-sm border-none text-[14px] font-semibold cursor-pointer font-sans mt-1
