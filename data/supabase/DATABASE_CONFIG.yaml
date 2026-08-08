@@ -16,9 +16,9 @@ mcp:
 
 model_status:
   overall: active
-  last_reviewed: 2026-08-03
+  last_reviewed: 2026-08-07
   approved_by: "admin"
-  notes: "Schema aplicado y en producción. Migración 009: cleanup — Drop tabla workout_logs (sin uso), Drop columna is_template de training_plans, borrado de plan de prueba 'si' y tips inactivos 'Anual'/'Trimestral'. Migración 010: catálogo de ejercicios completo — 1,324 filas en exercises (seed 009), media en public/exercises/ (~131 MB). Migración 010 (seed 010): 5 planes famosos (Push/Pull/Legs, Upper/Lower, Full Body, Bro Split, StrongLifts 5x5) con 90 ejercicios enlazados al catálogo; planes de prueba borrados. Migración 011 (seed 011): 3 rutinas de mujer (Strong Curves, Glute Focus, Thinner Leaner Stronger) con 58 ejercicios enlazados. Total: 8 planes, 148 ejercicios, 0 asignaciones."
+  notes: "Schema aplicado y en producción. Migración 012 (20260807000001): el perfil en profiles solo se crea/vincula cuando el email está confirmado (trigger AFTER INSERT OR UPDATE OF email_confirmed_at). Job pg_cron 'purge-unconfirmed-users' cada 30 min elimina cuentas auth sin confirmar tras 24h. Flujo SMS/phone de registro eliminado (solo email). Pendiente en Dashboard: SMTP custom + enable email confirmations + Site/Redirect URLs con dominio Vercel."
 
 tables:
   - name: profiles

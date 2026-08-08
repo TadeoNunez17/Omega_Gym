@@ -9,33 +9,20 @@ export const authService = {
   },
 
   register: async (params: {
-    email?: string
-    phone?: string
+    email: string
     password: string
     fullName: string
   }): Promise<{ session: SupabaseSession | null; requiresConfirmation: boolean }> => {
-    if (params.email) {
-      const { data, error } = await supabase.auth.signUp({
-        email: params.email,
-        password: params.password,
-        options: {
-          data: { full_name: params.fullName, phone: params.phone },
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
-        },
-      })
-      if (error) throw error
-      return { session: data.session, requiresConfirmation: !data.session }
-    }
-    if (params.phone) {
-      const { data, error } = await supabase.auth.signUp({
-        phone: params.phone,
-        password: params.password,
-        options: { data: { full_name: params.fullName } },
-      })
-      if (error) throw error
-      return { session: data.session, requiresConfirmation: false }
-    }
-    throw new Error('Se requiere correo electrónico o teléfono')
+    const { data, error } = await supabase.auth.signUp({
+      email: params.email,
+      password: params.password,
+      options: {
+        data: { full_name: params.fullName },
+        emailRedirectTo: `${window.location.origin}/auth/callback`,
+      },
+    })
+    if (error) throw error
+    return { session: data.session, requiresConfirmation: !data.session }
   },
 
   resendConfirmation: async (email: string) => {

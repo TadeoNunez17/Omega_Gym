@@ -9,7 +9,7 @@ interface AuthState {
   loading: boolean
   initialized: boolean
   login: (email: string, password: string) => Promise<void>
-  register: (params: { email?: string; phone?: string; password: string; fullName: string }) => Promise<RegisterResult>
+  register: (params: { email: string; password: string; fullName: string }) => Promise<RegisterResult>
   loginWithGoogle: () => Promise<void>
   logout: () => Promise<void>
   deleteAccount: () => Promise<void>
@@ -46,7 +46,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
   },
 
-  register: async (params: { email?: string; phone?: string; password: string; fullName: string }) => {
+  register: async (params: { email: string; password: string; fullName: string }) => {
     const { session, requiresConfirmation } = await authService.register(params)
     if (requiresConfirmation) {
       set({ user: null })
