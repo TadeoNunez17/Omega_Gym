@@ -66,7 +66,7 @@ export default function RegisterPage() {
     setResending(true)
     try {
       await authService.resendConfirmation(verifyPending)
-      toast.success('Correo de confirmación reenviado. Revisa tu bandeja de entrada.')
+      toast.success('Correo de confirmación reenviado. Revisa tu bandeja de entrada y la carpeta de Spam.')
     } catch (err: unknown) {
       console.error('Resend error:', err)
       toast.error(translateAuthError(err))
@@ -86,6 +86,10 @@ export default function RegisterPage() {
           Te enviamos un link de confirmación a{' '}
           <span className="font-medium text-text">{verifyPending}</span>.
           Ábrelo para activar tu cuenta y poder iniciar sesión.
+        </div>
+        <div className="text-[12px] text-text-3 leading-relaxed mt-2">
+          ¿No lo encuentras? Revisa también tu carpeta de <span className="font-medium text-text">Spam</span> /
+          Correo no deseado y márcalo como "No es spam" si aparece ahí.
         </div>
         <div className="flex flex-col gap-3 mt-6">
           <button type="button" onClick={handleResend} disabled={resending}

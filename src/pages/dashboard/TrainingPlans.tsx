@@ -81,6 +81,7 @@ export default function TrainingPlansPage() {
   const [builderOpen, setBuilderOpen] = useState(false);
   const [builderEditPlan, setBuilderEditPlan] = useState<EditPlanData | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Plan | null>(null);
+  const [removeTarget, setRemoveTarget] = useState<{ planId: string; memberId: string; memberName: string } | null>(null);
   const [assigneeOpen, setAssigneeOpen] = useState(false);
   const [assignModalOpen, setAssignModalOpen] = useState(false);
   const [membersList, setMembersList] = useState<MemberListItem[]>([]);
@@ -105,9 +106,10 @@ export default function TrainingPlansPage() {
         desc: p.description ?? '',
         type: p.type,
         trainer: p.trainer_name,
-        members: p.member_names.map((n: string) => {
+        members: (p.member_ids || []).map((memberId: string, i: number) => {
+          const n = p.member_names[i] ?? '—';
           const ini = n.split(' ').map((w: string) => w[0]).slice(0, 2).join('').toUpperCase();
-          return { id: '', name: n, initials: ini };
+          return { id: memberId, name: n, initials: ini };
         }),
         avClass: avatarClass(p.id),
         days: p.days || 5,
@@ -201,12 +203,22 @@ export default function TrainingPlansPage() {
   }
 
   async function handleRemoveMember(planId: string, memberId: string) {
+    if (!memberId) {
+      toast.error('No se pudo identificar al miembro. Actualiza el plan para cargar los datos.');
+      return;
+    }
     try {
       await trainingService.removeAssignment(planId, memberId);
       await fetchPlans();
       if (selectedId === planId) loadDetail(planId);
       toast.success('Miembro removido del plan');
     } catch (e: any) { toast.error(e.message); }
+  }
+
+  async function confirmRemoveMember() {
+    if (!removeTarget) return;
+    await handleRemoveMember(removeTarget.planId, removeTarget.memberId);
+    setRemoveTarget(null);
   }
 
   async function showMemberInfo(member: PlanMember) {
@@ -469,7 +481,7 @@ export default function TrainingPlansPage() {
                                   <button className="tp-assignee-action" title="Ver miembro" onClick={() => showMemberInfo(m)}>
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="13" height="13"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
                                   </button>
-                                  <button className="tp-assignee-action remove" title="Quitar" onClick={() => m.id && handleRemoveMember(selectedPlan.id, m.id)}>
+                                  <button className="tp-assignee-action remove" title="Quitar" onClick={() => setRemoveTarget({ planId: selectedPlan.id, memberId: m.id, memberName: m.name })}>
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="13" height="13"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                                   </button>
                                 </div>
@@ -643,6 +655,21 @@ export default function TrainingPlansPage() {
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 8 }}>
           <button className="tp-btn tp-btn-ghost" onClick={() => setDeleteTarget(null)}>Cancelar</button>
           <button className="tp-btn" style={{ background: '#f16565', color: '#fff', border: '1px solid #f16565' }} onClick={confirmDelete}>Eliminar</button>
+        </div>
+      </Modal>
+
+      <Modal open={removeTarget !== null} onClose={() => setRemoveTarget(null)} title="Quitar miembro" compact icon={<IconAlert width="16" height="16" />}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div style={{ fontSize: 13, lineHeight: 1.6 }}>
+            ¿Seguro que quieres quitar a <strong>{removeTarget?.memberName}</strong> del plan?
+          </div>
+          <div style={{ fontSize: 12, color: '#5f5f6a', background: 'rgba(241,101,101,0.12)', border: '1px solid rgba(241,101,101,0.2)', borderRadius: '0.25rem', padding: 12, lineHeight: 1.6 }}>
+            Solo se elimina la asignación del miembro a este plan. El miembro y su información no se borran.
+          </div>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 8 }}>
+          <button className="tp-btn tp-btn-ghost" onClick={() => setRemoveTarget(null)}>Cancelar</button>
+          <button className="tp-btn" style={{ background: '#f16565', color: '#fff', border: '1px solid #f16565' }} onClick={confirmRemoveMember}>Quitar</button>
         </div>
       </Modal>
 

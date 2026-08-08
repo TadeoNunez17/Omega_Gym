@@ -50,6 +50,7 @@ export interface PlanListItem {
   type: 'assigned' | 'draft'
   trainer_name: string
   member_name: string | null
+  member_ids: string[]
   member_names: string[]
   member_count: number
   assigned_to: string | null
@@ -90,27 +91,37 @@ export const trainingService = {
 
     if (error) throw error
 
-    const planIds = (data || []).map(p => p.id)
-    const { data: assignments } = await supabase
-      .from('plan_assignments')
-      .select('plan_id, member:profiles(full_name)')
-      .in('plan_id', planIds)
+    const plan_ids: string[] = (data || []).map(p => p.id)
 
-    const assigneesByPlan: Record<string, string[]> = {}
-    for (const a of assignments || []) {
-      if (!assigneesByPlan[a.plan_id]) assigneesByPlan[a.plan_id] = []
-      assigneesByPlan[a.plan_id].push((a.member as any).full_name)
+    const [assignmentsRes, memberProfileRes] = await Promise.all([
+      supabase
+        .from('plan_assignments')
+        .select('plan_id, member_id')
+        .in('plan_id', plan_ids),
+      supabase
+        .from('profiles')
+        .select('id, full_name')
+        .in('id', [...new Set((data || []).map((p: any) => p.assigned_to).filter(Boolean))]),
+    ])
+
+    const memberNameById: Record<string, string> = {}
+    for (const prof of memberProfileRes.data || []) {
+      memberNameById[prof.id] = prof.full_name
+    }
+    const assigneeIdsByPlan: Record<string, string[]> = {}
+    for (const a of assignmentsRes.data || []) {
+      if (!assigneeIdsByPlan[a.plan_id]) assigneeIdsByPlan[a.plan_id] = []
+      if (!assigneeIdsByPlan[a.plan_id].includes(a.member_id)) assigneeIdsByPlan[a.plan_id].push(a.member_id)
     }
 
     return {
       data: (data || []).map((p: any): PlanListItem => {
-        const memberNames = assigneesByPlan[p.id] || []
-        if (p.assignee?.full_name && !memberNames.includes(p.assignee.full_name)) {
-          memberNames.unshift(p.assignee.full_name)
-        }
-        const type = memberNames.length > 0 ? 'assigned' : 'draft'
+        const memberIds = assigneeIdsByPlan[p.id] || []
+        if (p.assigned_to && !memberIds.includes(p.assigned_to)) memberIds.push(p.assigned_to)
+        const memberNames = memberIds.map(id => memberNameById[id] || '—')
+        const type = memberIds.length > 0 ? 'assigned' : 'draft'
         const memberName = memberNames[0] || null
-        const extraCount = memberNames.length - 1
+        const extraCount = memberIds.length - 1
         return {
           id: p.id,
           name: p.name,
@@ -118,8 +129,9 @@ export const trainingService = {
           type,
           trainer_name: p.creator?.full_name ?? '—',
           member_name: extraCount > 0 ? `${memberName} +${extraCount}` : memberName,
+          member_ids: memberIds,
           member_names: memberNames,
-          member_count: memberNames.length,
+          member_count: memberIds.length,
           assigned_to: p.assigned_to ?? null,
           exercise_count: p.plan_exercises?.[0]?.count ?? 0,
           days: 0,
