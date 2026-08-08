@@ -25,6 +25,7 @@ import MyMembershipPage from '@/pages/member/MyMembership'
 import MyPaymentsPage from '@/pages/member/MyPayments'
 import MyCheckinsPage from '@/pages/member/MyCheckins'
 import MyProfilePage from '@/pages/member/MyProfile'
+import { PwaUpdateBanner } from '@/components/layout/PwaUpdateBanner'
 
 function AppLayout() {
   const user = useAuthStore((s) => s.user)
@@ -80,6 +81,7 @@ export default function App() {
         <Route path="/" element={<RootRedirect />} />
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
+      <PwaUpdateBanner />
     </AuthInit>
   )
 }
