@@ -365,6 +365,13 @@ export const membersService = {
     await supabase.rpc('cleanup_orphan_auth_users')
   },
 
+  hardDelete: async (id: string) => {
+    const { error } = await supabase.rpc('hard_delete_member', {
+      p_profile_id: id,
+    })
+    if (error) throw new Error(error.message)
+  },
+
   getPendingMembers: async (): Promise<MemberListItem[]> => {
     const { data, error } = await supabase
       .from('profiles')

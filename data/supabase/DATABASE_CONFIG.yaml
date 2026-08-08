@@ -18,7 +18,7 @@ model_status:
   overall: active
   last_reviewed: 2026-08-07
   approved_by: "admin"
-  notes: "Schema aplicado y en producción. Migración 012 (20260807000001): el perfil en profiles solo se crea/vincula cuando el email está confirmado (trigger AFTER INSERT OR UPDATE OF email_confirmed_at). Job pg_cron 'purge-unconfirmed-users' cada 30 min elimina cuentas auth sin confirmar tras 24h. Flujo SMS/phone de registro eliminado (solo email). Pendiente en Dashboard: SMTP custom + enable email confirmations + Site/Redirect URLs con dominio Vercel."
+  notes: "Schema aplicado y en producción. Migración 012 (20260807000001): el perfil en profiles solo se crea/vincula cuando el email está confirmado (trigger AFTER INSERT OR UPDATE OF email_confirmed_at). Job pg_cron 'purge-unconfirmed-users' cada 30 min elimina cuentas auth sin confirmar tras 24h. Flujo SMS/phone de registro eliminado (solo email). Migración 013 (20260808000001): RPC hard_delete_member para borrado físico de perfiles por admin (evita auto-eliminación y borrar el último admin; limpia cuenta auth y cascades). Migración 013 aplicada 2026-08-08. Pendiente en Dashboard: SMTP custom + enable email confirmations + Site/Redirect URLs con dominio Vercel."
 
 tables:
   - name: profiles

@@ -11,7 +11,7 @@ import { SearchInput } from '@/components/ui/molecules/SearchInput';
 import { TabBar } from '@/components/ui/molecules/TabBar';
 import { Pagination } from '@/components/ui/molecules/Pagination';
 import { MetricCard } from '@/components/ui/atoms/MetricCard';
-import { IconDownload, IconPlus, IconEye, IconEdit, IconClose, IconTrash, IconAlert } from '@/lib/icons';
+import { IconDownload, IconPlus, IconEye, IconEdit, IconTrash, IconAlert } from '@/lib/icons';
 import { checkInsService } from '@/services/checkIns.service';
 import { initials, avatarIndex, fmtDate, fmtPhone, daysDiff, AVATAR_COLORS } from '@/lib/helpers';
 import { membersService, type MemberListItem } from '@/services/members.service';
@@ -155,16 +155,6 @@ export default function MembersPage() {
     }
   }, [fName, fRole, resetForm, fetchMembers]);
 
-  const toggleStatus = useCallback(async (member: Member) => {
-    try {
-      const newStatus = member.status === 'active' ? false : true;
-      await membersService.toggleActive(member.id, newStatus);
-      fetchMembers();
-    } catch (e: any) {
-      toast.error('Error al cambiar estado: ' + e.message);
-    }
-  }, [fetchMembers]);
-
   const guardarDetail = useCallback(async () => {
     if (!detailTarget) return;
     setDetailSaving(true);
@@ -265,12 +255,12 @@ export default function MembersPage() {
     const target = deleteTarget;
     if (!target) return;
     try {
-      await membersService.remove(target.id);
-      toast.success(`Miembro "${target.name}" desactivado correctamente`);
+      await membersService.hardDelete(target.id);
+      toast.success(`Miembro "${target.name}" eliminado correctamente`);
       setDeleteTarget(null);
       fetchMembers();
     } catch (e: any) {
-      toast.error('Error al desactivar: ' + e.message);
+      toast.error('Error al eliminar: ' + e.message);
       setDeleteTarget(null);
     }
   }, [deleteTarget, fetchMembers]);
@@ -401,15 +391,6 @@ export default function MembersPage() {
             </IconButton>
           )}
           <IconButton title="Eliminar" danger onClick={() => deleteMember(m)}><IconTrash width="13" height="13" /></IconButton>
-          <IconButton title={m.status === 'active' ? 'Desactivar' : 'Activar'} danger
-            onClick={() => toggleStatus(m)}
-          >
-            {m.status === 'active' ? (
-              <IconClose width="13" height="13" />
-            ) : (
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10" /><polyline points="9 12 11 14 15 10" /></svg>
-            )}
-          </IconButton>
         </div>
       ),
     },
@@ -529,15 +510,6 @@ export default function MembersPage() {
                     </IconButton>
                   )}
                   <IconButton title="Eliminar" danger onClick={() => deleteMember(m)}><IconTrash width="13" height="13" /></IconButton>
-                  <IconButton title={m.status === 'active' ? 'Desactivar' : 'Activar'} danger
-                    onClick={() => toggleStatus(m)}
-                  >
-                    {m.status === 'active' ? (
-                      <IconClose width="13" height="13" />
-                    ) : (
-                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10" /><polyline points="9 12 11 14 15 10" /></svg>
-                    )}
-                  </IconButton>
                 </div>
               )}
               emptyMessage="No se encontraron miembros con ese criterio."
@@ -963,19 +935,19 @@ export default function MembersPage() {
         </div>
       </Modal>
 
-      <Modal open={deleteTarget !== null} onClose={() => setDeleteTarget(null)} title="Desactivar miembro" className="max-w-[400px]" icon={<IconAlert width="16" height="16" />}>
+      <Modal open={deleteTarget !== null} onClose={() => setDeleteTarget(null)} title="Eliminar miembro" className="max-w-[400px]" icon={<IconAlert width="16" height="16" />}>
         <div className="flex flex-col gap-4">
           <div className="text-[13px] text-text-1 leading-relaxed">
-            ¿Estás seguro de desactivar a <strong>{deleteTarget?.name}</strong>?
+            ¿Estás seguro de eliminar permanentemente a <strong>{deleteTarget?.name}</strong>?
           </div>
           <div className="text-[12px] text-text-3 bg-red-bg/10 border border-red/20 rounded-sm p-3 leading-relaxed">
-            El perfil volverá a estado pendiente. Se conservan: membresías, pagos, planes y registros de entrada.
-            El usuario no podrá iniciar sesión hasta que sea vinculado nuevamente.
+            Se borrarán del sistema: perfil, membresías, pagos, planes de entrenamiento, check-ins y su cuenta de usuario.
+            Esta acción no se puede deshacer.
           </div>
         </div>
         <div className="flex justify-end gap-2.5 mt-2">
           <Button variant="ghost" onClick={() => setDeleteTarget(null)}>Cancelar</Button>
-          <Button variant="danger" onClick={confirmDelete}>Desactivar</Button>
+          <Button variant="danger" onClick={confirmDelete}>Eliminar</Button>
         </div>
       </Modal>
 
