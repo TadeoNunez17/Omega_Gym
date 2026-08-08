@@ -38,7 +38,6 @@ export default function MyProfilePage() {
   const [editOpen, setEditOpen] = useState(false)
   const [editName, setEditName] = useState('')
   const [editPhone, setEditPhone] = useState('')
-  const [editAlias, setEditAlias] = useState('')
   const [editSaving, setEditSaving] = useState(false)
 
   useEffect(() => {
@@ -105,7 +104,6 @@ export default function MyProfilePage() {
   const openEdit = () => {
     setEditName(user.full_name)
     setEditPhone(user.phone || '')
-    setEditAlias(user.alias || '')
     setEditOpen(true)
   }
 
@@ -123,7 +121,6 @@ export default function MyProfilePage() {
       await useAuthStore.getState().updateProfile({
         full_name: editName.trim(),
         phone: editPhone.replace(/[\s\-()]/g, '') || null,
-        alias: editAlias.trim() || null,
       })
       toast.success('Perfil actualizado')
       setEditOpen(false)
@@ -340,17 +337,6 @@ export default function MyProfilePage() {
             onChange={e => setEditPhone(formatPhone(e.target.value))}
             disabled={editSaving}
             placeholder="10 dígitos"
-            className="w-full bg-transparent border border-border rounded-lg px-4 py-3 text-sm font-medium text-text-1 outline-none transition-all duration-150 placeholder:text-text-4 disabled:opacity-40 focus:border-accent"
-          />
-        </div>
-
-        <div>
-          <label className="text-[11px] text-text-3 font-semibold mb-1.5 block">Alias <span className="font-normal normal-case">(opcional)</span></label>
-          <input
-            type="text"
-            value={editAlias}
-            onChange={e => setEditAlias(e.target.value)}
-            disabled={editSaving}
             className="w-full bg-transparent border border-border rounded-lg px-4 py-3 text-sm font-medium text-text-1 outline-none transition-all duration-150 placeholder:text-text-4 disabled:opacity-40 focus:border-accent"
           />
         </div>

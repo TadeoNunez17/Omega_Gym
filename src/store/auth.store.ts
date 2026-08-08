@@ -13,7 +13,7 @@ interface AuthState {
   loginWithGoogle: () => Promise<void>
   logout: () => Promise<void>
   deleteAccount: () => Promise<void>
-  updateProfile: (payload: { full_name: string; phone: string | null; alias: string | null }) => Promise<void>
+  updateProfile: (payload: { full_name: string; phone: string | null; alias?: string | null }) => Promise<void>
   initialize: () => Promise<void>
 }
 
