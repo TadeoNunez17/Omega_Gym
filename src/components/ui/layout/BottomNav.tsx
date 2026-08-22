@@ -10,7 +10,6 @@ export interface BottomNavItem {
 const defaultItems: BottomNavItem[] = [
   { label: 'Plan', href: '/my-plan', icon: 'plan' },
   { label: 'Membresía', href: '/my-membership', icon: 'membership' },
-  { label: 'Pagos', href: '/my-payments', icon: 'payment' },
   ...(import.meta.env.DEV ? [{ label: 'Asistencia', href: '/my-checkins', icon: 'checkin' }] : []),
   { label: 'Perfil', href: '/my-profile', icon: 'profile' },
 ]

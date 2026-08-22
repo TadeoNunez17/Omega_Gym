@@ -199,7 +199,7 @@ export default function MembershipsPage() {
         type_id: selType,
         start_date: startDate,
         end_date: computedEnd,
-        payment_method: paymentMethod || undefined,
+        payment_method: paymentMethod || 'cash',
       });
       setModalOpen(false);
       resetForm();
@@ -715,7 +715,7 @@ export default function MembershipsPage() {
               )}
 
               <div className="flex flex-col gap-2">
-                <label className="text-[12px] text-text-2 font-medium tracking-[0.03em]">Método de pago <span className="text-text-3 font-normal">(opcional)</span></label>
+                <label className="text-[12px] text-text-2 font-medium tracking-[0.03em]">Método de pago <span className="text-text-3 font-normal">(Efectivo por defecto)</span></label>
                 <div className="grid grid-cols-2 gap-1.5">
                   {[
                     { value: 'cash' as const, label: 'Efectivo' },
@@ -747,12 +747,12 @@ export default function MembershipsPage() {
                     );
                   })}
                 </div>
-                {selTypeData && paymentMethod && (
+                {selTypeData && (
                   <div className="flex items-center gap-2 text-[12px] text-text-2 px-3 py-2 bg-surface2 border border-border2 rounded-sm">
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-text-3 shrink-0">
                       <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
                     </svg>
-                    <span><strong className="text-text">${selTypeData.price.toLocaleString()}</strong> — {paymentMethod === 'pending' ? 'Pendiente' : 'Pagado'} · {localDate(startDate || today).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                    <span><strong className="text-text">${selTypeData.price.toLocaleString()}</strong> — {paymentMethod === 'pending' ? 'Pendiente' : 'Pagado'} · {paymentMethod === 'pending' ? '' : paymentMethod === 'transfer' ? 'Transferencia' : paymentMethod === 'cash' ? 'Efectivo' : 'Efectivo (por defecto)'} · {localDate(startDate || today).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
                   </div>
                 )}
               </div>

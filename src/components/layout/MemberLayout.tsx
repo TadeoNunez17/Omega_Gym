@@ -8,6 +8,7 @@ import { BottomNav } from '@/components/ui/layout/BottomNav'
 
 const icons: Record<string, string> = {
   plan: '<path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>',
+  routines: '<line x1="6" y1="4" x2="18" y2="4"/><line x1="4" y1="9" x2="20" y2="9"/><line x1="4" y1="14" x2="20" y2="14"/><path d="M8 19l3-3 3 3"/><circle cx="17" cy="19" r="1.2"/>',
   membership: '<rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/>',
   payment: '<path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/>',
   checkin: '<rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><polyline points="9 13 12 16 17 11"/>',
@@ -20,18 +21,27 @@ interface NavItem {
   icon: string
 }
 
-const navItems: NavItem[] = [
+const baseNavItems: NavItem[] = [
   { label: 'Mi plan', href: '/my-plan', icon: 'plan' },
   { label: 'Membresía', href: '/my-membership', icon: 'membership' },
-  { label: 'Pagos', href: '/my-payments', icon: 'payment' },
   ...(import.meta.env.DEV ? [{ label: 'Asistencia', href: '/my-checkins', icon: 'checkin' }] : []),
   { label: 'Perfil', href: '/my-profile', icon: 'profile' },
 ]
+
+function getNavItems(role?: string): NavItem[] {
+  if (role !== 'member') return baseNavItems
+  return [
+    baseNavItems[0],
+    { label: 'Mis rutinas', href: '/my-routines', icon: 'routines' },
+    ...baseNavItems.slice(1),
+  ]
+}
 
 export function MemberLayout() {
   const { isOpen, toggle, close } = useSidebarStore()
   const pathname = useLocation().pathname
   const user = useAuthStore((s) => s.user)
+  const navItems = getNavItems(user?.role)
   const initials = user?.full_name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() || 'MB'
   const { theme, toggle: toggleTheme } = useThemeStore()
   const [showSettings, setShowSettings] = useState(false)
@@ -150,7 +160,7 @@ export function MemberLayout() {
         <main className="flex flex-col min-h-screen lg:ml-14 pb-16 lg:pb-0">
         <Outlet />
       </main>
-      <BottomNav />
+      <BottomNav items={navItems} icons={icons} />
     </div>
   )
 }

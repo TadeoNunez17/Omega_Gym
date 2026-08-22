@@ -182,6 +182,7 @@ export const trainingService = {
     description?: string
     created_by: string
     assigned_to?: string
+    kind?: 'trainer' | 'personal'
   }) => {
     const { data, error } = await supabase
       .from('training_plans')
@@ -190,6 +191,7 @@ export const trainingService = {
         description: input.description || null,
         created_by: input.created_by,
         assigned_to: input.assigned_to || null,
+        kind: input.kind || 'trainer',
       })
       .select()
       .single()
@@ -309,7 +311,7 @@ export const trainingService = {
     const [assignmentsRes, legacyRes] = await Promise.all([
       supabase
         .from('plan_assignments')
-        .select('plan_id')
+        .select('plan_id, visible')
         .eq('member_id', memberId),
       supabase
         .from('training_plans')
@@ -332,7 +334,23 @@ export const trainingService = {
       .in('id', [...ids])
 
     if (error) throw error
-    return (data || []) as (TrainingPlan & { creator: { id: string; full_name: string } | null })[]
+
+    // Preferencia por miembro desde plan_assignments (undefined = visible por defecto)
+    const visibilityByPlan: Record<string, boolean> = {}
+    for (const a of assignmentsRes.data || []) visibilityByPlan[a.plan_id] = a.visible ?? true
+
+    return ((data || []) as (TrainingPlan & { kind?: 'trainer' | 'personal'; creator: { id: string; full_name: string } | null; visible?: boolean })[])
+      .map(p => ({ ...p, visible: p.kind === 'personal' ? true : (visibilityByPlan[p.id] ?? p.visible ?? true) }))
+  },
+
+  /** Visibilidad de un plan asignado en Mi plan (RPC SECURITY DEFINER, por miembro) */
+  setAssignedVisibility: async (planId: string, visible: boolean): Promise<void> => {
+    const { error } = await supabase.rpc('set_assignment_visibility', {
+      p_plan_id: planId,
+      p_visible: visible,
+    })
+
+    if (error) throw error
   },
 
   getByMember: async (memberId: string) => {

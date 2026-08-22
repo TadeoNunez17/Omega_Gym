@@ -21,8 +21,8 @@ import TrainingPlansPage from '@/pages/dashboard/TrainingPlans'
 import FingerprintPage from '@/pages/dashboard/Fingerprint'
 import CheckInPage from '@/pages/kiosk/CheckIn'
 import MyPlanPage from '@/pages/member/MyPlan'
+import MyRoutinesPage from '@/pages/member/MyRoutines'
 import MyMembershipPage from '@/pages/member/MyMembership'
-import MyPaymentsPage from '@/pages/member/MyPayments'
 import MyCheckinsPage from '@/pages/member/MyCheckins'
 import MyProfilePage from '@/pages/member/MyProfile'
 import { PwaUpdateBanner } from '@/components/layout/PwaUpdateBanner'
@@ -72,8 +72,9 @@ export default function App() {
 
         <Route element={<ProtectedRoute roles={['member', 'admin', 'trainer']}><MemberLayout /></ProtectedRoute>}>
           <Route path="/my-plan" element={<MyPlanPage />} />
+          <Route path="/my-routines" element={<MyRoutinesPage />} />
           <Route path="/my-membership" element={<MyMembershipPage />} />
-          <Route path="/my-payments" element={<MyPaymentsPage />} />
+          <Route path="/my-payments" element={<Navigate to="/my-membership?tab=pagos" replace />} />
           <Route path="/my-checkins" element={<MyCheckinsPage />} />
           <Route path="/my-profile" element={<MyProfilePage />} />
         </Route>

@@ -1,9 +1,16 @@
 import { useState, useEffect, useCallback } from 'react';
+import { Link } from 'react-router-dom'
 import { useAuthStore } from '@/store/auth.store'
 import { trainingService, type TrainingPlan, type PlanExercise } from '@/services/training.service'
+import { routinesService } from '@/services/routines.service'
 import { exercisesService, type Exercise } from '@/services/exercises.service'
 
-const DAY_NAMES = ['Lun','Mar','Mié','Jue','Vie','Sáb'];
+const DAY_NAMES = ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
+
+type MemberPlan = TrainingPlan & {
+  creator: { id: string; full_name: string } | null;
+  origin: 'assigned' | 'personal';
+};
 const NOISE = "data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E";
 
 const staggerClass = (i: number) => {
@@ -15,13 +22,13 @@ export default function MyPlanPage() {
   const user = useAuthStore(s => s.user)
   const [day, setDay] = useState(new Date().getDay() === 0 ? 6 : new Date().getDay() - 1);
   const [loading, setLoading] = useState(true);
-  const [plans, setPlans] = useState<(TrainingPlan & { creator: { id: string; full_name: string } | null })[]>([])
+  const [plans, setPlans] = useState<MemberPlan[]>([])
   const [activePlanIdx, setActivePlanIdx] = useState(0)
   const [exercises, setExercises] = useState<PlanExercise[]>([])
   const [catalogMap, setCatalogMap] = useState<Map<string, Exercise>>(new Map())
   const [expandedExercises, setExpandedExercises] = useState<Set<string>>(new Set())
 
-  const loadPlan = useCallback(async (idx: number, allPlans: (TrainingPlan & { creator: { id: string; full_name: string } | null })[]) => {
+  const loadPlan = useCallback(async (idx: number, allPlans: MemberPlan[]) => {
     const target = allPlans[idx]
     setActivePlanIdx(idx)
     setExercises([])
@@ -48,11 +55,29 @@ export default function MyPlanPage() {
     const ctrl = { ignore: false }
     ;(async () => {
       try {
-        const allPlans = await trainingService.getByMemberAll(user.id)
+        const [assignedPlans, mineRoutines] = await Promise.all([
+          trainingService.getByMemberAll(user.id),
+          routinesService.getMine(user.id),
+        ])
         if (ctrl.ignore) return
-        setPlans(allPlans)
-        if (allPlans.length > 0) {
-          await loadPlan(0, allPlans)
+        // Asignadas por el entrenador primero (respetando preferencia del miembro), luego las rutinas propias visibles
+        const merged: MemberPlan[] = [
+          ...assignedPlans.filter(p => p.visible !== false).map((p): MemberPlan => ({ ...p, origin: 'assigned' })),
+          ...mineRoutines.filter(r => r.show_in_plan !== false).map((r): MemberPlan => ({
+            id: r.id,
+            name: r.name,
+            description: r.description,
+            assigned_to: null,
+            created_by: user.id,
+            created_at: r.created_at,
+            updated_at: r.updated_at,
+            creator: null,
+            origin: 'personal',
+          })),
+        ]
+        setPlans(merged)
+        if (merged.length > 0) {
+          await loadPlan(0, merged)
         }
       } catch (err) {
         console.error('Error loading plan:', err)
@@ -148,9 +173,6 @@ export default function MyPlanPage() {
         </div>
         <div className="min-w-0">
           <div className="text-sm font-bold">{currentPlan ? currentPlan.name : 'Mi plan de entrenamiento'}</div>
-          {currentPlan && currentPlan.creator && (
-            <div className="text-xs text-text-3 mt-0.5">{currentPlan.creator.full_name}</div>
-          )}
         </div>
         {currentPlan && (
           <div className="ml-auto text-[11px] font-bold text-accent bg-accent-dim border border-accent/40 px-2.5 py-[3px] rounded-full whitespace-nowrap">
@@ -164,8 +186,10 @@ export default function MyPlanPage() {
           <div className="w-14 h-14 rounded-full flex items-center justify-center" style={{ background: 'var(--amber-bg)', color: 'var(--amber-text)' }}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-7 h-7"><circle cx="12" cy="12" r="10"/><path d="M16 16s-1.5-2-4-2-4 2-4 2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>
           </div>
-          <div className="text-sm font-semibold">Sin plan de entrenamiento</div>
-          <div className="text-sm text-text-3 max-w-xs">Tu entrenador aún no te ha asignado un plan. Pregúntale en tu próxima sesión.</div>
+          <div className="text-sm font-semibold">Sin planes todavía</div>
+          <div className="text-sm text-text-3 max-w-xs">
+            Cuando tu entrenador te asigne un plan aparecerá aquí. También puedes crear tus propias rutinas en la sección <Link to="/my-routines" className="text-accent no-underline font-medium hover:underline">Mis rutinas</Link>.
+          </div>
         </div>
       ) : (
         <>
@@ -180,6 +204,11 @@ export default function MyPlanPage() {
                       : 'bg-transparent text-text-2 border-border'
                   }`}>
                   {p.name}
+                  {p.origin === 'personal' && (
+                    <span className={`inline-block ml-1.5 rounded-full px-[5px] py-[1px] text-[9px] uppercase tracking-wide ${
+                      idx === activePlanIdx ? 'bg-black/20 text-black/80' : 'bg-surface2 text-text-3'
+                    }`}>tuya</span>
+                  )}
                 </button>
               ))}
             </div>

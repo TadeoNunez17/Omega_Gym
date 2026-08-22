@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/atoms/Button'
 import { Input, Textarea } from '@/components/ui/atoms/Input'
 import { ExercisePicker } from './ExercisePicker'
 
-const DAYS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado']
+const DAYS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
 
 type LocalExercise = ExerciseInput & { _tempId: string }
 
@@ -32,6 +32,7 @@ interface Props {
   onClose: () => void
   onSave: (planId?: string) => void
   editPlan?: EditPlanData | null
+  kind?: 'trainer' | 'personal'
 }
 
 let _tempCounter = 0
@@ -46,7 +47,7 @@ function normalizeUrl(url: string): string {
   return v
 }
 
-export function RoutineBuilder({ open, onClose, onSave, editPlan }: Props) {
+export function RoutineBuilder({ open, onClose, onSave, editPlan, kind = 'trainer' }: Props) {
   const user = useAuthStore(s => s.user)
 
   const [step, setStep] = useState<1 | 2>(1)
@@ -221,7 +222,7 @@ export function RoutineBuilder({ open, onClose, onSave, editPlan }: Props) {
 
   const flatExercises = useCallback((): ExerciseInput[] => {
     const result: ExerciseInput[] = []
-    for (let d = 0; d < 6; d++) {
+    for (let d = 0; d < DAYS.length; d++) {
       const exs = exercisesByDay[d] || []
       exs.forEach((ex, i) => {
         result.push({ ...ex, order_index: i, day: d })
@@ -245,6 +246,7 @@ export function RoutineBuilder({ open, onClose, onSave, editPlan }: Props) {
           name: name.trim(),
           description: description.trim() || undefined,
           created_by: user.id,
+          kind,
         })
         editPlan = { id: plan.id, name: plan.name, description: plan.description, exercises: [] }
       }
@@ -504,7 +506,7 @@ export function RoutineBuilder({ open, onClose, onSave, editPlan }: Props) {
                 <div className="flex gap-2">
                   <Button variant="ghost" size="sm" onClick={onClose}>Cancelar</Button>
                   <Button variant="primary" size="sm" onClick={handleSave} disabled={!name.trim() || saving}>
-                    {saving ? 'Guardando...' : editPlan ? 'Guardar cambios' : 'Crear plan'}
+                    {saving ? 'Guardando...' : editPlan ? 'Guardar cambios' : kind === 'personal' ? 'Crear rutina' : 'Crear plan'}
                   </Button>
                 </div>
               </div>
