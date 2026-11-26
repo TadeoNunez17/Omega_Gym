@@ -175,3 +175,27 @@ Se completo la migracion de los 1,274 ejercicios restantes del dataset (total: 1
 ### Leccion: comas dobles al re-empaquetar seed
 
 Al reconstruir statements a partir de un archivo de seed multi-fila, cada fila del archivo termina en `,` (separador inter-fila). Un `join(',\n')` sin limpiar produce `),,` y `syntax error at or near ","`. Solucion: `.map(l => l.trim().replace(/,$/, ''))` antes de re-unir.
+
+---
+
+## ACTUALIZACION 2026-11-25: Nombres espanoles autoritativos (TKT-OMEGYM-053)
+
+### Resumen
+
+Se genero `supabase/migrations/20261125000001_exercise_names_es.sql` desde `diccionario_ejercicios.json` (1,324 registros) y se aplico en DEV. El diccionario es la fuente autoritativa: `name_es` se poblo para los 1,324 ejercicios (antes solo 50), `name` se conservo en ingles, `category` quedo en el conjunto cerrado de 10 etiquetas espanolas, `body_part` quedo con `categoria_en` y `muscle_group` con `parte_del_cuerpo`.
+
+### Reglas aplicadas
+
+- Join exclusivo por `external_id`; los nombres EN duplicados no generan ambiguedad.
+- `plan_exercises.exercise_name` y `workout_sets.exercise_name` se sincronizaron solo donde `exercise_id IS NOT NULL`; las copias sin FK quedan intactas.
+- `CREATE INDEX IF NOT EXISTS idx_exercises_name_es_trgm ON exercises USING gin(name_es gin_trgm_ops)`.
+- No se modificaron `name`, `gif_url`, `image_url` ni `instructions_es`.
+
+### Verificacion en DEV
+
+- 1,324 filas con `name_es`; 0 vacios; 0 desalineamientos contra el JSON en `name`, `name_es`, `category`, `body_part` y `muscle_group`.
+- Categorias: Core 169, Brazo 292, Pecho 163, Cardio 29, Cuello 2, Hombro 143, Pierna 227, Espalda 203, Antebrazo 37, Pantorrilla 59.
+- Copias: 89 filas de `plan_exercises` y 6 de `workout_sets` con FK, 0 desalineadas.
+- Busquedas `Press de banca con barra` y `barbell bench press` devuelven `external_id = '0025'`.
+- Ejercicio personalizado temporal sin `name_es` fue encontrable por su nombre original y se elimino despues de la prueba.
+- PROD queda pendiente; requiere aprobacion explicita y snapshot previo.

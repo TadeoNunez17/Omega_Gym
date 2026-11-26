@@ -25,13 +25,18 @@ export default defineConfig(({ command }) => ({
     VitePWA({
       registerType: 'prompt',
       injectRegister: false,
-      includeAssets: ['icons/*.svg', 'brand/omega-logo.png'],
+      manifestFilename: 'manifest.json',
+      includeAssets: ['icons/*.svg', 'icons/*.png', 'brand/omega-logo.png'],
       manifest: {
+        id: '/',
+        lang: 'es',
         name: 'Omega Gym',
         short_name: 'Omega Gym',
         description: 'Sistema de Gestión de Gimnasio',
-        theme_color: '#0f0f0f',
-        background_color: '#0f0f0f',
+        start_url: '/',
+        scope: '/',
+        theme_color: '#000000',
+        background_color: '#000000',
         display: 'standalone',
         orientation: 'portrait',
         icons: [
@@ -39,8 +44,8 @@ export default defineConfig(({ command }) => ({
           { src: '/icons/icon-72.svg', sizes: '72x72', type: 'image/svg+xml' },
           { src: '/icons/icon-96.svg', sizes: '96x96', type: 'image/svg+xml' },
           { src: '/icons/icon-128.svg', sizes: '128x128', type: 'image/svg+xml' },
-          { src: '/icons/icon-192.svg', sizes: '192x192', type: 'image/svg+xml' },
-          { src: '/icons/icon-512.svg', sizes: '512x512', type: 'image/svg+xml' },
+          { src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any maskable' },
+          { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' },
         ],
       },
       workbox: {

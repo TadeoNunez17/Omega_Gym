@@ -6,6 +6,13 @@ export type BuilderSet = {
   reps: string
 }
 
+export type BuilderSaveResult = {
+  planId?: string
+  created: boolean
+  name: string
+  scheduledDays: number[]
+}
+
 export type BuilderExercise = {
   /** Identificador local estable para listas y edición. */
   key: string
@@ -24,6 +31,8 @@ export type EditPlanData = {
   id: string
   name: string
   description?: string | null
+  /** Días programados (0=lunes … 6=domingo). Null/vacío = sin programar. */
+  scheduled_days?: number[] | null
   exercises: {
     exercise_id?: string | null
     exercise_name: string

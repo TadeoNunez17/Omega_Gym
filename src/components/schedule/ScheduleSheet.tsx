@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { BottomSheet } from '@/components/ui/molecules/BottomSheet'
-import { DAY_LABELS } from '@/lib/dates'
+import { DayPills } from './DayPills'
 
 interface Props {
   open: boolean
@@ -8,6 +8,7 @@ interface Props {
   planName?: string
   initialDays: number[] | null
   saving?: boolean
+  promptMode?: boolean
   onSave: (days: number[]) => void
 }
 
@@ -16,7 +17,7 @@ interface Props {
  * El estado se siembra al montar: los padres lo remontan con `key` en cada
  * apertura, así no hace falta reiniciarlo desde un effect.
  */
-export function ScheduleSheet({ open, onClose, planName, initialDays, saving, onSave }: Props) {
+export function ScheduleSheet({ open, onClose, planName, initialDays, saving, promptMode = false, onSave }: Props) {
   const [selected, setSelected] = useState<number[]>(() => initialDays ?? [])
 
   function toggle(day: number) {
@@ -34,7 +35,7 @@ export function ScheduleSheet({ open, onClose, planName, initialDays, saving, on
         <div className="flex gap-2">
           <button
             type="button"
-            onClick={() => setSelected([])}
+            onClick={() => (promptMode ? onSave([]) : setSelected([]))}
             className="flex-1 h-12 rounded-full bg-surface2 text-text-2 text-[14px] font-semibold border-none cursor-pointer active:opacity-70 transition-opacity"
           >
             Sin días
@@ -50,24 +51,7 @@ export function ScheduleSheet({ open, onClose, planName, initialDays, saving, on
         </div>
       }
     >
-      <div className="grid grid-cols-4 gap-2">
-        {DAY_LABELS.map((label, day) => {
-          const active = selected.includes(day)
-          return (
-            <button
-              key={label}
-              type="button"
-              aria-pressed={active}
-              onClick={() => toggle(day)}
-              className={`h-11 rounded-full text-[13px] font-semibold border-none cursor-pointer active:opacity-70 transition-colors ${
-                active ? 'bg-accent text-accent-contrast' : 'bg-surface2 text-text-2'
-              }`}
-            >
-              {label}
-            </button>
-          )
-        })}
-      </div>
+      <DayPills selected={selected} onToggle={toggle} />
 
       <p className="text-[12px] text-text-3 leading-relaxed mt-4">
         La rutina aparecerá en <span className="text-text">Inicio</span> los días seleccionados.

@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/atoms/Badge';
 import { Checkmark } from '@/components/ui/atoms/Checkmark';
 import { MetricCard } from '@/components/ui/atoms/MetricCard';
 import { ScreenHeader } from '@/components/ui/layout/ScreenHeader';
-import { RoutineBuilder, type EditPlanData } from '@/components/routine-builder/RoutineBuilder';
+import { RoutineBuilder, type BuilderSaveResult, type EditPlanData } from '@/components/routine-builder/RoutineBuilder';
 import { ScheduleSheet } from '@/components/schedule/ScheduleSheet';
 import { formatSchedule } from '@/lib/dates';
 import { Modal } from '@/components/ui/molecules/Modal';
@@ -102,6 +102,7 @@ export default function TrainingPlansPage() {
   const [selectedExId, setSelectedExId] = useState<string | null>(null);
   const [catalogMap, setCatalogMap] = useState<Map<string, Exercise>>(new Map());
   const [scheduleOpen, setScheduleOpen] = useState(false);
+  const [scheduleFromSave, setScheduleFromSave] = useState(false);
   const [scheduleSaving, setScheduleSaving] = useState(false);
 
   const navigate = useNavigate();
@@ -303,15 +304,20 @@ export default function TrainingPlansPage() {
   async function openEditPlan(planId: string) {
     try {
       const data = await trainingService.getById(planId);
-      setBuilderEditPlan({ id: data.id, name: data.name, description: data.description, exercises: data.exercises });
+      setBuilderEditPlan({ id: data.id, name: data.name, description: data.description, scheduled_days: data.scheduled_days ?? null, exercises: data.exercises });
       setBuilderOpen(true);
     } catch (e) { toast.error('Error al cargar plan: ' + getErrorMessage(e)); }
   }
 
-  async function onBuilderSave(planId?: string) {
+  async function onBuilderSave(result: BuilderSaveResult) {
     await fetchPlans();
+    const planId = result.planId;
     if (planId) { setSelectedId(planId); loadDetail(planId); }
     else if (selectedId) loadDetail(selectedId);
+    if (result.created && result.scheduledDays.length === 0 && planId) {
+      setScheduleFromSave(true);
+      setScheduleOpen(true);
+    }
   }
 
   async function saveSchedule(days: number[]) {
@@ -324,6 +330,7 @@ export default function TrainingPlansPage() {
       )));
       toast.success(days.length > 0 ? 'Días actualizados' : 'Plan sin días programados');
       setScheduleOpen(false);
+      setScheduleFromSave(false);
     } catch (e) {
       toast.error('No se pudo programar: ' + getErrorMessage(e));
     } finally {
@@ -472,7 +479,7 @@ export default function TrainingPlansPage() {
             actions={
               <>
                 <button
-                  onClick={() => setScheduleOpen(true)}
+                  onClick={() => { setScheduleFromSave(false); setScheduleOpen(true) }}
                   aria-label="Programar días"
                   className="w-9 h-9 rounded-full bg-surface2 border border-border text-text-2 flex items-center justify-center cursor-pointer transition-colors"
                 >
@@ -732,10 +739,11 @@ export default function TrainingPlansPage() {
       <ScheduleSheet
         key={`${scheduleOpen && selectedPlan ? 'o' : 'c'}-${selectedPlan?.id ?? ''}`}
         open={scheduleOpen && !!selectedPlan}
-        onClose={() => setScheduleOpen(false)}
+        onClose={() => { setScheduleOpen(false); setScheduleFromSave(false) }}
         planName={selectedPlan?.name}
         initialDays={selectedPlan?.scheduled_days ?? null}
         saving={scheduleSaving}
+        promptMode={scheduleFromSave}
         onSave={saveSchedule}
       />
 

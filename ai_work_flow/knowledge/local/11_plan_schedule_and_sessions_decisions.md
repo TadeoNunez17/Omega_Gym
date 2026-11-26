@@ -39,3 +39,7 @@
 ### Consecuencia conocida
 
 Una sesión cerrada sin finalizar no deja registro (decisión consciente para evitar filas huérfanas). El historial detallado por sesión queda para un cambio posterior; hoy solo se muestran agregados semanales.
+
+### Addendum (2026-11-26)
+
+La creación y edición de rutinas y planes también permite elegir `scheduled_days` desde el builder compartido, con la misma convención `0 = lunes … 6 = domingo`. Si una entidad nueva se guarda sin días, se abre el `ScheduleSheet` existente: `Sin días` confirma y cierra en ese prompt, mientras que en el menú «Programar días» sigue solo limpiando la selección. Cerrar el prompt no deshace el guardado. Esto amplía los entry points sin cambiar el modelo: `plan_exercises.day` continúa legacy y `day = null`. Ver el cambio `add-routine-schedule-in-builder`.

@@ -63,12 +63,13 @@ El builder MUST permitir agregar varios ejercicios desde el selector múltiple y
 
 ### Requirement: Sin reparto por días de la semana
 
-El sistema MUST NOT solicitar ni mostrar días de la semana al crear o editar una rutina o plan, y las vistas de consulta SHALL mostrar los ejercicios como una lista única.
+El sistema MUST NOT solicitar ni mostrar días de la semana para repartir ejercicios al crear o editar una rutina o plan, y las vistas de consulta SHALL mostrar los ejercicios como una lista única. La programación semanal de la entidad como unidad SHALL gestionarse por `scheduled_days`.
 
-#### Scenario: El builder no pide días
+#### Scenario: El builder no reparte ejercicios por día
 
 - **WHEN** el usuario crea o edita una rutina
-- **THEN** no aparece ningún selector de días de la semana
+- **THEN** no aparece ningún selector para asignar días a los ejercicios
+- **AND** el builder puede mostrar la programación semanal de la rutina o plan como unidad
 
 #### Scenario: Guardar una rutina
 

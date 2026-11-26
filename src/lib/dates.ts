@@ -22,6 +22,13 @@ export function localDateKey(date: Date): string {
   return `${y}-${m}-${d}`
 }
 
+/** Normaliza días: deduplica, filtra 0..6, ordena y convierte vacío en null. */
+export function normalizeDays(days: number[] | null | undefined): number[] | null {
+  const normalized = [...new Set((days ?? []).filter(day => Number.isInteger(day) && day >= 0 && day <= 6))]
+    .sort((a, b) => a - b)
+  return normalized.length > 0 ? normalized : null
+}
+
 export function formatSchedule(days: number[] | null | undefined): string {
   if (!days || days.length === 0) return 'Sin programar'
   return [...days].sort((a, b) => a - b).map(d => DAY_LABELS[d] ?? '?').join(' · ')

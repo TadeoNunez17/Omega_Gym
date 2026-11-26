@@ -15,7 +15,7 @@ Además, el formulario por ejercicio exige series/reps antes de poder agregarlo,
   - botón de ancho completo `+ Agregar ejercicio` (píldora acento) que abre el selector múltiple;
   - lista apilada de ejercicios; tocar una fila abre un bottom sheet con series, reps, notas y link;
   - defaults `3 × 12` al agregar y `reference_link` tomado del GIF del catálogo.
-- **BREAKING**: se elimina el selector de días en **todo** el sistema. `plan_exercises.day` deja de escribirse (`null`) y de leerse; la columna queda como legacy nullable. Sin migración ni borrado de datos históricos.
+- **BREAKING**: se elimina el reparto de ejercicios por día en **todo** el sistema. `plan_exercises.day` deja de escribirse (`null`) y de leerse; la columna queda como legacy nullable. La programación semanal de la rutina o plan como unidad (`training_plans.scheduled_days`) sigue disponible. Sin migración ni borrado de datos históricos.
 - **Consecuencias de UI**:
   - `/my-plan` deja de tener tabs Lun–Dom y muestra la lista completa del plan activo;
   - `/training-plans` deja de agrupar por día en el detalle y elimina el chip "N días" y el mini gráfico semanal;

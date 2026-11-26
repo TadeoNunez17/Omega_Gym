@@ -7,7 +7,7 @@ import { trainingService, type TrainingPlan, type PlanExercise } from '@/service
 import { Button } from '@/components/ui/atoms/Button'
 import { Input } from '@/components/ui/atoms/Input'
 import { Modal } from '@/components/ui/molecules/Modal'
-import { RoutineBuilder, type EditPlanData } from '@/components/routine-builder/RoutineBuilder'
+import { RoutineBuilder, type BuilderSaveResult, type EditPlanData } from '@/components/routine-builder/RoutineBuilder'
 import { WorkoutSession } from '@/components/workout/WorkoutSession'
 import { ScreenHeader } from '@/components/ui/layout/ScreenHeader'
 import { ScheduleSheet } from '@/components/schedule/ScheduleSheet'
@@ -18,6 +18,12 @@ import { getErrorMessage } from '@/lib/helpers'
 type AssignedPlan = TrainingPlan & {
   creator: { id: string; full_name: string } | null
   visible?: boolean
+}
+
+type ScheduleTarget = {
+  id: string
+  name: string
+  scheduled_days: number[] | null
 }
 
 const formatDate = (iso: string) =>
@@ -48,6 +54,7 @@ async function loadRoutineEditData(routineId: string): Promise<EditPlanData> {
     id: routine.id,
     name: routine.name,
     description: routine.description,
+    scheduled_days: routine.scheduled_days ?? null,
     exercises: exercises.map(ex => ({
       exercise_id: ex.exercise_id,
       exercise_name: ex.exercise_name,
@@ -86,7 +93,8 @@ export default function MyRoutinesPage() {
   const [shareLoading, setShareLoading] = useState(false)
 
   // Programación
-  const [scheduleFor, setScheduleFor] = useState<RoutineListItem | null>(null)
+  const [scheduleFor, setScheduleFor] = useState<ScheduleTarget | null>(null)
+  const [scheduleFromSave, setScheduleFromSave] = useState(false)
   const [scheduleSaving, setScheduleSaving] = useState(false)
 
   // Importar
@@ -303,6 +311,13 @@ export default function MyRoutinesPage() {
     setSession(null)
   }
 
+  const handleBuilderSave = (result: BuilderSaveResult) => {
+    void loadAll()
+    if (!result.created || result.scheduledDays.length > 0 || !result.planId) return
+    setScheduleFor({ id: result.planId, name: result.name, scheduled_days: null })
+    setScheduleFromSave(true)
+  }
+
   const saveSchedule = async (days: number[]) => {
     if (!scheduleFor) return
     setScheduleSaving(true)
@@ -313,6 +328,7 @@ export default function MyRoutinesPage() {
       )))
       toast.success(days.length > 0 ? 'Días actualizados' : 'Rutina sin días programados')
       setScheduleFor(null)
+      setScheduleFromSave(false)
     } catch (e) {
       toast.error('No se pudo programar: ' + getErrorMessage(e))
     } finally {
@@ -406,7 +422,7 @@ export default function MyRoutinesPage() {
             {routines.map((r, i) => (
               <article
                 key={r.id}
-                className={`bg-surface rounded-card p-5 animate-slide-up ${i < 7 ? `stagger-${i + 1}` : ''}`}
+                className={`relative bg-surface rounded-card p-5 animate-slide-up ${menuFor === r.id ? 'z-10' : ''} ${i < 7 ? `stagger-${i + 1}` : ''}`}
               >
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0 flex-1">
@@ -461,7 +477,7 @@ export default function MyRoutinesPage() {
                           <MenuItem
                             label="Programar días"
                             icon={<><rect x="3" y="4" width="18" height="18" rx="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /></>}
-                            onClick={() => { setMenuFor(null); setScheduleFor(r) }}
+                            onClick={() => { setMenuFor(null); setScheduleFromSave(false); setScheduleFor(r) }}
                           />
                           <MenuItem
                             label="Compartir por código"
@@ -513,7 +529,7 @@ export default function MyRoutinesPage() {
 
             <div className="flex flex-col gap-3">
               {assignedPlans.map(a => (
-                <article key={a.id} className="bg-surface rounded-card p-5">
+                <article key={a.id} className={`relative bg-surface rounded-card p-5 ${menuFor === a.id ? 'z-10' : ''}`}>
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0 flex-1">
                       <h2 className="text-[15px] font-bold truncate">{a.name}</h2>
@@ -697,7 +713,7 @@ export default function MyRoutinesPage() {
         key={`${builderOpen ? 'o' : 'c'}-${editData?.id ?? 'new'}`}
         open={builderOpen}
         onClose={() => setBuilderOpen(false)}
-        onSave={() => { loadAll() }}
+        onSave={handleBuilderSave}
         editPlan={editData}
         kind="personal"
       />
@@ -706,10 +722,11 @@ export default function MyRoutinesPage() {
       <ScheduleSheet
         key={`${scheduleFor ? 'o' : 'c'}-${scheduleFor?.id ?? ''}`}
         open={scheduleFor !== null}
-        onClose={() => setScheduleFor(null)}
+        onClose={() => { setScheduleFor(null); setScheduleFromSave(false) }}
         planName={scheduleFor?.name}
         initialDays={scheduleFor?.scheduled_days ?? null}
         saving={scheduleSaving}
+        promptMode={scheduleFromSave}
         onSave={saveSchedule}
       />
     </>

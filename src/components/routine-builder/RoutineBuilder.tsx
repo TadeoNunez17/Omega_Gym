@@ -6,15 +6,17 @@ import { useAuthStore } from '@/store/auth.store'
 import { ExerciseMultiPicker } from './ExerciseMultiPicker'
 import { ExerciseMetaSheet, type ExerciseMetaMode } from './ExerciseMetaSheet'
 import { ConfirmSheet } from '@/components/ui/molecules/ConfirmSheet'
-import type { BuilderExercise, BuilderSet, EditPlanData } from './types'
+import { DayPills } from '@/components/schedule/DayPills'
+import type { BuilderExercise, BuilderSaveResult, BuilderSet, EditPlanData } from './types'
 
-export type { EditPlanData } from './types'
+export type { BuilderSaveResult, EditPlanData } from './types'
+import { normalizeDays } from '@/lib/dates'
 import { getErrorMessage } from '@/lib/helpers'
 
 interface Props {
   open: boolean
   onClose: () => void
-  onSave: (planId?: string) => void
+  onSave: (result: BuilderSaveResult) => void
   editPlan?: EditPlanData | null
   kind?: 'trainer' | 'personal'
 }
@@ -54,10 +56,11 @@ function toPlanSets(sets: BuilderSet[]): PlanSet[] {
     .filter(set => set.weight !== null || set.reps !== null)
 }
 
-function snapshot(name: string, description: string, exercises: BuilderExercise[]): string {
+function snapshot(name: string, description: string, scheduledDays: number[], exercises: BuilderExercise[]): string {
   return JSON.stringify({
     name,
     description,
+    scheduledDays: [...scheduledDays].sort((a, b) => a - b),
     exercises: exercises.map(e => [
       e.exercise_id,
       e.exercise_name,
@@ -77,10 +80,12 @@ const SET_INPUT =
 function seedFromPlan(editPlan?: EditPlanData | null): {
   name: string
   description: string
+  scheduledDays: number[]
   exercises: BuilderExercise[]
 } {
   const name = editPlan?.name ?? ''
   const description = editPlan?.description ?? ''
+  const scheduledDays = normalizeDays(editPlan?.scheduled_days) ?? []
   const exercises: BuilderExercise[] = editPlan
     ? [...editPlan.exercises]
         .sort((a, b) => a.order_index - b.order_index)
@@ -97,7 +102,7 @@ function seedFromPlan(editPlan?: EditPlanData | null): {
           set_details: setsFromPlan(ex),
         }))
     : []
-  return { name, description, exercises }
+  return { name, description, scheduledDays, exercises }
 }
 
 export function RoutineBuilder({ open, onClose, onSave, editPlan, kind = 'trainer' }: Props) {
@@ -108,6 +113,7 @@ export function RoutineBuilder({ open, onClose, onSave, editPlan, kind = 'traine
   const [seed] = useState(() => seedFromPlan(editPlan))
   const [name, setName] = useState(seed.name)
   const [description, setDescription] = useState(seed.description)
+  const [scheduledDays, setScheduledDays] = useState<number[]>(seed.scheduledDays)
   const [exercises, setExercises] = useState<BuilderExercise[]>(seed.exercises)
 
   const [pickerOpen, setPickerOpen] = useState(false)
@@ -116,14 +122,20 @@ export function RoutineBuilder({ open, onClose, onSave, editPlan, kind = 'traine
   const [confirm, setConfirm] = useState<'close' | 'empty' | null>(null)
   const [triedName, setTriedName] = useState(false)
   const [saving, setSaving] = useState(false)
-  const [baseline] = useState(() => snapshot(seed.name, seed.description, seed.exercises))
+  const [baseline] = useState(() => snapshot(seed.name, seed.description, seed.scheduledDays, seed.exercises))
 
   const isDirty = useMemo(
-    () => open && snapshot(name, description, exercises) !== baseline,
-    [open, name, description, exercises, baseline],
+    () => open && snapshot(name, description, scheduledDays, exercises) !== baseline,
+    [open, name, description, scheduledDays, exercises, baseline],
   )
 
   const metaExercise = exercises.find(e => e.key === meta?.key) ?? null
+
+  function toggleDay(day: number) {
+    setScheduledDays(prev => (
+      prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day].sort((a, b) => a - b)
+    ))
+  }
 
   function addExercises(selected: Exercise[]) {
     const existing = new Set(
@@ -214,6 +226,7 @@ export function RoutineBuilder({ open, onClose, onSave, editPlan, kind = 'traine
       toast.error('Cada serie con peso necesita repeticiones')
       return
     }
+    const days = normalizeDays(scheduledDays)
     setSaving(true)
     try {
       let planId = editPlan?.id
@@ -221,6 +234,7 @@ export function RoutineBuilder({ open, onClose, onSave, editPlan, kind = 'traine
         await trainingService.update(planId, {
           name: name.trim(),
           description: description.trim() || null,
+          scheduled_days: days,
         })
       } else {
         const plan = await trainingService.create({
@@ -228,6 +242,7 @@ export function RoutineBuilder({ open, onClose, onSave, editPlan, kind = 'traine
           description: description.trim() || undefined,
           created_by: user.id,
           kind,
+          scheduled_days: days,
         })
         planId = plan.id
       }
@@ -251,7 +266,12 @@ export function RoutineBuilder({ open, onClose, onSave, editPlan, kind = 'traine
 
       await trainingService.upsertExercises(planId, payload)
       toast.success(editPlan ? 'Rutina actualizada' : kind === 'personal' ? 'Rutina creada' : 'Plan creado')
-      onSave(planId)
+      onSave({
+        planId,
+        created: !editPlan,
+        name: name.trim(),
+        scheduledDays: days ?? [],
+      })
       onClose()
     } catch (e) {
       toast.error('Error al guardar: ' + getErrorMessage(e, 'intenta de nuevo'))
@@ -328,6 +348,13 @@ export function RoutineBuilder({ open, onClose, onSave, editPlan, kind = 'traine
             rows={2}
             className="mt-3 w-full bg-surface2 border-none rounded-2xl px-4 py-3.5 resize-none text-[13px] leading-relaxed text-text-2 placeholder:text-text-2 outline-none focus:ring-2 focus:ring-accent/30 transition-shadow"
           />
+        </div>
+
+        <div className="mt-5">
+          <div className="mb-2 text-[11px] uppercase tracking-[0.08em] text-text-2 font-bold">
+            DÍAS PROGRAMADOS (OPCIONAL)
+          </div>
+          <DayPills compact selected={scheduledDays} onToggle={toggleDay} />
         </div>
 
         <div className="mt-5 flex items-center justify-between">

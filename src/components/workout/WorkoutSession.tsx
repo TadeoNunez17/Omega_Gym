@@ -32,6 +32,7 @@ type SessionExercise = {
   name: string
   muscle: string | null
   notes: string | null
+  reference_link: string | null
   sets: SessionSet[]
 }
 
@@ -47,6 +48,7 @@ function buildExercises(exercises: PlanExercise[]): SessionExercise[] {
       name: ex.exercise_name,
       muscle: ex.muscle,
       notes: ex.notes,
+      reference_link: ex.reference_link,
       sets: planned.map(set => ({
         weight: set.weight != null ? String(set.weight) : '',
         reps: set.reps != null ? String(set.reps) : '',
@@ -68,6 +70,50 @@ const INPUT =
   'h-10 w-full bg-surface2 border-none rounded-xl px-2 text-center text-[14px] font-semibold ' +
   'text-text outline-none placeholder:text-text-3 focus:ring-2 focus:ring-red/40 transition-shadow'
 
+function thumbnailSource(ex: SessionExercise, catalog?: Exercise): string | null {
+  return catalog?.image_url || catalog?.gif_url || ex.reference_link || null
+}
+
+function ExerciseThumb({ src }: { src: string | null }) {
+  const [failed, setFailed] = useState(false)
+
+  if (!src || failed) {
+    return (
+      <div className="w-8 h-8 rounded-full border border-dashed border-border2 bg-surface2 text-text-3 flex items-center justify-center shrink-0">
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden="true"
+        >
+          <rect x="3" y="4" width="18" height="16" rx="3" />
+          <circle cx="9" cy="9" r="1.6" />
+          <path d="M4 17l4.5-4.5a2 2 0 0 1 2.8 0L15 16" />
+          <path d="M14 15l2-2a2 2 0 0 1 2.8 0L20 14" />
+        </svg>
+      </div>
+    )
+  }
+
+  return (
+    <div className="w-8 h-8 rounded-full bg-white border border-border2 overflow-hidden flex items-center justify-center shrink-0">
+      <img
+        src={src}
+        alt=""
+        loading="lazy"
+        decoding="async"
+        onError={() => setFailed(true)}
+        className="w-full h-full object-contain"
+      />
+    </div>
+  )
+}
+
 /**
  * Sesión de entrenamiento: registra peso y reps por serie y guarda el
  * entrenamiento al finalizar. Si se cierra antes, no se persiste nada.
@@ -78,14 +124,36 @@ export function WorkoutSession({ open, onClose, planName, planId, memberId, exer
   const [items, setItems] = useState<SessionExercise[]>(() => buildExercises(exercises))
   const [startedAt] = useState<string>(() => new Date().toISOString())
   const [saving, setSaving] = useState(false)
+  const [catalogById, setCatalogById] = useState<Partial<Record<string, Exercise>>>({})
+  const loadedCatalogIds = useRef(new Set<string>())
+  const catalogRequest = useRef(0)
 
   // Ficha de técnica: se abre desde el encabezado de cada ejercicio.
   const [detailKey, setDetailKey] = useState<string | null>(null)
   const [detailExercise, setDetailExercise] = useState<Exercise | null>(null)
   const [detailLoading, setDetailLoading] = useState(false)
   const [detailFailed, setDetailFailed] = useState(false)
-  const detailCache = useRef<Map<string, Exercise | null>>(new Map())
   const detailRequest = useRef<string | null>(null)
+
+  useEffect(() => {
+    if (!open || loading) return
+    const ids = [...new Set(exercises.map(ex => ex.exercise_id).filter((id): id is string => Boolean(id)))]
+    const pending = ids.filter(id => !loadedCatalogIds.current.has(id))
+    if (pending.length === 0) return
+    const req = ++catalogRequest.current
+    for (const id of pending) loadedCatalogIds.current.add(id)
+    exercisesService.getByIds(pending)
+      .then(rows => {
+        if (req !== catalogRequest.current || rows.length === 0) return
+        setCatalogById(prev => {
+          const next = { ...prev }
+          for (const row of rows) next[row.id] = row
+          return next
+        })
+      })
+      .catch(() => undefined)
+    return () => { catalogRequest.current += 1 }
+  }, [open, loading, exercises])
 
   useEffect(() => {
     if (!open) return
@@ -182,6 +250,7 @@ export function WorkoutSession({ open, onClose, planName, planId, memberId, exer
   function openDetail(ex: SessionExercise) {
     setDetailKey(ex.key)
     setDetailFailed(false)
+    detailRequest.current = ex.exercise_id
 
     const id = ex.exercise_id
     if (!id) {
@@ -190,8 +259,8 @@ export function WorkoutSession({ open, onClose, planName, planId, memberId, exer
       return
     }
 
-    const cached = detailCache.current.get(id)
-    if (cached !== undefined) {
+    const cached = catalogById[id]
+    if (cached) {
       setDetailExercise(cached)
       setDetailLoading(false)
       return
@@ -199,12 +268,12 @@ export function WorkoutSession({ open, onClose, planName, planId, memberId, exer
 
     setDetailExercise(null)
     setDetailLoading(true)
-    detailRequest.current = id
 
     exercisesService.getById(id)
       .then(data => {
-        detailCache.current.set(id, data)
-        if (detailRequest.current === id) setDetailExercise(data)
+        if (detailRequest.current !== id) return
+        if (data) setCatalogById(prev => ({ ...prev, [id]: data }))
+        setDetailExercise(data)
       })
       .catch(() => {
         if (detailRequest.current === id) setDetailFailed(true)
@@ -220,7 +289,7 @@ export function WorkoutSession({ open, onClose, planName, planId, memberId, exer
     setDetailLoading(false)
   }
 
-  const detailMedia = detailExercise?.gif_url || detailExercise?.image_url || null
+  const detailMedia = detailExercise?.gif_url || detailExercise?.image_url || detailItem?.reference_link || null
   const detailName = detailExercise?.name_es || detailItem?.name || 'Ejercicio'
   const detailMuscle = detailExercise?.muscle_group
     ? muscleLabel(detailExercise.muscle_group)
@@ -281,7 +350,7 @@ export function WorkoutSession({ open, onClose, planName, planId, memberId, exer
           </div>
         ) : (
           <div className="flex flex-col gap-3">
-            {items.map((ex, exIndex) => (
+            {items.map(ex => (
               <article key={ex.key} className="bg-surface rounded-card p-4">
                 <button
                   type="button"
@@ -290,9 +359,10 @@ export function WorkoutSession({ open, onClose, planName, planId, memberId, exer
                   aria-label={`Ver técnica de ${ex.name}`}
                   className="w-full flex items-center gap-3 text-left bg-transparent border-none p-0 cursor-pointer active:opacity-70 transition-opacity"
                 >
-                  <div className="w-7 h-7 rounded-full bg-red-bg text-red flex items-center justify-center text-[11px] font-bold shrink-0">
-                    {exIndex + 1}
-                  </div>
+                  <ExerciseThumb
+                    key={thumbnailSource(ex, ex.exercise_id ? catalogById[ex.exercise_id] : undefined) ?? 'empty'}
+                    src={thumbnailSource(ex, ex.exercise_id ? catalogById[ex.exercise_id] : undefined)}
+                  />
                   <div className="min-w-0 flex-1">
                     <div className="text-[14px] font-semibold truncate">{ex.name}</div>
                     {ex.muscle && <div className="text-[11px] text-text-3 truncate mt-0.5">{ex.muscle}</div>}

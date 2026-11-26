@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { BottomSheet } from '@/components/ui/molecules/BottomSheet'
+import { usePwaInstall } from '@/hooks/usePwaInstall'
 import { FAQ, FACTS, GYM, MEMBERSHIPS, type WeeklyHours } from './landing-content'
 
 const NAV_LINKS = [
@@ -133,7 +135,54 @@ function OpenStatus() {
   )
 }
 
+function InstallGuide({ platform }: { platform: 'ios' | 'android' | 'other' }) {
+  const steps =
+    platform === 'ios'
+      ? [
+          'Abre esta página en Safari.',
+          'Toca el botón Compartir, el cuadrado con una flecha.',
+          'Elige “Agregar a pantalla de inicio”.',
+          'Confirma el nombre y toca “Agregar”.',
+        ]
+      : [
+          'Abre el menú del navegador, los tres puntos.',
+          'Toca “Instalar app” o “Agregar a pantalla de inicio”.',
+          'Confirma el nombre y completa la instalación.',
+        ]
+
+  return (
+    <div className="space-y-4">
+      {platform === 'ios' && (
+        <p className="rounded-tile bg-surface2 p-4 text-[13px] leading-relaxed text-text-2">
+          En iPhone y iPad el navegador no puede instalar la app automáticamente. Safari crea el acceso directo desde el menú Compartir.
+        </p>
+      )}
+      <ol className="space-y-3">
+        {steps.map((step, index) => (
+          <li key={step} className="flex gap-3 rounded-tile border border-border bg-surface p-4">
+            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-accent text-[12px] font-bold text-accent-contrast">
+              {index + 1}
+            </span>
+            <span className="text-[14px] leading-relaxed text-text">{step}</span>
+          </li>
+        ))}
+      </ol>
+    </div>
+  )
+}
+
 export default function LandingPage() {
+  const { platform, canPrompt, showCta, install } = usePwaInstall()
+  const [installSheetOpen, setInstallSheetOpen] = useState(false)
+
+  function handleInstall() {
+    if (platform === 'android' && canPrompt) {
+      void install()
+      return
+    }
+    setInstallSheetOpen(true)
+  }
+
   return (
     <div className="flex min-h-dvh flex-col bg-bg text-text selection:bg-accent/20" data-brand-accent="coral">
       <header className="sticky top-0 z-40 border-b border-border bg-bg/80 backdrop-blur-xl">
@@ -199,6 +248,30 @@ export default function LandingPage() {
               <Link to="/login" className={`${BTN_GHOST} ${BTN_LG}`}>
                 Iniciar sesión
               </Link>
+              {showCta && (
+                <button
+                  type="button"
+                  onClick={handleInstall}
+                  className={`${BTN_GHOST} ${BTN_LG} md:hidden`}
+                >
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden="true"
+                  >
+                    <path d="M12 3v12" />
+                    <polyline points="7 10 12 15 17 10" />
+                    <path d="M5 20h14" />
+                  </svg>
+                  Instalar app
+                </button>
+              )}
             </div>
           </div>
 
@@ -393,6 +466,15 @@ export default function LandingPage() {
           <span>© {new Date().getFullYear()} Omega Gym. Todos los derechos reservados.</span>
         </div>
       </footer>
+
+      <BottomSheet
+        open={installSheetOpen}
+        onClose={() => setInstallSheetOpen(false)}
+        title="Instalar Omega Gym"
+        subtitle="Acceso directo en tu pantalla de inicio"
+      >
+        <InstallGuide platform={platform} />
+      </BottomSheet>
     </div>
   )
 }

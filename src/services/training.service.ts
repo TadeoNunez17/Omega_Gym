@@ -1,6 +1,7 @@
 import { supabase } from '@/lib/supabase'
 import { isMissingColumnError } from '@/lib/supabase-errors'
 import { one, type Embedded } from '@/lib/embed'
+import { normalizeDays } from '@/lib/dates'
 import { membershipsService, NO_ACTIVE_MEMBERSHIP_MESSAGE } from './memberships.service'
 
 function escapeSearch(s: string): string {
@@ -457,10 +458,9 @@ export const trainingService = {
 
   /** Programa los días de la semana de un plan (0=lunes … 6=domingo). */
   setSchedule: async (planId: string, days: number[]): Promise<void> => {
-    const normalized = [...new Set(days.filter(d => d >= 0 && d <= 6))].sort((a, b) => a - b)
     const { error } = await supabase
       .from('training_plans')
-      .update({ scheduled_days: normalized.length > 0 ? normalized : null })
+      .update({ scheduled_days: normalizeDays(days) })
       .eq('id', planId)
 
     if (error) throw error
